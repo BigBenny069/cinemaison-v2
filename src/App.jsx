@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Menu, Shuffle, ChevronLeft, Pencil, Trash2, Star } from "lucide-react";
+import { Menu, Shuffle, ChevronLeft, Pencil, Trash2, Star, Film, Clock } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* TOKENS — palette CinéMaison                                        */
@@ -128,6 +128,16 @@ function DateStamp({ days }) {
   );
 }
 
+function SectionTitle({ children, icon: Icon = Film }) {
+  return (
+    <div className="flex items-center gap-2 px-4 mb-2">
+      <Icon size={13} color={T.accent} style={{ flexShrink: 0 }} />
+      <span style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: 1.4, color: T.cream, fontWeight: 600, whiteSpace: "nowrap" }}>{children}</span>
+      <span style={{ height: 1, flex: 1, background: T.accent, opacity: 0.5 }} />
+    </div>
+  );
+}
+
 function Perforation() {
   return (
     <div className="relative w-px self-stretch flex-shrink-0">
@@ -245,7 +255,7 @@ function AccueilScreen({ films, onOpen }) {
 
       {bientot.length > 0 && (
         <>
-          <p className="px-4 mb-2" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>ÇA PART BIENTÔT</p>
+          <SectionTitle icon={Clock}>ÇA PART BIENTÔT</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
@@ -255,7 +265,7 @@ function AccueilScreen({ films, onOpen }) {
         </>
       )}
 
-      <p className="px-4 mb-2" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>DERNIERS AJOUTS</p>
+      <SectionTitle icon={Film}>DERNIERS AJOUTS</SectionTitle>
       <div className="flex gap-3 px-4 overflow-x-auto mb-5">
         {derniers.map((f) => (
           <MiniCard key={f.id} film={f} onOpen={onOpen}
@@ -265,10 +275,7 @@ function AccueilScreen({ films, onOpen }) {
 
       {suggestion && (
         <>
-          <div className="px-4 flex items-center gap-1.5 mb-2">
-            <Shuffle size={12} color={T.mutedDim} />
-            <p style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>SUGGESTION DU SOIR</p>
-          </div>
+          <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
           <div className="px-4">
             <TicketCard film={suggestion} onOpen={onOpen} />
           </div>
