@@ -51,6 +51,13 @@ function computeExpiryDays(film) {
   return days;
 }
 
+// Ignore les valeurs texte non-numériques du Sheet (ex. "PAS DE NOTE")
+function parseRating(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 /* ------------------------------------------------------------------ */
 /* PLATEFORMES — logos réels si présents dans /public/logos/,          */
 /* sinon repli automatique sur une pastille avec l'initiale            */
@@ -104,13 +111,14 @@ function Poster({ film, className, style }) {
 }
 
 function RatingStamp({ value, size = 58 }) {
-  if (value == null) return null;
+  const rating = parseRating(value);
+  if (rating == null) return null;
   return (
     <div className="flex flex-col items-center justify-center flex-shrink-0"
       style={{ width: size, height: size, borderRadius: "50%", border: `2px solid ${T.accent}`,
         boxShadow: `inset 0 0 0 2px ${T.bg}, inset 0 0 0 4px ${T.accent}`, transform: "rotate(-6deg)", background: "rgba(197,141,41,0.06)" }}>
       <Star size={size * 0.26} color={T.accent} fill={T.accent} strokeWidth={0} style={{ marginBottom: 2 }} />
-      <span style={{ fontFamily: F.marquee, fontSize: size * 0.38, color: T.accent, lineHeight: 1 }}>{Number(value).toFixed(1)}</span>
+      <span style={{ fontFamily: F.marquee, fontSize: size * 0.38, color: T.accent, lineHeight: 1 }}>{rating.toFixed(1)}</span>
     </div>
   );
 }
@@ -192,8 +200,8 @@ function TicketCard({ film, onOpen }) {
           <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.5, color: T.muted }}>{(film.plateforme || "").toUpperCase()}</span>
           {expiryDays != null ? (
             <span style={{ fontFamily: F.mono, fontSize: 10, color: T.alert, fontWeight: 600 }}>{`J-${expiryDays}`}</span>
-          ) : film.noteLetterboxd != null ? (
-            <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600 }}>★ {Number(film.noteLetterboxd).toFixed(1)}</span>
+          ) : parseRating(film.noteLetterboxd) != null ? (
+            <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600 }}>★ {parseRating(film.noteLetterboxd).toFixed(1)}</span>
           ) : null}
         </div>
       </div>
@@ -229,12 +237,13 @@ function AccueilScreen({ films, onOpen }) {
       .map((x) => x.f);
   }, [films]);
 
-  // Pas encore de colonne "date d'ajout" dans le Sheet : on approxime avec
-  // l'ID (FILMxxxx croissant = ajouté plus tard), en attendant mieux.
+  // L'API renvoie les films dans l'ordre des lignes du Sheet, qui est
+  // fiable pour l'ordre d'ajout (les nouvelles fiches sont ajoutées en bas).
+  // Les ID ne sont volontairement pas utilisés pour ce tri : certains sont
+  // séquentiels (FILM0001...) mais d'autres, issus d'anciens imports, sont
+  // des identifiants aléatoires — les mélanger fausse le classement.
   const derniers = useMemo(() => {
-    return [...films]
-      .sort((a, b) => String(b.id).localeCompare(String(a.id), undefined, { numeric: true }))
-      .slice(0, 8);
+    return [...films].reverse().slice(0, 8);
   }, [films]);
 
   const [suggestion] = useState(() => films[Math.floor(Math.random() * films.length)]);
@@ -259,7 +268,7 @@ function AccueilScreen({ films, onOpen }) {
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
-                sub={f.noteLetterboxd != null ? `★ ${Number(f.noteLetterboxd).toFixed(1)}` : ""} showStamp />
+                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""} showStamp />
             ))}
           </div>
         </>
@@ -269,7 +278,7 @@ function AccueilScreen({ films, onOpen }) {
       <div className="flex gap-3 px-4 overflow-x-auto mb-5">
         {derniers.map((f) => (
           <MiniCard key={f.id} film={f} onOpen={onOpen}
-            sub={f.noteLetterboxd != null ? `★ ${Number(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
+            sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
         ))}
       </div>
 
