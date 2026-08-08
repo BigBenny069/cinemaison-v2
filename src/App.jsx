@@ -427,7 +427,129 @@ function TagSelector({ film, onSaved }) {
   );
 }
 
-function FicheDetailScreen({ film, onBack, onFilmUpdated, onDelete }) {
+function EditFilmScreen({ film, onCancel, onSaved }) {
+  const [titre, setTitre] = useState(film.titre || "");
+  const [annee, setAnnee] = useState(film.annee || "");
+  const [type, setType] = useState(film.type || "");
+  const [plateforme, setPlateforme] = useState(film.plateforme || "");
+  const [dateManuelle, setDateManuelle] = useState(film.dateManuelle || "");
+  const [urlLetterboxd, setUrlLetterboxd] = useState(film.urlLetterboxd || "");
+  const [tag, setTag] = useState(() => activeTag(film));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const canSave = titre.trim() && annee.trim() && plateforme;
+
+  const handleSave = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    setError(null);
+
+    const fields = {
+      titre: titre.trim(),
+      annee: annee.trim(),
+      type,
+      plateforme,
+      dateManuelle: dateManuelle.trim(),
+      urlLetterboxd: urlLetterboxd.trim(),
+      benoit: tag === "Benoit",
+      romy: tag === "Romy",
+      aDeux: tag === "À deux",
+      enFamille: tag === "En famille",
+    };
+
+    const result = await apiWrite("/api/update-film", { id: film.id, fields });
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.error || "Impossible d'enregistrer les modifications");
+      return;
+    }
+    onSaved({ ...film, ...fields });
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto pb-6 px-5">
+      <ScreenHeader title="MODIFIER" onBack={onCancel} />
+
+      <SectionLabel>IDENTIFICATION</SectionLabel>
+      <label className="block mb-4">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE *</span>
+        <input value={titre} onChange={(e) => setTitre(e.target.value)} className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 14, color: T.cream }} />
+      </label>
+      <label className="block mb-4">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>ANNÉE *</span>
+        <input value={annee} onChange={(e) => setAnnee(e.target.value)} className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 13, color: T.cream }} />
+      </label>
+
+      <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>TYPE</p>
+      <div className="flex gap-2 flex-wrap mb-5">
+        {AJOUT_TYPES.map((t) => (
+          <button key={t.id} onClick={() => setType(t.id)} className="rounded-full px-3 py-1.5"
+            style={{ background: type === t.id ? T.accentSoft : T.surface, border: `1px solid ${type === t.id ? T.accent + "66" : T.line}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10.5, color: type === t.id ? T.accent : T.muted }}>{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <SectionLabel>OÙ LE REGARDER</SectionLabel>
+      <div className="grid grid-cols-2 gap-2 mb-5">
+        {PLATFORMS_LIST.map((p) => (
+          <button key={p} onClick={() => setPlateforme(p)} className="rounded-lg py-2.5 text-center"
+            style={{ fontFamily: F.serif, fontSize: 13, background: plateforme.toUpperCase() === p.toUpperCase() ? T.accentSoft : T.surface, color: plateforme.toUpperCase() === p.toUpperCase() ? T.accent : T.muted, border: `1px solid ${plateforme.toUpperCase() === p.toUpperCase() ? T.accent + "55" : T.line}` }}>
+            {p}
+          </button>
+        ))}
+      </div>
+
+      <SectionLabel>À VOIR</SectionLabel>
+      <div className="flex gap-2 flex-wrap mb-5">
+        {TAG_LIST().map((t) => {
+          const active = tag === t.id;
+          return (
+            <button key={t.id} onClick={() => setTag(active ? null : t.id)}
+              className="rounded-full px-3 py-2"
+              style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}`, fontFamily: F.serif, fontSize: 12.5, color: active ? T.accent : T.muted }}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <SectionLabel>FACULTATIF</SectionLabel>
+      <label className="block mb-4">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>DATE DE DISPONIBILITÉ (JJ/MM/AAAA)</span>
+        <input value={dateManuelle} onChange={(e) => setDateManuelle(e.target.value)} placeholder="14/08/2026"
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 12.5, color: T.cream }} />
+      </label>
+      <label className="block mb-5">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
+        <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/…"
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 12.5, color: T.cream }} />
+      </label>
+
+      {error && (
+        <div className="rounded-lg p-3 mb-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
+          <p style={{ fontFamily: F.mono, fontSize: 10.5, color: T.alert }}>{error}</p>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 rounded-lg py-3" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>ANNULER</button>
+        <button onClick={handleSave} disabled={!canSave || saving} className="flex-1 rounded-lg py-3"
+          style={{ background: canSave ? T.accent : T.surfaceRaised, fontFamily: F.mono, fontSize: 11, letterSpacing: 0.5, color: canSave ? T.bg : T.mutedDim, fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+          {saving ? "ENREGISTREMENT…" : "ENREGISTRER"}
+        </button>
+      </div>
+      <p className="mt-3 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
+        Modifier le titre, l'année, le type ou l'URL Letterboxd relancera l'enrichissement automatique une fois le script rattaché à ce Sheet.
+      </p>
+    </div>
+  );
+}
+
+function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) {
+  const [film, setFilm] = useState(filmProp);
+  const [editing, setEditing] = useState(false);
   const expiryDays = computeExpiryDays(film);
   const archived = isArchived(film);
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -447,6 +569,20 @@ function FicheDetailScreen({ film, onBack, onFilmUpdated, onDelete }) {
   };
   const [posterOpen, setPosterOpen] = useState(false);
 
+  if (editing) {
+    return (
+      <EditFilmScreen
+        film={film}
+        onCancel={() => setEditing(false)}
+        onSaved={(updatedFilm) => {
+          setFilm(updatedFilm);
+          setEditing(false);
+          if (onFilmUpdated) onFilmUpdated(film.id, updatedFilm);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto relative pb-6">
       <div onClick={() => setPosterOpen(true)} className="relative" style={{ height: 340, cursor: "pointer" }}>
@@ -457,7 +593,7 @@ function FicheDetailScreen({ film, onBack, onFilmUpdated, onDelete }) {
           <ChevronLeft size={18} color={T.cream} />
         </button>
         <div className="absolute right-4 flex gap-2" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
-          <button onClick={(e) => e.stopPropagation()} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Pencil size={15} color={T.accentSecondary} /></button>
+          <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Pencil size={15} color={T.accentSecondary} /></button>
           <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Trash2 size={16} color={T.alert} /></button>
         </div>
       </div>
@@ -1464,15 +1600,16 @@ export default function App() {
   const backFromFiche = () => setScreen(screen.params.from || { name: "accueil", params: {} });
   const goAccueil = () => setScreen({ name: "accueil", params: {} });
 
-  // Met à jour une fiche dans le state local (tags) sans tout re-fetcher
+  // Met à jour une fiche dans le state local après un ajout de tag ou une
+  // modification complète (écran Modifier), sans tout re-fetcher.
   const handleFilmUpdated = (id, fields) => {
-    setFilms((prev) => prev.map((f) => f.id === id ? {
-      ...f,
-      ...(fields.benoit !== undefined ? { benoit: fields.benoit ? "OUI" : "" } : {}),
-      ...(fields.romy !== undefined ? { romy: fields.romy ? "OUI" : "" } : {}),
-      ...(fields.aDeux !== undefined ? { aDeux: fields.aDeux ? "OUI" : "" } : {}),
-      ...(fields.enFamille !== undefined ? { enFamille: fields.enFamille ? "OUI" : "" } : {}),
-    } : f));
+    const normalized = { ...fields };
+    ["benoit", "romy", "aDeux", "enFamille"].forEach((tagField) => {
+      if (typeof normalized[tagField] === "boolean") {
+        normalized[tagField] = normalized[tagField] ? "OUI" : "";
+      }
+    });
+    setFilms((prev) => prev.map((f) => f.id === id ? { ...f, ...normalized } : f));
   };
 
   // Après suppression : retire la fiche du state local et revient en arrière
