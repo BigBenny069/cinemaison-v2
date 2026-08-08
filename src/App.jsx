@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Menu, Shuffle, ChevronLeft, Pencil, Trash2, Star, Film, Clock } from "lucide-react";
+import { Menu, Shuffle, ChevronLeft, Pencil, Trash2, Star, Film, Clock, X } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* TOKENS — palette CinéMaison                                        */
@@ -314,19 +314,20 @@ function Row({ label, value }) {
 function FicheDetailScreen({ film, onBack }) {
   const expiryDays = computeExpiryDays(film);
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const [posterOpen, setPosterOpen] = useState(false);
 
   return (
     <div className="flex-1 overflow-y-auto relative pb-6">
-      <div className="relative" style={{ height: 340 }}>
+      <div onClick={() => setPosterOpen(true)} className="relative" style={{ height: 340, cursor: "pointer" }}>
         <Poster film={film} className="w-full h-full" />
         <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,16,12,0.1) 40%, ${T.bg} 100%)` }} />
-        <button onClick={onBack} className="absolute left-4 w-9 h-9 rounded-full flex items-center justify-center"
+        <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="absolute left-4 w-9 h-9 rounded-full flex items-center justify-center"
           style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(20,16,12,0.55)" }}>
           <ChevronLeft size={18} color={T.cream} />
         </button>
         <div className="absolute right-4 flex gap-2" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
-          <button className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Pencil size={15} color={T.accentSecondary} /></button>
-          <button className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Trash2 size={16} color={T.alert} /></button>
+          <button onClick={(e) => e.stopPropagation()} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Pencil size={15} color={T.accentSecondary} /></button>
+          <button onClick={(e) => e.stopPropagation()} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Trash2 size={16} color={T.alert} /></button>
         </div>
       </div>
 
@@ -378,6 +379,20 @@ function FicheDetailScreen({ film, onBack }) {
           </div>
         )}
       </div>
+
+      {posterOpen && (
+        <div onClick={() => setPosterOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(10,8,6,0.92)", padding: 20 }}>
+          <button onClick={() => setPosterOpen(false)} className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(255,255,255,0.12)" }}>
+            <X size={18} color={T.cream} />
+          </button>
+          {film.affiche ? (
+            <img src={film.affiche} alt={film.titre} className="max-w-full max-h-full rounded-lg" style={{ objectFit: "contain" }} />
+          ) : (
+            <span style={{ fontFamily: F.marquee, fontSize: 16, color: T.accent, textAlign: "center" }}>{film.titre}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
