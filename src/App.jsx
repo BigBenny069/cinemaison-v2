@@ -23,6 +23,41 @@ const T = {
 const F = { marquee: "'Bebas Neue', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" };
 
 /* ------------------------------------------------------------------ */
+/* ECRITURES PROTÉGÉES — add-film / update-film / delete-film          */
+/* Le mot de passe est demandé une seule fois puis mémorisé sur cet    */
+/* appareil (localStorage) pour ne pas le retaper à chaque action.     */
+/* ------------------------------------------------------------------ */
+function getStoredPassword() {
+  try { return localStorage.getItem("cinemaison_pwd") || ""; } catch { return ""; }
+}
+function askAndStorePassword() {
+  const pwd = window.prompt("Mot de passe (modification/ajout) :");
+  if (pwd) { try { localStorage.setItem("cinemaison_pwd", pwd); } catch {} }
+  return pwd || "";
+}
+
+async function apiWrite(url, body) {
+  let password = getStoredPassword();
+  if (!password) password = askAndStorePassword();
+  if (!password) return { ok: false, error: "Mot de passe requis" };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...body, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (res.status === 401) {
+    // Mauvais mot de passe : on l'efface pour le redemander la prochaine fois
+    try { localStorage.removeItem("cinemaison_pwd"); } catch {}
+    return { ok: false, error: "Mot de passe incorrect" };
+  }
+  if (!res.ok) return { ok: false, error: data.error || "Erreur serveur" };
+  return { ok: true, data };
+}
+
+/* ------------------------------------------------------------------ */
 /* UTILITAIRES DATES                                                   */
 /* ------------------------------------------------------------------ */
 // Les dates du Sheet sont au format JJ/MM/AAAA
@@ -350,10 +385,29 @@ function activeTag(film) {
   return null;
 }
 
-function TagSelector({ film }) {
-  // Sélection en local uniquement pour l'instant — la sauvegarde réelle vers
-  // le Sheet nécessite update-film.js, qui n'est pas encore construit.
+function TagSelector({ film, onSaved }) {
   const [tag, setTag] = useState(() => activeTag(film));
+  const [saving, setSaving] = useState(false);
+
+  const handlePick = async (t) => {
+    const newTag = tag === t.id ? null : t.id;
+    setTag(newTag); // optimiste
+    setSaving(true);
+    const fields = { benoit: false, romy: false, aDeux: false, enFamille: false };
+    if (newTag) {
+      const key = newTag === "Romy" ? "romy" : newTag === "Benoit" ? "benoit" : newTag === "À deux" ? "aDeux" : "enFamille";
+      fields[key] = true;
+    }
+    const result = await apiWrite("/api/update-film", { id: film.id, fields });
+    setSaving(false);
+    if (!result.ok) {
+      setTag(tag); // on annule si ça a échoué
+      window.alert(result.error || "Impossible d'enregistrer le tag");
+    } else if (onSaved) {
+      onSaved(film.id, fields);
+    }
+  };
+
   return (
     <div className="mt-5">
       <h4 className="mb-2" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>À VOIR</h4>
@@ -361,9 +415,9 @@ function TagSelector({ film }) {
         {TAG_LIST().map((t) => {
           const active = tag === t.id;
           return (
-            <button key={t.id} onClick={() => setTag(active ? null : t.id)}
+            <button key={t.id} onClick={() => handlePick(t)} disabled={saving}
               className="rounded-full px-3 py-2"
-              style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}`, fontFamily: F.serif, fontSize: 12.5, color: active ? T.accent : T.muted }}>
+              style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}`, fontFamily: F.serif, fontSize: 12.5, color: active ? T.accent : T.muted, opacity: saving ? 0.6 : 1 }}>
               {t.label}
             </button>
           );
@@ -373,10 +427,24 @@ function TagSelector({ film }) {
   );
 }
 
-function FicheDetailScreen({ film, onBack }) {
+function FicheDetailScreen({ film, onBack, onFilmUpdated, onDelete }) {
   const expiryDays = computeExpiryDays(film);
   const archived = isArchived(film);
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    const result = await apiWrite("/api/delete-film", { id: film.id });
+    setDeleting(false);
+    if (!result.ok) {
+      window.alert(result.error || "Impossible de supprimer cette fiche");
+      return;
+    }
+    setConfirmDelete(false);
+    onDelete(film.id);
+  };
   const [posterOpen, setPosterOpen] = useState(false);
 
   return (
@@ -390,7 +458,7 @@ function FicheDetailScreen({ film, onBack }) {
         </button>
         <div className="absolute right-4 flex gap-2" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
           <button onClick={(e) => e.stopPropagation()} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Pencil size={15} color={T.accentSecondary} /></button>
-          <button onClick={(e) => e.stopPropagation()} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Trash2 size={16} color={T.alert} /></button>
+          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Trash2 size={16} color={T.alert} /></button>
         </div>
       </div>
 
@@ -417,7 +485,7 @@ function FicheDetailScreen({ film, onBack }) {
           </div>
         )}
 
-        <TagSelector film={film} />
+        <TagSelector film={film} onSaved={onFilmUpdated} />
 
         {film.synopsis && (
           <>
@@ -462,6 +530,23 @@ function FicheDetailScreen({ film, onBack }) {
           ) : (
             <span style={{ fontFamily: F.marquee, fontSize: 16, color: T.accent, textAlign: "center" }}>{film.titre}</span>
           )}
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: "rgba(20,16,12,0.7)" }}>
+          <div className="w-full rounded-t-2xl p-5" style={{ maxWidth: 460, background: T.surfaceRaised, paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+            <p style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>SUPPRIMER CETTE FICHE ?</p>
+            <p className="mt-1 mb-4" style={{ fontFamily: F.serif, fontSize: 13, color: T.muted }}>
+              « {film.titre} » sera retiré définitivement du Sheet. Cette action est irréversible.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 rounded-lg py-2.5" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>ANNULER</button>
+              <button onClick={handleDelete} disabled={deleting} className="flex-1 rounded-lg py-2.5" style={{ background: T.alert, fontFamily: F.mono, fontSize: 11, color: T.cream, opacity: deleting ? 0.7 : 1 }}>
+                {deleting ? "SUPPRESSION…" : "SUPPRIMER"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1044,13 +1129,29 @@ const AJOUT_TYPES = [
   { id: "Spectacle", label: "Spectacle" }, { id: "VOD", label: "VOD" }, { id: "Indispo", label: "Indispo" },
 ];
 
-function AjouterScreen({ onBack }) {
+function AjouterScreen({ onBack, onAdded }) {
   const [type, setType] = useState(null);
   const [titre, setTitre] = useState("");
   const [annee, setAnnee] = useState("");
   const [plateforme, setPlateforme] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const canSubmit = titre.trim() && annee.trim() && plateforme;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    setError(null);
+    const result = await apiWrite("/api/add-film", { titre: titre.trim(), annee: annee.trim(), plateforme, type });
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.error || "Impossible d'ajouter ce film");
+      return;
+    }
+    setSubmitted(true);
+    if (onAdded) onAdded();
+  };
 
   if (!type) {
     return (
@@ -1088,14 +1189,21 @@ function AjouterScreen({ onBack }) {
           </button>
         ))}
       </div>
+      {error && (
+        <div className="rounded-lg p-3 mb-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
+          <p style={{ fontFamily: F.mono, fontSize: 10.5, color: T.alert }}>{error}</p>
+        </div>
+      )}
       {submitted ? (
-        <div className="rounded-lg py-3.5 text-center mt-2" style={{ background: T.accentSoft, fontFamily: F.mono, fontSize: 11, color: T.accent, letterSpacing: 0.5 }}>✓ TICKET ÉMIS — « {titre} » AJOUTÉ</div>
+        <div className="rounded-lg py-3.5 text-center mt-2" style={{ background: T.accentSoft, fontFamily: F.mono, fontSize: 11, color: T.accent, letterSpacing: 0.5 }}>✓ TICKET ÉMIS — « {titre} » AJOUTÉ AU SHEET</div>
       ) : (
-        <button onClick={() => canSubmit && setSubmitted(true)} disabled={!canSubmit} className="w-full rounded-lg py-3.5" style={{ background: canSubmit ? T.accent : T.surfaceRaised, fontFamily: F.mono, fontSize: 12, letterSpacing: 1.2, color: canSubmit ? T.bg : T.mutedDim, fontWeight: 700 }}>
-          ÉMETTRE LE TICKET
+        <button onClick={handleSubmit} disabled={!canSubmit || saving} className="w-full rounded-lg py-3.5" style={{ background: canSubmit ? T.accent : T.surfaceRaised, fontFamily: F.mono, fontSize: 12, letterSpacing: 1.2, color: canSubmit ? T.bg : T.mutedDim, fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+          {saving ? "ENVOI…" : "ÉMETTRE LE TICKET"}
         </button>
       )}
-      <p className="mt-3 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>Pas encore connecté au Sheet — /api/add-film reste à câbler.</p>
+      <p className="mt-3 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
+        L'enrichissement (affiche, synopsis, note...) ne se fera automatiquement qu'une fois le script Apps Script rattaché à ce Sheet.
+      </p>
     </div>
   );
 }
@@ -1343,6 +1451,23 @@ export default function App() {
   const backFromFiche = () => setScreen(screen.params.from || { name: "accueil", params: {} });
   const goAccueil = () => setScreen({ name: "accueil", params: {} });
 
+  // Met à jour une fiche dans le state local (tags) sans tout re-fetcher
+  const handleFilmUpdated = (id, fields) => {
+    setFilms((prev) => prev.map((f) => f.id === id ? {
+      ...f,
+      ...(fields.benoit !== undefined ? { benoit: fields.benoit ? "OUI" : "" } : {}),
+      ...(fields.romy !== undefined ? { romy: fields.romy ? "OUI" : "" } : {}),
+      ...(fields.aDeux !== undefined ? { aDeux: fields.aDeux ? "OUI" : "" } : {}),
+      ...(fields.enFamille !== undefined ? { enFamille: fields.enFamille ? "OUI" : "" } : {}),
+    } : f));
+  };
+
+  // Après suppression : retire la fiche du state local et revient en arrière
+  const handleFilmDeleted = (id) => {
+    setFilms((prev) => prev.filter((f) => f.id !== id));
+    backFromFiche();
+  };
+
   let body = null;
   if (films) {
     const { name, params } = screen;
@@ -1352,7 +1477,7 @@ export default function App() {
     } else if (name === "recherche") {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} />;
     } else if (name === "fiche") {
-      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} />;
+      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} />;
     } else if (name === "biblio") {
       body = <BibliothequeScreen films={films} type={params.type} onOpen={openFiche} onBack={goAccueil} />;
     } else if (name === "alertes") {
@@ -1362,7 +1487,7 @@ export default function App() {
     } else if (name === "genres") {
       body = <GenresScreen films={films} onNavigate={navigate} onBack={goAccueil} />;
     } else if (name === "ajouter") {
-      body = <AjouterScreen onBack={goAccueil} />;
+      body = <AjouterScreen onBack={goAccueil} onAdded={loadFilms} />;
     } else if (name === "archives") {
       body = <ArchivesScreen films={films} onOpen={openFiche} onBack={goAccueil} />;
     } else if (name === "tags") {
