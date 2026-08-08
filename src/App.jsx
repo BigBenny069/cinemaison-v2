@@ -485,8 +485,6 @@ function FicheDetailScreen({ film, onBack, onFilmUpdated, onDelete }) {
           </div>
         )}
 
-        <TagSelector film={film} onSaved={onFilmUpdated} />
-
         {film.synopsis && (
           <>
             <h4 className="mt-5 mb-1" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>SYNOPSIS</h4>
@@ -515,6 +513,14 @@ function FicheDetailScreen({ film, onBack, onFilmUpdated, onDelete }) {
         {film.urlLetterboxd && (
           <div className="mt-4">
             <a href={film.urlLetterboxd} target="_blank" rel="noreferrer"><LetterboxdMark /></a>
+          </div>
+        )}
+
+        {activeTag(film) && (
+          <div className="mt-4">
+            <span className="rounded-full px-3 py-1.5" style={{ background: T.accentSoft, border: `1px solid ${T.accent}66`, fontFamily: F.serif, fontSize: 12.5, color: T.accent }}>
+              À voir : {activeTag(film)}
+            </span>
           </div>
         )}
       </div>
@@ -1134,6 +1140,7 @@ function AjouterScreen({ onBack, onAdded }) {
   const [titre, setTitre] = useState("");
   const [annee, setAnnee] = useState("");
   const [plateforme, setPlateforme] = useState("");
+  const [urlLetterboxd, setUrlLetterboxd] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -1143,7 +1150,7 @@ function AjouterScreen({ onBack, onAdded }) {
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
-    const result = await apiWrite("/api/add-film", { titre: titre.trim(), annee: annee.trim(), plateforme, type });
+    const result = await apiWrite("/api/add-film", { titre: titre.trim(), annee: annee.trim(), plateforme, type, urlLetterboxd: urlLetterboxd.trim() || undefined });
     setSaving(false);
     if (!result.ok) {
       setError(result.error || "Impossible d'ajouter ce film");
@@ -1189,6 +1196,12 @@ function AjouterScreen({ onBack, onAdded }) {
           </button>
         ))}
       </div>
+      <SectionLabel>FACULTATIF</SectionLabel>
+      <label className="block mb-5">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
+        <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/…"
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 12.5, color: T.cream }} />
+      </label>
       {error && (
         <div className="rounded-lg p-3 mb-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
           <p style={{ fontFamily: F.mono, fontSize: 10.5, color: T.alert }}>{error}</p>
