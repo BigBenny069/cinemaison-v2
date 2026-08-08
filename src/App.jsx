@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle } from "lucide-react";
+import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* TOKENS — palette CinéMaison                                        */
@@ -672,8 +672,48 @@ function buildMonthGrid(year, month) {
 /* ------------------------------------------------------------------ */
 /* ECRAN ALERTES — calendrier mensuel, dispara\u00eet bient\u00f4t (manuel) / sortie th\u00e9orique (auto) */
 /* ------------------------------------------------------------------ */
-function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
-  const [mode, setMode] = useState(initialMode || "manuel");
+function AlertesListe({ films, field, onOpen }) {
+  const groups = useMemo(() => {
+    const list = films
+      .map((f) => {
+        const raw = f[field];
+        const date = parseDateFR(raw);
+        const days = daysUntil(date);
+        return { f, days, date, raw };
+      })
+      .filter((x) => x.days != null && x.days >= 0)
+      .sort((a, b) => a.date - b.date);
+
+    const m = [];
+    list.forEach((item) => {
+      const last = m[m.length - 1];
+      if (last && last.label === item.raw) last.items.push(item);
+      else m.push({ label: item.raw, items: [item] });
+    });
+    return m;
+  }, [films, field]);
+
+  return (
+    <>
+      {groups.map((g) => (
+        <div key={g.label} className="mb-4">
+          <p className="mb-2" style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream, letterSpacing: 0.5 }}>{g.label}</p>
+          <div className="flex flex-col gap-2">
+            {g.items.map(({ f, days }) => (
+              <ListResultCard key={f.id} film={f} onOpen={onOpen}
+                right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: T.accentSoft }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 700 }}>J-{days}</span>
+                </span></div>} />
+            ))}
+          </div>
+        </div>
+      ))}
+      {groups.length === 0 && <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>}
+    </>
+  );
+}
+
+function AlertesCalendrier({ films, onOpen }) {
   const [monthOffset, setMonthOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -683,11 +723,11 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
   const month = base.getMonth() + monthOffset;
   const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
+  // Le calendrier ne prend en compte que dateManuelle, jamais dateAuto
   const alertsByDay = useMemo(() => {
     const map = {};
     films.forEach((f) => {
-      const raw = mode === "manuel" ? f.dateManuelle : f.dateAuto;
-      const date = parseDateFR(raw);
+      const date = parseDateFR(f.dateManuelle);
       if (!date) return;
       if (date.getFullYear() !== year || date.getMonth() !== month) return;
       const days = daysUntil(date);
@@ -696,7 +736,7 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
       (map[d] = map[d] || []).push(f);
     });
     return map;
-  }, [films, mode, year, month]);
+  }, [films, year, month]);
 
   const sortedDays = Object.keys(alertsByDay).map(Number).sort((a, b) => a - b);
 
@@ -709,27 +749,13 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
       setSelectedDay(sortedDays[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthOffset, mode, year, month, films]);
+  }, [monthOffset, year, month, films]);
 
   const dayItems = selectedDay != null ? (alertsByDay[selectedDay] || []) : [];
   const today = monthOffset === 0 ? now.getDate() : null;
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <ScreenHeader title="ALERTES" onBack={onBack} />
-      <div className="flex gap-2 mb-5">
-        <button onClick={() => setMode("manuel")} className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5"
-          style={{ background: mode === "manuel" ? T.accentSoft : T.surface, border: `1px solid ${mode === "manuel" ? T.accent + "55" : T.line}` }}>
-          <Clock size={13} color={mode === "manuel" ? T.accent : T.muted} />
-          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: mode === "manuel" ? T.accent : T.muted, letterSpacing: 0.3 }}>DISPARAÎT BIENTÔT</span>
-        </button>
-        <button onClick={() => setMode("auto")} className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5"
-          style={{ background: mode === "auto" ? T.accentSoft : T.surface, border: `1px solid ${mode === "auto" ? T.accent + "55" : T.line}` }}>
-          <Rocket size={13} color={mode === "auto" ? T.accent : T.muted} />
-          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: mode === "auto" ? T.accent : T.muted, letterSpacing: 0.3 }}>SORTIE THÉORIQUE</span>
-        </button>
-      </div>
-
+    <>
       <div className="flex items-center justify-between mb-3">
         <button onClick={() => setMonthOffset((m) => m - 1)} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.surface }}>
           <ChevronLeft size={13} color={T.muted} />
@@ -787,6 +813,39 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
           <p className="text-center mt-6" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir ce mois-ci.</p>
         )}
       </div>
+    </>
+  );
+}
+
+function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
+  const [tab, setTab] = useState(initialMode || "manuel"); // "manuel" | "auto" | "calendrier"
+
+  const TABS = [
+    { id: "manuel", label: "BIENTÔT", icon: Clock },
+    { id: "auto", label: "THÉORIQUE", icon: Rocket },
+    { id: "calendrier", label: "CALENDRIER", icon: CalendarDays },
+  ];
+
+  return (
+    <div className="flex-1 overflow-y-auto pb-6 px-5">
+      <ScreenHeader title="ALERTES" onBack={onBack} />
+      <div className="flex gap-1.5 mb-5">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 flex flex-col items-center gap-1 rounded-lg py-2"
+              style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "55" : T.line}` }}>
+              <Icon size={13} color={active ? T.accent : T.muted} />
+              <span style={{ fontFamily: F.mono, fontSize: 8, color: active ? T.accent : T.mutedDim, letterSpacing: 0.3 }}>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "manuel" && <AlertesListe films={films} field="dateManuelle" onOpen={onOpen} />}
+      {tab === "auto" && <AlertesListe films={films} field="dateAuto" onOpen={onOpen} />}
+      {tab === "calendrier" && <AlertesCalendrier films={films} onOpen={onOpen} />}
     </div>
   );
 }
@@ -1239,15 +1298,15 @@ function BottomNav({ active, onNavigate }) {
         const isActive = active === it.id;
         const Icon = it.icon;
         return (
-          <button key={it.id} onClick={() => onNavigate(it.nav)} className="flex-1 flex flex-col items-center gap-1 py-2.5">
+          <button key={it.id} onClick={() => onNavigate(it.nav)} className="flex-1 flex flex-col items-center gap-0.5 py-1.5">
             {it.id === "accueil" ? (
-              <span className="flex items-center justify-center" style={{ width: 20, height: 20, borderRadius: 5, background: isActive ? T.accent : T.accentSoft }}>
-                <span style={{ fontFamily: F.marquee, fontSize: 11, color: isActive ? T.bg : T.accent }}>C</span>
+              <span className="flex items-center justify-center" style={{ width: 17, height: 17, borderRadius: 4, background: isActive ? T.accent : T.accentSoft }}>
+                <span style={{ fontFamily: F.marquee, fontSize: 9.5, color: isActive ? T.bg : T.accent }}>C</span>
               </span>
             ) : (
-              <Icon size={17} color={isActive ? T.accent : T.mutedDim} />
+              <Icon size={15} color={isActive ? T.accent : T.mutedDim} />
             )}
-            <span style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 0.3, color: isActive ? T.accent : T.mutedDim }}>{it.label.toUpperCase()}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 8, letterSpacing: 0.3, color: isActive ? T.accent : T.mutedDim }}>{it.label.toUpperCase()}</span>
           </button>
         );
       })}
