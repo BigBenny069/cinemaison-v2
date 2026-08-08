@@ -54,7 +54,7 @@ function computeExpiryDays(film) {
 // Ignore les valeurs texte non-numériques du Sheet (ex. "PAS DE NOTE")
 function parseRating(v) {
   if (v == null || v === "") return null;
-  const n = Number(v);
+  const n = Number(String(v).replace(",", "."));
   return Number.isFinite(n) ? n : null;
 }
 
@@ -107,7 +107,7 @@ function Poster({ film, className, style }) {
       </div>
     );
   }
-  return <img src={film.affiche} alt={film.titre} className={className} style={{ ...style, objectFit: "cover" }} onError={() => setFailed(true)} />;
+  return <img src={film.affiche} alt={film.titre} className={className} style={{ ...style, objectFit: "cover", objectPosition: "top" }} onError={() => setFailed(true)} />;
 }
 
 function RatingStamp({ value, size = 58 }) {
@@ -246,7 +246,11 @@ function AccueilScreen({ films, onOpen }) {
     return [...films].reverse().slice(0, 8);
   }, [films]);
 
-  const [suggestion] = useState(() => films[Math.floor(Math.random() * films.length)]);
+  const [suggestion] = useState(() => {
+    const eligibles = films.filter((f) => f.type === "Film");
+    const pool = eligibles.length > 0 ? eligibles : films;
+    return pool[Math.floor(Math.random() * pool.length)];
+  });
 
   return (
     <div className="flex-1 overflow-y-auto pb-4">
@@ -268,7 +272,7 @@ function AccueilScreen({ films, onOpen }) {
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
-                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""} showStamp />
+                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
             ))}
           </div>
         </>
@@ -313,7 +317,7 @@ function FicheDetailScreen({ film, onBack }) {
 
   return (
     <div className="flex-1 overflow-y-auto relative pb-6">
-      <div className="relative" style={{ height: 260 }}>
+      <div className="relative" style={{ height: 340 }}>
         <Poster film={film} className="w-full h-full" />
         <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,16,12,0.1) 40%, ${T.bg} 100%)` }} />
         <button onClick={onBack} className="absolute left-4 w-9 h-9 rounded-full flex items-center justify-center"
