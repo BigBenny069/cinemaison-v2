@@ -316,11 +316,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
           </div>
         </>
       )}
-
-      <button onClick={onAdd} className="fixed flex items-center justify-center rounded-full"
-        style={{ right: 20, bottom: "max(20px, env(safe-area-inset-bottom))", width: 52, height: 52, background: T.accent, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
-        <PlusCircle size={24} color={T.bg} />
-      </button>
     </div>
   );
 }
@@ -667,15 +662,24 @@ function BibliothequeScreen({ films, type, onOpen, onBack }) {
 function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
   const [mode, setMode] = useState(initialMode || "manuel");
 
-  const list = useMemo(() => {
-    return films
+  const groups = useMemo(() => {
+    const list = films
       .map((f) => {
-        const date = parseDateFR(mode === "manuel" ? f.dateManuelle : f.dateAuto);
+        const raw = mode === "manuel" ? f.dateManuelle : f.dateAuto;
+        const date = parseDateFR(raw);
         const days = daysUntil(date);
-        return { f, days };
+        return { f, days, date, raw };
       })
       .filter((x) => x.days != null && x.days >= 0)
-      .sort((a, b) => a.days - b.days);
+      .sort((a, b) => a.date - b.date);
+
+    const m = [];
+    list.forEach((item) => {
+      const last = m[m.length - 1];
+      if (last && last.label === item.raw) last.items.push(item);
+      else m.push({ label: item.raw, items: [item] });
+    });
+    return m;
   }, [films, mode]);
 
   return (
@@ -693,15 +697,20 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: mode === "auto" ? T.accent : T.muted, letterSpacing: 0.3 }}>SORTIE THÉORIQUE</span>
         </button>
       </div>
-      <div className="flex flex-col gap-2">
-        {list.map(({ f, days }) => (
-          <ListResultCard key={f.id} film={f} onOpen={onOpen}
-            right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: T.accentSoft }}>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 700 }}>J-{days}</span>
-            </span></div>} />
-        ))}
-        {list.length === 0 && <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>}
-      </div>
+      {groups.map((g) => (
+        <div key={g.label} className="mb-4">
+          <p className="mb-2" style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream, letterSpacing: 0.5 }}>{g.label}</p>
+          <div className="flex flex-col gap-2">
+            {g.items.map(({ f, days }) => (
+              <ListResultCard key={f.id} film={f} onOpen={onOpen}
+                right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: T.accentSoft }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 700 }}>J-{days}</span>
+                </span></div>} />
+            ))}
+          </div>
+        </div>
+      ))}
+      {groups.length === 0 && <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>}
     </div>
   );
 }
@@ -1139,6 +1148,38 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* BARRE DE NAVIGATION PERMANENTE                                       */
+/* ------------------------------------------------------------------ */
+function BottomNav({ active, onNavigate }) {
+  const items = [
+    { id: "accueil", label: "Accueil", icon: LogoMark, nav: { name: "accueil", params: {} } },
+    { id: "biblio", label: "Film", icon: Film, nav: { name: "biblio", params: { type: "Film" } } },
+    { id: "alertes", label: "Alertes", icon: Clock, nav: { name: "alertes", params: { mode: "manuel" } } },
+    { id: "ajouter", label: "Ajouter", icon: PlusCircle, nav: { name: "ajouter", params: {} } },
+  ];
+  return (
+    <div className="flex-shrink-0 flex items-stretch" style={{ background: T.surface, borderTop: `1px solid ${T.line}`, paddingBottom: "env(safe-area-inset-bottom)" }}>
+      {items.map((it) => {
+        const isActive = active === it.id;
+        const Icon = it.icon;
+        return (
+          <button key={it.id} onClick={() => onNavigate(it.nav)} className="flex-1 flex flex-col items-center gap-1 py-2.5">
+            {it.id === "accueil" ? (
+              <span className="flex items-center justify-center" style={{ width: 20, height: 20, borderRadius: 5, background: isActive ? T.accent : T.accentSoft }}>
+                <span style={{ fontFamily: F.marquee, fontSize: 11, color: isActive ? T.bg : T.accent }}>C</span>
+              </span>
+            ) : (
+              <Icon size={17} color={isActive ? T.accent : T.mutedDim} />
+            )}
+            <span style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 0.3, color: isActive ? T.accent : T.mutedDim }}>{it.label.toUpperCase()}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* APP                                                                 */
 /* ------------------------------------------------------------------ */
 export default function App() {
@@ -1196,6 +1237,12 @@ export default function App() {
     }
   }
 
+  const activeTab =
+    screen.name === "accueil" ? "accueil" :
+    screen.name === "biblio" && screen.params.type === "Film" ? "biblio" :
+    screen.name === "alertes" ? "alertes" :
+    screen.name === "ajouter" ? "ajouter" : null;
+
   return (
     <div className="w-full min-h-screen flex items-center justify-center" style={{ background: T.bg }}>
       <div className="flex flex-col w-full relative" style={{ maxWidth: 460, minHeight: "100vh", background: T.bg }}>
@@ -1209,8 +1256,9 @@ export default function App() {
           <p className="p-4" style={{ fontFamily: F.serif, color: T.muted }}>Chargement des films…</p>
         )}
 
-        {body}
+        <div className="flex-1 min-h-0 flex flex-col">{body}</div>
 
+        {films && <BottomNav active={activeTab} onNavigate={navigate} />}
         {films && <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} films={films} onNavigate={navigate} />}
       </div>
     </div>
