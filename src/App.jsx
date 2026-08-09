@@ -1115,6 +1115,14 @@ function PillGroup({ label, options, value, onChange, renderLabel }) {
   );
 }
 
+const GENRE_EMOJI = {
+  Action: "💥", Animation: "🎨", Aventure: "🧭", Comédie: "😂", Crime: "🔪", Drame: "🎭",
+  Fantastique: "🧙", Guerre: "🎖️", Horreur: "👻", Musique: "🎵", Mystère: "🕵️",
+  Romance: "❤️", "Science-Fiction": "🛸", Thriller: "🔪", Western: "🤠",
+  Documentaire: "🎥", Histoire: "📜", Familial: "👨‍👩‍👧", Téléfilm: "📺",
+};
+function genreEmoji(g) { return GENRE_EMOJI[g] || "🎞️"; }
+
 function GenreField({ genreCounts, selected, onChange }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -1156,6 +1164,9 @@ function GenreField({ genreCounts, selected, onChange }) {
                 return (
                   <button key={g} onClick={() => toggle(g)} className="w-full flex items-center justify-between py-3" style={{ borderBottom: `1px solid ${T.line}` }}>
                     <span className="flex items-center gap-2.5">
+                      <div className="flex items-center justify-center flex-shrink-0 rounded-full" style={{ width: 26, height: 26, border: `1.5px dashed ${T.accent}88`, transform: "rotate(-8deg)" }}>
+                        <span style={{ fontSize: 12, transform: "rotate(8deg)" }}>{genreEmoji(g)}</span>
+                      </div>
                       <span style={{ fontFamily: F.serif, fontSize: 14, color: T.cream }}>{g}</span>
                       <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim }}>({count})</span>
                     </span>
@@ -1250,7 +1261,7 @@ function GenresScreen({ films, onNavigate, onBack }) {
           <button key={g} onClick={() => onNavigate({ name: "explorer", params: { initialGenre: g } })}
             className="flex items-center gap-2.5 rounded-xl p-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
             <div className="flex items-center justify-center flex-shrink-0 rounded-full" style={{ width: 34, height: 34, border: `1.5px dashed ${T.accent}88`, transform: "rotate(-8deg)" }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 11, color: T.accent }}>{g.slice(0, 2).toUpperCase()}</span>
+              <span style={{ fontSize: 15, transform: "rotate(8deg)" }}>{genreEmoji(g)}</span>
             </div>
             <span>
               <p style={{ fontFamily: F.serif, fontSize: 13, fontWeight: 600, color: T.cream, lineHeight: 1.2 }}>{g}</p>
@@ -1491,8 +1502,7 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
 
   const groups = [
     { label: "ALERTES", items: [
-      { id: "bientot_manuel", title: "Disparaît bientôt", nav: { name: "alertes", params: { mode: "manuel" } } },
-      { id: "bientot_auto", title: "Sortie théorique", nav: { name: "alertes", params: { mode: "auto" } } },
+      { id: "alertes", title: "Alertes", nav: { name: "alertes", params: {} } },
     ]},
     { label: "BIBLIOTHÈQUES", items: TYPES_LIST.map((t) => ({ id: `type_${t}`, title: t, count: counts[t] || 0, nav: { name: "biblio", params: { type: t } } })) },
     { label: "DÉCOUVRIR", items: [
