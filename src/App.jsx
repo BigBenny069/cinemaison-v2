@@ -300,7 +300,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-4">
-      <div className="flex items-center justify-between px-4 pb-4" style={{ paddingTop: "max(16px, env(safe-area-inset-top))" }}>
+      <div className="sticky top-0 z-20 flex items-center justify-between px-4 pb-4" style={{ background: T.bg, paddingTop: "max(16px, env(safe-area-inset-top))" }}>
         <button onClick={onMenu} className="w-9 h-9 rounded-full flex items-center justify-center"
           style={{ background: T.surface, border: `1px solid ${T.accentSecondary}55` }}>
           <Menu size={16} color={T.accentSecondary} />
@@ -739,7 +739,7 @@ function SearchResultCard({ film, match, onOpen }) {
   );
 }
 
-function RechercheScreen({ films, onOpen, onBack }) {
+function RechercheScreen({ films, onOpen, onBack, onMenu }) {
   const [query, setQuery] = useState("");
 
   const results = useMemo(() => {
@@ -749,11 +749,18 @@ function RechercheScreen({ films, onOpen, onBack }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <div className="flex items-center gap-2" style={{ paddingTop: "max(16px, env(safe-area-inset-top))", paddingBottom: 16 }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-          <ChevronLeft size={16} color={T.muted} />
-        </button>
-        <h1 style={{ fontFamily: F.marquee, fontSize: 24, color: T.cream, letterSpacing: 0.5, lineHeight: 1 }}>RECHERCHE</h1>
+      <div className="sticky top-0 z-20 -mx-5 px-5 flex items-center justify-between" style={{ background: T.bg, paddingTop: "max(16px, env(safe-area-inset-top))", paddingBottom: 16 }}>
+        <div className="flex items-center gap-2">
+          <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+            <ChevronLeft size={16} color={T.muted} />
+          </button>
+          <h1 style={{ fontFamily: F.marquee, fontSize: 24, color: T.cream, letterSpacing: 0.5, lineHeight: 1 }}>RECHERCHE</h1>
+        </div>
+        {onMenu && (
+          <button onClick={onMenu} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.surface, border: `1px solid ${T.accentSecondary}55` }}>
+            <Menu size={16} color={T.accentSecondary} />
+          </button>
+        )}
       </div>
 
       <div className="relative mb-4">
@@ -808,16 +815,27 @@ function SectionLabel({ children }) {
   );
 }
 
-function ScreenHeader({ title, onBack, right }) {
+// Sticky : reste visible en haut de l'écran pendant le défilement de la
+// liste (via -mx-5 px-5, le fond couvre toute la largeur malgré le padding
+// horizontal du conteneur parent). Le bouton menu (GUICHET) est optionnel :
+// il n'apparaît que si onMenu est fourni par l'écran appelant.
+function ScreenHeader({ title, onBack, onMenu, right }) {
   return (
-    <div className="flex items-center justify-between" style={{ paddingTop: "max(16px, env(safe-area-inset-top))", paddingBottom: 16 }}>
+    <div className="sticky top-0 z-20 -mx-5 px-5 flex items-center justify-between" style={{ background: T.bg, paddingTop: "max(16px, env(safe-area-inset-top))", paddingBottom: 16 }}>
       <div className="flex items-center gap-2">
         <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
           <ChevronLeft size={16} color={T.muted} />
         </button>
         <h1 style={{ fontFamily: F.marquee, fontSize: 24, color: T.cream, letterSpacing: 0.5, lineHeight: 1 }}>{title}</h1>
       </div>
-      {right}
+      <div className="flex items-center gap-2">
+        {right}
+        {onMenu && (
+          <button onClick={onMenu} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.surface, border: `1px solid ${T.accentSecondary}55` }}>
+            <Menu size={16} color={T.accentSecondary} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -848,7 +866,7 @@ const SORTS = [
   { id: "note_asc", label: "Note ↑" },
 ];
 
-function BibliothequeScreen({ films, type, onOpen, onBack }) {
+function BibliothequeScreen({ films, type, onOpen, onBack, onMenu }) {
   const [sort, setSort] = useState("az");
 
   const list = useMemo(() => {
@@ -862,7 +880,7 @@ function BibliothequeScreen({ films, type, onOpen, onBack }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <ScreenHeader title={(type || "").toUpperCase()} onBack={onBack} />
+      <ScreenHeader title={(type || "").toUpperCase()} onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-1.5 mb-4">
         {SORTS.map((s) => {
           const active = sort === s.id;
@@ -1044,7 +1062,7 @@ function AlertesCalendrier({ films, onOpen }) {
   );
 }
 
-function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
+function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
   const [tab, setTab] = useState(initialMode || "manuel"); // "manuel" | "auto" | "calendrier"
 
   const TABS = [
@@ -1055,7 +1073,7 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <ScreenHeader title="ALERTES" onBack={onBack} />
+      <ScreenHeader title="ALERTES" onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-1.5 mb-5">
         {TABS.map((t) => {
           const Icon = t.icon;
@@ -1187,7 +1205,7 @@ function GenreField({ genreCounts, selected, onChange }) {
   );
 }
 
-function ExplorerScreen({ films, initialGenre, onOpen, onBack }) {
+function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
   const [type, setType] = useState(null);
   const [plateforme, setPlateforme] = useState(null);
   const [duree, setDuree] = useState(null);
@@ -1220,7 +1238,7 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <ScreenHeader title="EXPLORER" onBack={onBack} />
+      <ScreenHeader title="EXPLORER" onBack={onBack} onMenu={onMenu} />
       <PillGroup label="Type de fiche" options={TYPES_LIST} value={type} onChange={setType} />
       <PillGroup label="Plateforme" options={PLATFORMS_LIST} value={plateforme} onChange={setPlateforme} />
       <GenreField genreCounts={genreCounts} selected={genresSel} onChange={setGenresSel} />
@@ -1246,7 +1264,7 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN GENRES — grille, raccourci vers Explorer                      */
 /* ------------------------------------------------------------------ */
-function GenresScreen({ films, onNavigate, onBack }) {
+function GenresScreen({ films, onNavigate, onBack, onMenu }) {
   const genreCounts = useMemo(() => {
     const m = {};
     films.forEach((f) => (f.genre || "").split(",").map((g) => g.trim()).filter(Boolean).forEach((g) => { m[g] = (m[g] || 0) + 1; }));
@@ -1255,7 +1273,7 @@ function GenresScreen({ films, onNavigate, onBack }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <ScreenHeader title="GENRES" onBack={onBack} />
+      <ScreenHeader title="GENRES" onBack={onBack} onMenu={onMenu} />
       <div className="grid grid-cols-2 gap-2.5">
         {genreCounts.map(([g, count]) => (
           <button key={g} onClick={() => onNavigate({ name: "explorer", params: { initialGenre: g } })}
@@ -1282,7 +1300,7 @@ const AJOUT_TYPES = [
   { id: "Spectacle", label: "Spectacle" }, { id: "VOD", label: "VOD" }, { id: "Indispo", label: "Indispo" },
 ];
 
-function AjouterScreen({ onBack, onAdded }) {
+function AjouterScreen({ onBack, onAdded, onMenu }) {
   const [type, setType] = useState(null);
   const [titre, setTitre] = useState("");
   const [annee, setAnnee] = useState("");
@@ -1310,7 +1328,7 @@ function AjouterScreen({ onBack, onAdded }) {
   if (!type) {
     return (
       <div className="flex-1 overflow-y-auto pb-6 px-5">
-        <ScreenHeader title="QUEL TICKET ?" onBack={onBack} />
+        <ScreenHeader title="QUEL TICKET ?" onBack={onBack} onMenu={onMenu} />
         <div className="flex flex-col gap-2.5">
           {AJOUT_TYPES.map((t) => (
             <button key={t.id} onClick={() => setType(t.id)} className="rounded-xl px-4 py-4 text-left" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
@@ -1324,7 +1342,7 @@ function AjouterScreen({ onBack, onAdded }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <ScreenHeader title="NOUVELLE ENTRÉE" onBack={() => setType(null)} />
+      <ScreenHeader title="NOUVELLE ENTRÉE" onBack={() => setType(null)} onMenu={onMenu} />
       <SectionLabel>IDENTIFICATION</SectionLabel>
       <label className="block mb-4">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE *</span>
@@ -1371,7 +1389,7 @@ function AjouterScreen({ onBack, onAdded }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN ARCHIVES                                                       */
 /* ------------------------------------------------------------------ */
-function ArchivesScreen({ films, onOpen, onBack }) {
+function ArchivesScreen({ films, onOpen, onBack, onMenu }) {
   const [sortRecent, setSortRecent] = useState(true);
   const list = useMemo(() => {
     const arr = films.filter((f) => isArchived(f)).map((f) => ({ f, days: Math.abs(daysUntil(parseDateFR(f.dateManuelle))) }));
@@ -1381,7 +1399,7 @@ function ArchivesScreen({ films, onOpen, onBack }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <ScreenHeader title="ARCHIVES" onBack={onBack}
+      <ScreenHeader title="ARCHIVES" onBack={onBack} onMenu={onMenu}
         right={<button onClick={() => setSortRecent((v) => !v)} className="flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
           <span style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, letterSpacing: 0.4 }}>{sortRecent ? "PLUS RÉCENT" : "PLUS ANCIEN"}</span>
         </button>} />
@@ -1410,13 +1428,13 @@ function tagMatches(film, tag) {
   return false;
 }
 
-function TagsScreen({ films, tag: initialTag, onOpen, onBack }) {
+function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
   const [tag, setTag] = useState(initialTag || "Romy");
   const list = films.filter((f) => tagMatches(f, tag) && !isArchived(f));
 
   return (
     <div className="flex-1 overflow-y-auto pb-6 px-5">
-      <ScreenHeader title="TAGS" onBack={onBack} />
+      <ScreenHeader title="TAGS" onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-2 flex-wrap mb-4">
         {TAG_LIST().map((t) => (
           <button key={t.id} onClick={() => setTag(t.id)} className="rounded-full px-3 py-1.5"
@@ -1436,13 +1454,13 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN RÉGLAGES                                                       */
 /* ------------------------------------------------------------------ */
-function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, onBack }) {
+function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, onBack, onMenu }) {
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = () => { setRefreshing(true); onRefresh(); setTimeout(() => setRefreshing(false), 900); };
 
   return (
     <div className="flex-1 overflow-y-auto pb-8 px-5">
-      <ScreenHeader title="RÉGLAGES" onBack={onBack} />
+      <ScreenHeader title="RÉGLAGES" onBack={onBack} onMenu={onMenu} />
 
       <SectionLabel>NOMBRE DE FILMS SUR L'ACCUEIL</SectionLabel>
       <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
@@ -1635,25 +1653,25 @@ export default function App() {
       body = <AccueilScreen films={films} onOpen={openFiche} onSearch={() => navigate({ name: "recherche", params: {} })}
         onMenu={() => setMenuOpen(true)} onAdd={() => navigate({ name: "ajouter", params: {} })} nbAccueil={nbAccueil} />;
     } else if (name === "recherche") {
-      body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} />;
+      body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "fiche") {
       body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} />;
     } else if (name === "biblio") {
-      body = <BibliothequeScreen films={films} type={params.type} onOpen={openFiche} onBack={goAccueil} />;
+      body = <BibliothequeScreen films={films} type={params.type} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "alertes") {
-      body = <AlertesScreen films={films} mode={params.mode} onOpen={openFiche} onBack={goAccueil} />;
+      body = <AlertesScreen films={films} mode={params.mode} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "explorer") {
-      body = <ExplorerScreen films={films} initialGenre={params.initialGenre} onOpen={openFiche} onBack={goAccueil} />;
+      body = <ExplorerScreen films={films} initialGenre={params.initialGenre} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "genres") {
-      body = <GenresScreen films={films} onNavigate={navigate} onBack={goAccueil} />;
+      body = <GenresScreen films={films} onNavigate={navigate} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "ajouter") {
-      body = <AjouterScreen onBack={goAccueil} onAdded={loadFilms} />;
+      body = <AjouterScreen onBack={goAccueil} onAdded={loadFilms} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "archives") {
-      body = <ArchivesScreen films={films} onOpen={openFiche} onBack={goAccueil} />;
+      body = <ArchivesScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "tags") {
-      body = <TagsScreen films={films} tag={params.tag} onOpen={openFiche} onBack={goAccueil} />;
+      body = <TagsScreen films={films} tag={params.tag} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "reglages") {
-      body = <ReglagesScreen nbAccueil={nbAccueil} onChangeNbAccueil={setNbAccueil} onRefresh={loadFilms} filmCount={films.length} onBack={goAccueil} />;
+      body = <ReglagesScreen nbAccueil={nbAccueil} onChangeNbAccueil={setNbAccueil} onRefresh={loadFilms} filmCount={films.length} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     }
   }
 
