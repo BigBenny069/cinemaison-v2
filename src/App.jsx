@@ -283,23 +283,64 @@ function MinitelCursor() {
   );
 }
 
+// Petites perforations façon pellicule négative, utilisées uniquement en
+// thème "table" (Table lumineuse). Superposées en absolu par-dessus le
+// cadre du poster, sans modifier sa taille/position propre.
+function NegativeSprockets({ side }) {
+  return (
+    <div className="absolute left-0 right-0 flex justify-between px-1.5 z-10" style={{ [side]: -4 }}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} style={{ width: 4, height: 4, background: T.bg, border: `1.5px solid ${T.cream}`, flexShrink: 0 }} />
+      ))}
+    </div>
+  );
+}
+
 function Poster({ film, className, style }) {
   const [failed, setFailed] = useState(false);
+  const isTable = CURRENT_THEME === "table";
+  let content;
+
   if (!film.affiche || failed) {
     const flatBlockThemes = CURRENT_THEME === "affiche" || CURRENT_THEME === "minitel";
     const background = flatBlockThemes
       ? afficheBlockColor_(film.titre)
       : `linear-gradient(160deg, ${T.accentSoft}, ${T.surfaceRaised})`;
     const textColor = CURRENT_THEME === "affiche" ? T.cream : CURRENT_THEME === "minitel" ? "#000000" : T.accent;
-    return (
-      <div className={className} style={{ ...style, background, display: "flex", alignItems: "center", justifyContent: "center", padding: 6 }}>
+    content = (
+      <div
+        className={isTable ? "w-full h-full" : className}
+        style={{
+          ...(isTable ? { border: `2px solid ${T.cream}`, boxSizing: "border-box" } : style),
+          background, display: "flex", alignItems: "center", justifyContent: "center", padding: 6,
+        }}
+      >
         <span style={{ fontFamily: F.marquee, fontSize: 12, color: textColor, letterSpacing: 0.5, textAlign: "center", lineHeight: 1.15, fontWeight: CURRENT_THEME === "minitel" ? 700 : 400 }}>
           {(film.titre || "").slice(0, 22).toUpperCase()}
         </span>
       </div>
     );
+  } else {
+    content = (
+      <img
+        src={film.affiche} alt={film.titre}
+        className={isTable ? "w-full h-full" : className}
+        style={{ ...(isTable ? { border: `2px solid ${T.cream}`, boxSizing: "border-box" } : style), objectFit: "cover", objectPosition: "top" }}
+        onError={() => setFailed(true)}
+      />
+    );
   }
-  return <img src={film.affiche} alt={film.titre} className={className} style={{ ...style, objectFit: "cover", objectPosition: "top" }} onError={() => setFailed(true)} />;
+
+  if (isTable) {
+    return (
+      <div className={`relative ${className || ""}`} style={style}>
+        <NegativeSprockets side="top" />
+        {content}
+        <NegativeSprockets side="bottom" />
+      </div>
+    );
+  }
+  return content;
 }
 
 function RatingStamp({ value, size = 58 }) {
