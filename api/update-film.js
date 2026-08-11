@@ -14,6 +14,13 @@ const CAMEL_TO_HEADER = {
   synopsis: "Synopsis", noteLetterboxd: "NoteLetterboxd",
   votesLetterboxd: "VotesLetterboxd", urlLetterboxd: "URLLetterboxd",
   dateAuto: "DateDisponibiliteAuto",
+  // Ajoutés pour "Redemander une vérification" (remplace Mode Vacances) :
+  // vider ces deux champs fait sortir la fiche du lot "complet" au sens
+  // du script d'enrichissement (05_ENRICHISSEMENT.gs), qui la reprend
+  // automatiquement au cycle suivant sans effacer l'affiche/synopsis déjà
+  // récupérés entre-temps.
+  etatEnrichissement: "EtatEnrichissement",
+  statutEnrichissement: "StatutEnrichissement",
 };
 
 // Les 4 tags "À voir" sont exclusifs entre eux (décision validée) : en
