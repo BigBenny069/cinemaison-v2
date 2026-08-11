@@ -244,6 +244,24 @@ function PlatformIcon({ label }) {
   const [failed, setFailed] = useState(false);
   const slug = PLATFORM_SLUGS_UPPER[(label || "").toUpperCase()];
   const showImg = slug && !failed;
+
+  if (CURRENT_THEME === "affiche") {
+    // Bloc plein encre, comme sur l'affiche validée
+    return (
+      <span className="inline-flex items-center px-3 py-1.5" style={{ background: T.cream }}>
+        <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.6, color: T.surface, fontWeight: 700 }}>{(label || "").toUpperCase()}</span>
+      </span>
+    );
+  }
+  if (CURRENT_THEME === "minitel") {
+    // Bloc plein couleur (turquoise), texte noir, comme sur le Minitel
+    return (
+      <span className="inline-flex items-center px-2" style={{ background: T.accent, padding: "2px 8px" }}>
+        <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.6, color: "#000000", fontWeight: 700 }}>{(label || "").toUpperCase()}</span>
+      </span>
+    );
+  }
+
   return (
     <span className="inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
       {showImg ? (
@@ -755,6 +773,15 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
   );
 }
 
+// Petit label de section dans la fiche détail (SYNOPSIS, DISTRIBUTION...).
+// En Minitel, préfixe "▸" bleu au lieu des petites majuscules grises.
+function FicheLabel({ children, className }) {
+  if (CURRENT_THEME === "minitel") {
+    return <p className={className} style={{ fontFamily: F.mono, fontSize: 10, color: T.accentSecondary, letterSpacing: 1 }}>▸ {children}</p>;
+  }
+  return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
+}
+
 function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) {
   const [film, setFilm] = useState(filmProp);
   const [editing, setEditing] = useState(false);
@@ -823,22 +850,37 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
             </span>
           </div>
         ) : expiryDays != null && expiryDays >= 0 && (
-          <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
-            <span style={{ fontFamily: F.marquee, fontSize: 22, color: T.alert }}>J-{expiryDays}</span>
-            <span style={{ fontFamily: F.mono, fontSize: 9.5, color: "#E3B3A6" }}>DERNIÈRE SÉANCE PRÉVUE</span>
-          </div>
+          CURRENT_THEME === "affiche" ? (
+            <div className="inline-flex items-center gap-2 mt-4 px-3 py-2" style={{ background: T.gold, border: `${T.borderWidth}px solid ${T.cream}`, boxShadow: T.shadow, transform: "rotate(-1deg)" }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>J−{expiryDays} · DERNIÈRE SÉANCE</span>
+            </div>
+          ) : CURRENT_THEME === "minitel" ? (
+            <div className="inline-flex items-center mt-4 px-3 py-2" style={{ background: T.gold }}>
+              <span style={{ fontFamily: F.mono, fontSize: 14, color: "#000000", fontWeight: 700 }}>J-{expiryDays} · DERNIÈRE SÉANCE</span>
+            </div>
+          ) : CURRENT_THEME === "table" ? (
+            <div className="relative inline-block mt-4">
+              <span style={{ fontFamily: F.serif, fontSize: 18, fontWeight: 700, color: T.cream }}>Expire dans {expiryDays} jours</span>
+              <div className="absolute" style={{ left: -6, right: -6, bottom: -2, height: 2, background: T.accent, transform: "rotate(-1deg)" }} />
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 22, color: T.alert }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
+            </div>
+          )
         )}
 
         {film.synopsis && (
           <>
-            <h4 className="mt-5 mb-1" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>SYNOPSIS</h4>
+            <FicheLabel className="mt-5 mb-1">SYNOPSIS</FicheLabel>
             <p style={{ fontFamily: F.serif, fontSize: 13.5, lineHeight: 1.6, color: T.muted }}>{film.synopsis}</p>
           </>
         )}
 
         {cast.length > 0 && (
           <>
-            <h4 className="mt-5 mb-2" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>DISTRIBUTION</h4>
+            <FicheLabel className="mt-5 mb-2">DISTRIBUTION</FicheLabel>
             {CURRENT_THEME === "minitel" ? (
               <div className="flex flex-col gap-1 mb-2">
                 {cast.map((c) => (
@@ -859,7 +901,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
           </>
         )}
 
-        <h4 className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>FICHE TECHNIQUE</h4>
+        <FicheLabel className="mt-4 mb-1">FICHE TECHNIQUE</FicheLabel>
         <Row label="Réalisateur" value={film.realisateur} />
         <Row label="Genre" value={film.genre} />
         <Row label="Date de dispo. (saisie)" value={film.dateManuelle} />
