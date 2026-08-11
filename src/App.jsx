@@ -108,16 +108,17 @@ const THEMES = {
       bg: "#000000",
       surface: "#000000",
       surfaceRaised: "#0A0A0A",
-      accent: "#00E5E5",
-      accentSoft: "#001414",
-      accentSecondary: "#E5E500",
-      accentSecondarySoft: "#141400",
+      accent: "#00D9C0",
+      accentSoft: "#FF7A1A",
+      accentSecondary: "#2F6BFF",
+      accentSecondarySoft: "#0A1830",
+      gold: "#FFD400",
       cream: "#F0F0F0",
       muted: "#F0F0F099",
       mutedDim: "#F0F0F066",
       line: "#F0F0F033",
-      alert: "#E500E5",
-      alertSoft: "#140014",
+      alert: "#FF7A1A",
+      alertSoft: "#2A1400",
       radius: 0,
       radiusSm: 0,
       shadow: "none",
@@ -266,24 +267,33 @@ function PlatformIcon({ label }) {
 /* ------------------------------------------------------------------ */
 /* ELEMENTS SIGNATURE                                                  */
 /* ------------------------------------------------------------------ */
-// Trois couleurs plates qui tournent selon le titre — évite que tous les
-// posters de repli du thème festival soient identiques.
+// Couleurs plates qui tournent selon le titre — évite que tous les
+// posters de repli des thèmes festival/minitel soient identiques.
 const AFFICHE_BLOCKS = ["accent", "accentSoft", "accentSecondary", "gold"];
 function afficheBlockColor_(titre) {
   const i = (titre || "").split("").reduce((s, c) => s + c.charCodeAt(0), 0) % AFFICHE_BLOCKS.length;
   return T[AFFICHE_BLOCKS[i]];
 }
 
+// Curseur bloc clignotant, clin d'œil Minitel — utilisé uniquement quand
+// CURRENT_THEME === "minitel" (voir la barre de recherche de l'Accueil).
+function MinitelCursor() {
+  return (
+    <span style={{ width: 7, height: 13, background: T.cream, display: "inline-block", animation: "minitelBlink 1s step-end infinite", marginLeft: 2 }} />
+  );
+}
+
 function Poster({ film, className, style }) {
   const [failed, setFailed] = useState(false);
   if (!film.affiche || failed) {
-    const background = CURRENT_THEME === "affiche"
+    const flatBlockThemes = CURRENT_THEME === "affiche" || CURRENT_THEME === "minitel";
+    const background = flatBlockThemes
       ? afficheBlockColor_(film.titre)
       : `linear-gradient(160deg, ${T.accentSoft}, ${T.surfaceRaised})`;
-    const textColor = CURRENT_THEME === "affiche" ? T.cream : T.accent;
+    const textColor = CURRENT_THEME === "affiche" ? T.cream : CURRENT_THEME === "minitel" ? "#000000" : T.accent;
     return (
       <div className={className} style={{ ...style, background, display: "flex", alignItems: "center", justifyContent: "center", padding: 6 }}>
-        <span style={{ fontFamily: F.marquee, fontSize: 12, color: textColor, letterSpacing: 0.5, textAlign: "center", lineHeight: 1.15 }}>
+        <span style={{ fontFamily: F.marquee, fontSize: 12, color: textColor, letterSpacing: 0.5, textAlign: "center", lineHeight: 1.15, fontWeight: CURRENT_THEME === "minitel" ? 700 : 400 }}>
           {(film.titre || "").slice(0, 22).toUpperCase()}
         </span>
       </div>
@@ -320,11 +330,21 @@ function DateStamp({ days }) {
 
 function SectionTitle({ children, icon: Icon = Film }) {
   if (CURRENT_THEME === "affiche") {
-    // Thème festival : titre encadré en bloc plat, comme sur l'affiche validée
+    // Thème festival : titre encadré en bloc plat turquoise (couleur principale validée)
     return (
       <div className="flex items-center gap-2 px-4 mb-2.5">
-        <span style={{ fontFamily: F.marquee, fontSize: 13, color: T.cream, background: T.accentSoft, padding: "2px 8px", boxShadow: T.shadow, border: `${T.borderWidth}px solid ${T.cream}` }}>
+        <span style={{ fontFamily: F.marquee, fontSize: 13, color: T.cream, background: T.accent, padding: "2px 8px", boxShadow: T.shadow, border: `${T.borderWidth}px solid ${T.cream}` }}>
           {children}
+        </span>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "minitel") {
+    // Thème Minitel : barre bloc pleine couleur façon "■ SECTION", comme le visuel validé
+    return (
+      <div className="mb-2 px-4">
+        <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.5, color: "#000", background: T.accentSecondary, padding: "3px 8px", fontWeight: 700 }}>
+          ■ {children}
         </span>
       </div>
     );
@@ -462,10 +482,11 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
         <button
           onClick={onSearch}
           className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
-          style={{ background: T.surface, border: `1px solid ${T.line}` }}
+          style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius }}
         >
           <Search size={15} color={T.mutedDim} />
           <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.mutedDim }}>Titre, réalisateur, acteur…</span>
+          {CURRENT_THEME === "minitel" && <MinitelCursor />}
         </button>
       </div>
 
@@ -777,15 +798,23 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
         {cast.length > 0 && (
           <>
             <h4 className="mt-5 mb-2" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>DISTRIBUTION</h4>
-            <div className="flex gap-2 flex-wrap mb-2">
-              {cast.map((c, i) =>
-                CURRENT_THEME === "affiche" ? (
-                  <span key={c} className="px-3 py-1.5" style={{ background: T[AFFICHE_BLOCKS[i % AFFICHE_BLOCKS.length]], border: `2px solid ${T.cream}`, fontFamily: F.mono, fontSize: 10.5, color: T.cream, fontWeight: 700 }}>{c}</span>
-                ) : (
-                  <span key={c} className="rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 12, color: T.muted }}>{c}</span>
-                )
-              )}
-            </div>
+            {CURRENT_THEME === "minitel" ? (
+              <div className="flex flex-col gap-1 mb-2">
+                {cast.map((c) => (
+                  <span key={c} style={{ fontFamily: F.mono, fontSize: 11, color: T.cream }}>· {c.toUpperCase()}</span>
+                ))}
+              </div>
+            ) : (
+              <div className="flex gap-2 flex-wrap mb-2">
+                {cast.map((c, i) =>
+                  CURRENT_THEME === "affiche" ? (
+                    <span key={c} className="px-3 py-1.5" style={{ background: T[AFFICHE_BLOCKS[i % AFFICHE_BLOCKS.length]], border: `2px solid ${T.cream}`, fontFamily: F.mono, fontSize: 10.5, color: T.cream, fontWeight: 700 }}>{c}</span>
+                  ) : (
+                    <span key={c} className="rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 12, color: T.muted }}>{c}</span>
+                  )
+                )}
+              </div>
+            )}
           </>
         )}
 
@@ -1958,7 +1987,7 @@ export default function App() {
 
   return (
     <div className="w-full flex items-center justify-center" style={{ background: T.bg, height: "100dvh" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } }`}</style>
       <div className="flex flex-col w-full relative" style={{ maxWidth: 460, height: "100%", background: T.bg }}>
         {error && (
           <div className="m-4 rounded-lg p-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
