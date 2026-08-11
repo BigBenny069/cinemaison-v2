@@ -120,21 +120,21 @@ function PlatformIcon({ label }) {
   const slug = PLATFORM_SLUGS_UPPER[(label || "").toUpperCase()];
   const showImg = slug && !failed;
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
       {showImg ? (
         <img
           src={`/logos/${slug}.png`}
           alt={label}
           className="flex-shrink-0 rounded-md"
-          style={{ width: 20, height: 20, objectFit: "contain", background: "#0A0A0A" }}
+          style={{ width: 22, height: 22, objectFit: "contain", background: "#0A0A0A" }}
           onError={() => setFailed(true)}
         />
       ) : (
-        <span className="flex items-center justify-center flex-shrink-0 rounded-md" style={{ width: 20, height: 20, background: T.surfaceRaised, fontSize: 9, color: T.muted }}>
+        <span className="flex items-center justify-center flex-shrink-0 rounded-md" style={{ width: 22, height: 22, background: T.surfaceRaised, fontSize: 10, color: T.muted }}>
           {(label || "?")[0]}
         </span>
       )}
-      <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.5, color: T.muted }}>{(label || "").toUpperCase()}</span>
+      <span style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: 0.6, color: T.cream, fontWeight: 600 }}>{(label || "").toUpperCase()}</span>
     </span>
   );
 }
@@ -603,7 +603,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
           <h2 style={{ fontFamily: F.marquee, fontSize: 27, color: T.cream, letterSpacing: 0.5, lineHeight: 1 }}>{film.titre}</h2>
           <RatingStamp value={film.noteLetterboxd} />
         </div>
-        <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>
+        <p style={{ fontFamily: F.mono, fontSize: 12, color: T.muted, letterSpacing: 0.6, fontWeight: 600 }}>
           {(film.type || "").toUpperCase()} · {film.annee} · {film.duree || "—"}
         </p>
         <div className="mt-2"><PlatformIcon label={film.plateforme} /></div>
@@ -897,7 +897,7 @@ function buildMonthGrid(year, month) {
 }
 
 /* ------------------------------------------------------------------ */
-/* ECRAN ALERTES — calendrier mensuel, dispara\u00eet bient\u00f4t (manuel) / sortie th\u00e9orique (auto) */
+/* ECRAN ALERTES — calendrier mensuel, disparaît bientôt (manuel) / sortie théorique (auto) */
 /* ------------------------------------------------------------------ */
 function AlertesListe({ films, field, onOpen }) {
   const groups = useMemo(() => {
