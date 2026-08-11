@@ -462,6 +462,7 @@ function LetterboxdMark({ size = 9 }) {
 /* ------------------------------------------------------------------ */
 function TicketCard({ film, onOpen }) {
   const expiryDays = computeExpiryDays(film);
+  const rating = parseRating(film.noteLetterboxd);
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full"
       style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
@@ -471,16 +472,15 @@ function TicketCard({ film, onOpen }) {
         <div>
           <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: T.cream }}>{film.titre}</p>
           <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>
-            {film.annee} · {(film.type || "").toUpperCase()}
+            {film.annee}{film.duree ? ` · ${film.duree}` : ""} · {(film.type || "").toUpperCase()}
           </p>
         </div>
         <div className="flex items-center justify-between mt-1">
           <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.5, color: T.muted }}>{(film.plateforme || "").toUpperCase()}</span>
-          {expiryDays != null ? (
-            <span style={{ fontFamily: F.mono, fontSize: 10, color: T.alert, fontWeight: 600 }}>{`J-${expiryDays}`}</span>
-          ) : parseRating(film.noteLetterboxd) != null ? (
-            <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600 }}>★ {parseRating(film.noteLetterboxd).toFixed(1)}</span>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {rating != null && <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600 }}>★ {rating.toFixed(1)}</span>}
+            {expiryDays != null && <span style={{ fontFamily: F.mono, fontSize: 10, color: T.alert, fontWeight: 600 }}>{`J-${expiryDays}`}</span>}
+          </div>
         </div>
       </div>
     </button>
@@ -496,7 +496,7 @@ function MiniCard({ film, onOpen, sub, showStamp }) {
         {showStamp && expiryDays != null && <DateStamp days={expiryDays} />}
       </div>
       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 12, fontWeight: 600, color: T.cream }}>{film.titre}</p>
-      <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{film.plateforme}</p>
+      <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{film.plateforme}{film.duree ? ` · ${film.duree}` : ""}</p>
       <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent }}>{sub}</p>
     </button>
   );
@@ -591,12 +591,16 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN FICHE DETAIL                                                  */
 /* ------------------------------------------------------------------ */
-function Row({ label, value }) {
+function Row({ label, value, onClick }) {
   if (!value) return null;
   return (
     <div className="flex justify-between py-2" style={{ borderBottom: `1px solid ${T.line}` }}>
       <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>{label.toUpperCase()}</span>
-      <span style={{ fontFamily: F.serif, fontSize: 12.5, color: T.cream, textAlign: "right" }}>{value}</span>
+      {onClick ? (
+        <button onClick={onClick} style={{ fontFamily: F.serif, fontSize: 12.5, color: T.accentSecondary, textAlign: "right", textDecoration: "underline", textUnderlineOffset: 3 }}>{value}</button>
+      ) : (
+        <span style={{ fontFamily: F.serif, fontSize: 12.5, color: T.cream, textAlign: "right" }}>{value}</span>
+      )}
     </div>
   );
 }
@@ -789,7 +793,7 @@ function FicheLabel({ children, className }) {
   return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
 }
 
-function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) {
+function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onOpenPerson }) {
   const [film, setFilm] = useState(filmProp);
   const [editing, setEditing] = useState(false);
   const expiryDays = computeExpiryDays(film);
@@ -909,16 +913,16 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
             {CURRENT_THEME === "minitel" ? (
               <div className="flex flex-col gap-1 mb-2">
                 {cast.map((c) => (
-                  <span key={c} style={{ fontFamily: F.mono, fontSize: 11, color: T.cream }}>· {c.toUpperCase()}</span>
+                  <button key={c} onClick={() => onOpenPerson(c)} className="text-left" style={{ fontFamily: F.mono, fontSize: 11, color: T.cream }}>· {c.toUpperCase()}</button>
                 ))}
               </div>
             ) : (
               <div className="flex gap-2 flex-wrap mb-2">
                 {cast.map((c, i) =>
                   CURRENT_THEME === "affiche" ? (
-                    <span key={c} className="px-3 py-1.5" style={{ background: T[AFFICHE_BLOCKS[i % AFFICHE_BLOCKS.length]], border: `2px solid ${T.cream}`, fontFamily: F.mono, fontSize: 10.5, color: T.cream, fontWeight: 700 }}>{c}</span>
+                    <button key={c} onClick={() => onOpenPerson(c)} className="px-3 py-1.5" style={{ background: T[AFFICHE_BLOCKS[i % AFFICHE_BLOCKS.length]], border: `2px solid ${T.cream}`, fontFamily: F.mono, fontSize: 10.5, color: T.cream, fontWeight: 700 }}>{c}</button>
                   ) : (
-                    <span key={c} className="rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 12, color: T.muted }}>{c}</span>
+                    <button key={c} onClick={() => onOpenPerson(c)} className="rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 12, color: T.muted }}>{c}</button>
                   )
                 )}
               </div>
@@ -927,7 +931,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
         )}
 
         <FicheLabel className="mt-4 mb-1">FICHE TECHNIQUE</FicheLabel>
-        <Row label="Réalisateur" value={film.realisateur} />
+        <Row label="Réalisateur" value={film.realisateur} onClick={film.realisateur ? () => onOpenPerson(film.realisateur) : undefined} />
         <Row label="Genre" value={film.genre} />
         <Row label="Date de dispo. (saisie)" value={film.dateManuelle} />
         <Row label="Date de dispo. (auto)" value={film.dateAuto} />
@@ -1029,7 +1033,7 @@ function SearchResultCard({ film, match, onOpen }) {
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: T.cream }}>{film.titre}</p>
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>
-          {film.annee} · {(film.plateforme || "").toUpperCase()}
+          {film.annee}{film.duree ? ` · ${film.duree}` : ""} · {(film.plateforme || "").toUpperCase()}
         </p>
         <MatchTag match={match} />
       </div>
@@ -1102,6 +1106,41 @@ function RechercheScreen({ films, onOpen, onBack, onMenu }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* ECRAN FILMOGRAPHIE — tous les films/séries de la bibliothèque où     */
+/* cette personne apparaît (casting ou réalisateur). Ouvert en tapant   */
+/* un nom dans une fiche détail — voir onOpenPerson dans App().        */
+/* ------------------------------------------------------------------ */
+function personneMatch_(film, nomNormalise) {
+  if (normalizeSearch(film.realisateur || "") === nomNormalise) return true;
+  return (film.casting || "").split(",").map((c) => normalizeSearch(c.trim())).includes(nomNormalise);
+}
+
+function PersonScreen({ films, nom, onOpen, onBack, onMenu }) {
+  const list = useMemo(() => {
+    const q = normalizeSearch(nom);
+    return films.filter((f) => personneMatch_(f, q));
+  }, [films, nom]);
+  const asRealisateur = useMemo(() => list.filter((f) => normalizeSearch(f.realisateur || "") === normalizeSearch(nom)).length, [list, nom]);
+
+  return (
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+      <ScreenHeader title={nom} onBack={onBack} onMenu={onMenu} />
+      <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>
+        {list.length} FICHE{list.length > 1 ? "S" : ""} DANS TA BIBLIOTHÈQUE{asRealisateur > 0 ? ` · ${asRealisateur} EN TANT QUE RÉALISATEUR` : ""}
+      </p>
+      <div className="flex flex-col gap-2">
+        {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} />)}
+        {list.length === 0 && (
+          <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>
+            Aucune autre fiche avec « {nom} » pour l'instant.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* AIDE — libellé générique de section (écrans filtres / réglages)     */
 /* ------------------------------------------------------------------ */
 function SectionLabel({ children }) {
@@ -1144,7 +1183,7 @@ function ListResultCard({ film, onOpen, right }) {
       <Poster film={film} className="w-20 h-28 flex-shrink-0" style={isArchived(film) ? { filter: "grayscale(55%)", opacity: 0.75 } : undefined} />
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: isArchived(film) ? T.muted : T.cream }}>{film.titre}</p>
-        <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>{film.annee} · {(film.plateforme || "").toUpperCase()}</p>
+        <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>{film.annee}{film.duree ? ` · ${film.duree}` : ""} · {(film.plateforme || "").toUpperCase()}</p>
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
           {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
         </p>
@@ -2061,6 +2100,8 @@ export default function App() {
   const navigate = (nav) => { setScreen(nav); setMenuOpen(false); };
   const openFiche = (film) => setScreen({ name: "fiche", params: { film, from: screen } });
   const backFromFiche = () => setScreen(screen.params.from || { name: "accueil", params: {} });
+  const openPerson = (nom) => setScreen({ name: "personne", params: { nom, from: screen } });
+  const backFromPerson = () => setScreen(screen.params.from || { name: "accueil", params: {} });
   const goAccueil = () => setScreen({ name: "accueil", params: {} });
 
   // Met à jour une fiche dans le state local après un ajout de tag ou une
@@ -2090,7 +2131,9 @@ export default function App() {
     } else if (name === "recherche") {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "fiche") {
-      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} />;
+      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onOpenPerson={openPerson} />;
+    } else if (name === "personne") {
+      body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "biblio") {
       body = <BibliothequeScreen films={films} type={params.type} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "alertes") {
