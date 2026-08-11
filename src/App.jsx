@@ -790,6 +790,24 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [revising, setRevising] = useState(false);
+  const [revised, setRevised] = useState(false);
+
+  // "Redemander une vérification" — remplace le Mode Vacances de la V1.
+  // Vide EtatEnrichissement/StatutEnrichissement : le script d'enrichissement
+  // (module 05, déjà actif) reprend la fiche tout seul au cycle suivant,
+  // sans effacer l'affiche/synopsis déjà récupérés entre-temps.
+  const handleAskReview = async () => {
+    setRevising(true);
+    const result = await apiWrite("/api/update-film", { id: film.id, fields: { etatEnrichissement: "", statutEnrichissement: "" } });
+    setRevising(false);
+    if (!result.ok) {
+      window.alert(result.error || "Impossible de redemander une vérification");
+      return;
+    }
+    setRevised(true);
+    setTimeout(() => setRevised(false), 4000);
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -921,6 +939,17 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
             </span>
           </div>
         )}
+
+        <button onClick={handleAskReview} disabled={revising} className="flex items-center justify-center gap-2 w-full rounded-lg py-3 mt-6"
+          style={{ background: T.surface, border: `1px solid ${T.line}`, opacity: revising ? 0.6 : 1 }}>
+          <RefreshCw size={13} color={T.accentSecondary} style={{ animation: revising ? "spin 0.8s linear infinite" : "none" }} />
+          <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 0.5, color: T.accentSecondary, fontWeight: 600 }}>
+            {revised ? "DEMANDE ENVOYÉE — REPRISE AU PROCHAIN CYCLE" : revising ? "ENVOI…" : "REDEMANDER UNE VÉRIFICATION"}
+          </span>
+        </button>
+        <p className="mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
+          Si l'affiche, le synopsis ou la note te semblent faux — le script les recalculera d'ici quelques minutes.
+        </p>
       </div>
 
       {posterOpen && (
