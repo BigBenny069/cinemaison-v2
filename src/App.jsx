@@ -81,7 +81,7 @@ const THEMES = {
   affiche: {
     label: "Affiche de festival",
     colors: {
-      bg: "#FAFAF5",
+      bg: "#F2F0E8",
       surface: "#FFFFFF",
       surfaceRaised: "#F0F0EA",
       accent: "#00D9C0",
@@ -145,6 +145,13 @@ function applyTheme_(name) {
 
 function getStoredTheme_() {
   try { return localStorage.getItem("cinemaison_theme") || "ticket"; } catch { return "ticket"; }
+}
+
+function getStoredNbAccueil_() {
+  try {
+    const v = parseInt(localStorage.getItem("cinemaison_nbAccueil"), 10);
+    return Number.isFinite(v) && v >= 3 && v <= 15 ? v : 8;
+  } catch { return 8; }
 }
 
 /* ------------------------------------------------------------------ */
@@ -843,7 +850,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
         <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,16,12,0.1) 40%, ${T.bg} 100%)` }} />
         <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="absolute left-4 w-9 h-9 rounded-full flex items-center justify-center"
           style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(20,16,12,0.55)" }}>
-          <ChevronLeft size={18} color={T.cream} />
+          <ChevronLeft size={18} color="#F3EEE3" />
         </button>
         <div className="absolute right-4 flex gap-2" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
           <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Pencil size={15} color={T.accentSecondary} /></button>
@@ -1999,7 +2006,7 @@ export default function App() {
   const [films, setFilms] = useState(null);
   const [error, setError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [nbAccueil, setNbAccueil] = useState(8);
+  const [nbAccueil, setNbAccueilState] = useState(8);
   // Thème visuel : appliqué à T/F au montage (voir applyTheme_ tout en
   // haut du fichier), puis à chaque changement depuis Réglages.
   // themeTick force un nouveau rendu de toute l'appli après la mutation
@@ -2032,6 +2039,18 @@ export default function App() {
     applyTheme_(stored);
     setThemeTick((n) => n + 1);
   }, []);
+
+  // Recharge le nombre de films "Ça part bientôt" mémorisé sur cet
+  // appareil — sans ça, il revenait à 8 (valeur par défaut) à chaque
+  // réouverture de l'appli.
+  useEffect(() => {
+    setNbAccueilState(getStoredNbAccueil_());
+  }, []);
+
+  const setNbAccueil = (n) => {
+    setNbAccueilState(n);
+    try { localStorage.setItem("cinemaison_nbAccueil", String(n)); } catch {}
+  };
 
   const changeTheme = (name) => {
     setTheme(name);
