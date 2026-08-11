@@ -2,25 +2,69 @@ import { useState, useEffect, useMemo } from "react";
 import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* TOKENS — palette CinéMaison                                        */
+/* THÈMES — deux palettes disponibles, sélectionnables dans Réglages.  */
+/* T et F sont volontairement des `let` (pas `const`) : changer de     */
+/* thème mute leurs propriétés en place plutôt que de les remplacer,   */
+/* pour que tous les composants (qui lisent T.xxx / F.xxx au moment du */
+/* rendu) captent la nouvelle valeur sans avoir besoin d'un Context.   */
 /* ------------------------------------------------------------------ */
-const T = {
-  bg: "#14100C",
-  surface: "#1F1912",
-  surfaceRaised: "#2A2216",
-  accent: "#C58D29",
-  accentSoft: "#3A2C13",
-  accentSecondary: "#56929F",
-  accentSecondarySoft: "#16262A",
-  cream: "#F3EEE3",
-  muted: "#9C9284",
-  mutedDim: "#6B6355",
-  line: "#332B22",
-  alert: "#B85C4A",
-  alertSoft: "#2E1A15",
+const THEMES = {
+  ticket: {
+    label: "Ticket de cinéma",
+    colors: {
+      bg: "#14100C",
+      surface: "#1F1912",
+      surfaceRaised: "#2A2216",
+      accent: "#C58D29",
+      accentSoft: "#3A2C13",
+      accentSecondary: "#56929F",
+      accentSecondarySoft: "#16262A",
+      cream: "#F3EEE3",
+      muted: "#9C9284",
+      mutedDim: "#6B6355",
+      line: "#332B22",
+      alert: "#B85C4A",
+      alertSoft: "#2E1A15",
+    },
+    fonts: { marquee: "'Bebas Neue', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
+  },
+  bleu: {
+    label: "Bleu moderne",
+    colors: {
+      bg: "#0B0E14",
+      surface: "#131720",
+      surfaceRaised: "#1B212C",
+      accent: "#3D7DFF",
+      accentSoft: "#152244",
+      accentSecondary: "#7FB4FF",
+      accentSecondarySoft: "#16223F",
+      cream: "#EDEFF3",
+      muted: "#7C8494",
+      mutedDim: "#4E5666",
+      line: "#1F2530",
+      alert: "#E85D6E",
+      alertSoft: "#301A20",
+    },
+    fonts: { marquee: "'Sora', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
+  },
 };
 
-const F = { marquee: "'Bebas Neue', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" };
+let T = { ...THEMES.ticket.colors };
+let F = { ...THEMES.ticket.fonts };
+
+// Applique un thème en mutant T et F en place (voir note ci-dessus).
+// Le composant appelant doit ensuite forcer un nouveau rendu (voir
+// App() plus bas, qui expose ça via onChangeTheme).
+function applyTheme_(name) {
+  const theme = THEMES[name] || THEMES.ticket;
+  Object.assign(T, theme.colors);
+  Object.assign(F, theme.fonts);
+  try { localStorage.setItem("cinemaison_theme", name); } catch {}
+}
+
+function getStoredTheme_() {
+  try { return localStorage.getItem("cinemaison_theme") || "ticket"; } catch { return "ticket"; }
+}
 
 /* ------------------------------------------------------------------ */
 /* ECRITURES PROTÉGÉES — add-film / update-film / delete-film          */
@@ -1454,13 +1498,30 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN RÉGLAGES                                                       */
 /* ------------------------------------------------------------------ */
-function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, onBack, onMenu }) {
+function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, onBack, onMenu, theme, onChangeTheme }) {
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = () => { setRefreshing(true); onRefresh(); setTimeout(() => setRefreshing(false), 900); };
 
   return (
     <div className="flex-1 overflow-y-auto pb-8 px-5">
       <ScreenHeader title="RÉGLAGES" onBack={onBack} onMenu={onMenu} />
+
+      <SectionLabel>STYLE VISUEL</SectionLabel>
+      <div className="flex flex-col gap-2">
+        {Object.entries(THEMES).map(([key, t]) => {
+          const active = theme === key;
+          return (
+            <button key={key} onClick={() => onChangeTheme(key)} className="flex items-center justify-between rounded-xl px-4 py-3"
+              style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}` }}>
+              <span style={{ fontFamily: F.serif, fontSize: 13.5, color: active ? T.accent : T.cream }}>{t.label}</span>
+              {active && <Check size={16} color={T.accent} />}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+        Change les couleurs et la police dans toute l'appli. Ton choix est mémorisé sur cet appareil.
+      </p>
 
       <SectionLabel>NOMBRE DE FILMS SUR L'ACCUEIL</SectionLabel>
       <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
@@ -1607,6 +1668,13 @@ export default function App() {
   const [error, setError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [nbAccueil, setNbAccueil] = useState(8);
+  // Thème visuel : appliqué à T/F au montage (voir applyTheme_ tout en
+  // haut du fichier), puis à chaque changement depuis Réglages.
+  // themeTick force un nouveau rendu de toute l'appli après la mutation
+  // de T/F, puisque T et F sont des objets mutés en place et non
+  // remplacés (voir la note sur les THEMES en tête de fichier).
+  const [theme, setTheme] = useState("ticket");
+  const [, setThemeTick] = useState(0);
   // screen = { name, params }. "fiche" a un champ params.film et params.from
   // (l'écran précédent) pour que le bouton retour ramène au bon endroit.
   const [screen, setScreen] = useState({ name: "accueil", params: {} });
@@ -1622,6 +1690,20 @@ export default function App() {
   };
 
   useEffect(() => { loadFilms(); }, []);
+
+  // Applique le thème mémorisé sur cet appareil dès le premier rendu.
+  useEffect(() => {
+    const stored = getStoredTheme_();
+    setTheme(stored);
+    applyTheme_(stored);
+    setThemeTick((n) => n + 1);
+  }, []);
+
+  const changeTheme = (name) => {
+    setTheme(name);
+    applyTheme_(name);
+    setThemeTick((n) => n + 1); // force le nouveau rendu, T/F ont changé en place
+  };
 
   const navigate = (nav) => { setScreen(nav); setMenuOpen(false); };
   const openFiche = (film) => setScreen({ name: "fiche", params: { film, from: screen } });
@@ -1671,7 +1753,7 @@ export default function App() {
     } else if (name === "tags") {
       body = <TagsScreen films={films} tag={params.tag} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "reglages") {
-      body = <ReglagesScreen nbAccueil={nbAccueil} onChangeNbAccueil={setNbAccueil} onRefresh={loadFilms} filmCount={films.length} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
+      body = <ReglagesScreen nbAccueil={nbAccueil} onChangeNbAccueil={setNbAccueil} onRefresh={loadFilms} filmCount={films.length} onBack={goAccueil} onMenu={() => setMenuOpen(true)} theme={theme} onChangeTheme={changeTheme} />;
     }
   }
 
