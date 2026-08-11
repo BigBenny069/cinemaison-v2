@@ -84,16 +84,17 @@ const THEMES = {
       bg: "#FAFAF5",
       surface: "#FFFFFF",
       surfaceRaised: "#F0F0EA",
-      accent: "#FF3EA5",
-      accentSoft: "#C6FF3D",
+      accent: "#00D9C0",
+      accentSoft: "#FF7A1A",
       accentSecondary: "#2F6BFF",
-      accentSecondarySoft: "#EAFFC2",
+      accentSecondarySoft: "#FFF1DC",
+      gold: "#FFD400",
       cream: "#0D0D0D",
       muted: "#0D0D0DB3",
       mutedDim: "#0D0D0D80",
       line: "#0D0D0D33",
-      alert: "#FF3EA5",
-      alertSoft: "#FFE0F0",
+      alert: "#FF7A1A",
+      alertSoft: "#FFE9D6",
       radius: 0,
       radiusSm: 0,
       shadow: "4px 4px 0 #0D0D0D",
@@ -267,7 +268,7 @@ function PlatformIcon({ label }) {
 /* ------------------------------------------------------------------ */
 // Trois couleurs plates qui tournent selon le titre — évite que tous les
 // posters de repli du thème festival soient identiques.
-const AFFICHE_BLOCKS = ["accent", "accentSoft", "accentSecondary"];
+const AFFICHE_BLOCKS = ["accent", "accentSoft", "accentSecondary", "gold"];
 function afficheBlockColor_(titre) {
   const i = (titre || "").split("").reduce((s, c) => s + c.charCodeAt(0), 0) % AFFICHE_BLOCKS.length;
   return T[AFFICHE_BLOCKS[i]];
