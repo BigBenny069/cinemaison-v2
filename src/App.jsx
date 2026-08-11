@@ -128,6 +128,7 @@ const THEMES = {
 
 let T = { ...THEMES.ticket.colors };
 let F = { ...THEMES.ticket.fonts };
+let CURRENT_THEME = "ticket"; // nom du thème actif — lu directement par les composants qui ont besoin d'un rendu spécifique (ex: SectionTitle, Poster) au-delà d'un simple changement de couleur/police.
 
 // Applique un thème en mutant T et F en place (voir note ci-dessus).
 // Le composant appelant doit ensuite forcer un nouveau rendu (voir
@@ -136,6 +137,7 @@ function applyTheme_(name) {
   const theme = THEMES[name] || THEMES.ticket;
   Object.assign(T, theme.colors);
   Object.assign(F, theme.fonts);
+  CURRENT_THEME = THEMES[name] ? name : "ticket";
   try { localStorage.setItem("cinemaison_theme", name); } catch {}
 }
 
@@ -263,12 +265,24 @@ function PlatformIcon({ label }) {
 /* ------------------------------------------------------------------ */
 /* ELEMENTS SIGNATURE                                                  */
 /* ------------------------------------------------------------------ */
+// Trois couleurs plates qui tournent selon le titre — évite que tous les
+// posters de repli du thème festival soient identiques.
+const AFFICHE_BLOCKS = ["accent", "accentSoft", "accentSecondary"];
+function afficheBlockColor_(titre) {
+  const i = (titre || "").split("").reduce((s, c) => s + c.charCodeAt(0), 0) % AFFICHE_BLOCKS.length;
+  return T[AFFICHE_BLOCKS[i]];
+}
+
 function Poster({ film, className, style }) {
   const [failed, setFailed] = useState(false);
   if (!film.affiche || failed) {
+    const background = CURRENT_THEME === "affiche"
+      ? afficheBlockColor_(film.titre)
+      : `linear-gradient(160deg, ${T.accentSoft}, ${T.surfaceRaised})`;
+    const textColor = CURRENT_THEME === "affiche" ? T.cream : T.accent;
     return (
-      <div className={className} style={{ ...style, background: `linear-gradient(160deg, ${T.accentSoft}, ${T.surfaceRaised})`, display: "flex", alignItems: "center", justifyContent: "center", padding: 6 }}>
-        <span style={{ fontFamily: F.marquee, fontSize: 12, color: T.accent, letterSpacing: 0.5, textAlign: "center", lineHeight: 1.15 }}>
+      <div className={className} style={{ ...style, background, display: "flex", alignItems: "center", justifyContent: "center", padding: 6 }}>
+        <span style={{ fontFamily: F.marquee, fontSize: 12, color: textColor, letterSpacing: 0.5, textAlign: "center", lineHeight: 1.15 }}>
           {(film.titre || "").slice(0, 22).toUpperCase()}
         </span>
       </div>
@@ -304,6 +318,16 @@ function DateStamp({ days }) {
 }
 
 function SectionTitle({ children, icon: Icon = Film }) {
+  if (CURRENT_THEME === "affiche") {
+    // Thème festival : titre encadré en bloc plat, comme sur l'affiche validée
+    return (
+      <div className="flex items-center gap-2 px-4 mb-2.5">
+        <span style={{ fontFamily: F.marquee, fontSize: 13, color: T.cream, background: T.accentSoft, padding: "2px 8px", boxShadow: T.shadow, border: `${T.borderWidth}px solid ${T.cream}` }}>
+          {children}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-2 px-4 mb-2">
       <Icon size={13} color={T.accent} style={{ flexShrink: 0 }} />
@@ -753,9 +777,13 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
           <>
             <h4 className="mt-5 mb-2" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>DISTRIBUTION</h4>
             <div className="flex gap-2 flex-wrap mb-2">
-              {cast.map((c) => (
-                <span key={c} className="rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 12, color: T.muted }}>{c}</span>
-              ))}
+              {cast.map((c, i) =>
+                CURRENT_THEME === "affiche" ? (
+                  <span key={c} className="px-3 py-1.5" style={{ background: T[AFFICHE_BLOCKS[i % AFFICHE_BLOCKS.length]], border: `2px solid ${T.cream}`, fontFamily: F.mono, fontSize: 10.5, color: T.cream, fontWeight: 700 }}>{c}</span>
+                ) : (
+                  <span key={c} className="rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 12, color: T.muted }}>{c}</span>
+                )
+              )}
             </div>
           </>
         )}
