@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -25,6 +25,10 @@ const THEMES = {
       line: "#332B22",
       alert: "#B85C4A",
       alertSoft: "#2E1A15",
+      radius: 16,
+      radiusSm: 8,
+      shadow: "none",
+      borderWidth: 1,
     },
     fonts: { marquee: "'Bebas Neue', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
   },
@@ -44,8 +48,81 @@ const THEMES = {
       line: "#1F2530",
       alert: "#E85D6E",
       alertSoft: "#301A20",
+      radius: 16,
+      radiusSm: 8,
+      shadow: "none",
+      borderWidth: 1,
     },
     fonts: { marquee: "'Sora', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
+  },
+  table: {
+    label: "Table lumineuse",
+    colors: {
+      bg: "#3A3A34",
+      surface: "#F0F1EC",
+      surfaceRaised: "#E4E5DD",
+      accent: "#E8432F",
+      accentSoft: "#F0F1EC",
+      accentSecondary: "#8A8D85",
+      accentSecondarySoft: "#DEDFD8",
+      cream: "#14171C",
+      muted: "#5A5D55",
+      mutedDim: "#8A8D85",
+      line: "#14171C22",
+      alert: "#E8432F",
+      alertSoft: "#F5D9D4",
+      radius: 2,
+      radiusSm: 2,
+      shadow: "none",
+      borderWidth: 2,
+    },
+    fonts: { marquee: "'Source Serif 4', serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
+  },
+  affiche: {
+    label: "Affiche de festival",
+    colors: {
+      bg: "#151515",
+      surface: "#FAFAF5",
+      surfaceRaised: "#FFFFFF",
+      accent: "#FF3EA5",
+      accentSoft: "#C6FF3D",
+      accentSecondary: "#2F6BFF",
+      accentSecondarySoft: "#EAFFC2",
+      cream: "#0D0D0D",
+      muted: "#0D0D0D99",
+      mutedDim: "#0D0D0D66",
+      line: "#0D0D0D33",
+      alert: "#FF3EA5",
+      alertSoft: "#FFE0F0",
+      radius: 0,
+      radiusSm: 0,
+      shadow: "4px 4px 0 #0D0D0D",
+      borderWidth: 3,
+    },
+    fonts: { marquee: "'Archivo Black', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
+  },
+  minitel: {
+    label: "Minitel",
+    colors: {
+      bg: "#000000",
+      surface: "#000000",
+      surfaceRaised: "#0A0A0A",
+      accent: "#00E5E5",
+      accentSoft: "#001414",
+      accentSecondary: "#E5E500",
+      accentSecondarySoft: "#141400",
+      cream: "#F0F0F0",
+      muted: "#F0F0F099",
+      mutedDim: "#F0F0F066",
+      line: "#F0F0F033",
+      alert: "#E500E5",
+      alertSoft: "#140014",
+      radius: 0,
+      radiusSm: 0,
+      shadow: "none",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'IBM Plex Mono', monospace", serif: "'IBM Plex Mono', monospace", mono: "'IBM Plex Mono', monospace" },
   },
 };
 
@@ -275,8 +352,8 @@ function LetterboxdMark({ size = 9 }) {
 function TicketCard({ film, onOpen }) {
   const expiryDays = computeExpiryDays(film);
   return (
-    <button onClick={() => onOpen(film)} className="flex text-left rounded-2xl overflow-hidden w-full"
-      style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+    <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full"
+      style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
       <Poster film={film} className="w-20 h-28 flex-shrink-0" />
       <Perforation />
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-between">
@@ -304,7 +381,7 @@ function MiniCard({ film, onOpen, sub, showStamp }) {
   return (
     <button onClick={() => onOpen(film)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
       <div className="relative">
-        <Poster film={film} className="w-full rounded-lg" style={{ height: 152 }} />
+        <Poster film={film} className="w-full" style={{ height: 152, borderRadius: T.radiusSm }} />
         {showStamp && expiryDays != null && <DateStamp days={expiryDays} />}
       </div>
       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 12, fontWeight: 600, color: T.cream }}>{film.titre}</p>
@@ -343,7 +420,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
   });
 
   return (
-    <div className="flex-1 overflow-y-auto pb-4">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-4">
       <div className="sticky top-0 z-20 flex items-center justify-between px-4 pb-4" style={{ background: T.bg, paddingTop: "max(16px, env(safe-area-inset-top))" }}>
         <button onClick={onMenu} className="w-9 h-9 rounded-full flex items-center justify-center"
           style={{ background: T.surface, border: `1px solid ${T.accentSecondary}55` }}>
@@ -512,7 +589,7 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="MODIFIER" onBack={onCancel} />
 
       <SectionLabel>IDENTIFICATION</SectionLabel>
@@ -628,7 +705,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete }) 
   }
 
   return (
-    <div className="flex-1 overflow-y-auto relative pb-6">
+    <div className="flex-1 overflow-y-auto pull-scroll relative pb-6">
       <div onClick={() => setPosterOpen(true)} className="relative" style={{ height: 340, cursor: "pointer" }}>
         <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
         <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,16,12,0.1) 40%, ${T.bg} 100%)` }} />
@@ -770,7 +847,7 @@ function MatchTag({ match }) {
 
 function SearchResultCard({ film, match, onOpen }) {
   return (
-    <button onClick={() => onOpen(film)} className="flex text-left rounded-2xl overflow-hidden w-full" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+    <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
       <Poster film={film} className="w-20 h-28 flex-shrink-0" />
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: T.cream }}>{film.titre}</p>
@@ -792,7 +869,7 @@ function RechercheScreen({ films, onOpen, onBack, onMenu }) {
   }, [films, query]);
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <div className="sticky top-0 z-20 -mx-5 px-5 flex items-center justify-between" style={{ background: T.bg, paddingTop: "max(16px, env(safe-area-inset-top))", paddingBottom: 16 }}>
         <div className="flex items-center gap-2">
           <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
@@ -886,7 +963,7 @@ function ScreenHeader({ title, onBack, onMenu, right }) {
 
 function ListResultCard({ film, onOpen, right }) {
   return (
-    <button onClick={() => onOpen(film)} className="flex text-left rounded-2xl overflow-hidden w-full" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+    <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
       <Poster film={film} className="w-20 h-28 flex-shrink-0" style={isArchived(film) ? { filter: "grayscale(55%)", opacity: 0.75 } : undefined} />
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: isArchived(film) ? T.muted : T.cream }}>{film.titre}</p>
@@ -923,7 +1000,7 @@ function BibliothequeScreen({ films, type, onOpen, onBack, onMenu }) {
   }, [films, type, sort]);
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title={(type || "").toUpperCase()} onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-1.5 mb-4">
         {SORTS.map((s) => {
@@ -1090,7 +1167,7 @@ function AlertesCalendrier({ films, onOpen }) {
       )}
       <div className="flex flex-col gap-2">
         {dayItems.map((f) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="flex items-center gap-3 text-left rounded-lg pr-3 py-2 overflow-hidden" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <button key={f.id} onClick={() => onOpen(f)} className="flex items-center gap-3 text-left pr-3 py-2 overflow-hidden" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
             <Poster film={f} className="flex-shrink-0" style={{ width: 34, height: 48, objectFit: "cover" }} />
             <span className="flex-1 min-w-0">
               <span className="block truncate" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>{f.titre}</span>
@@ -1116,7 +1193,7 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="ALERTES" onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-1.5 mb-5">
         {TABS.map((t) => {
@@ -1220,7 +1297,7 @@ function GenreField({ genreCounts, selected, onChange }) {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un genre…"
                 className="w-full rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 13, color: T.cream }} />
             </div>
-            <div className="overflow-y-auto px-5" style={{ flex: 1 }}>
+            <div className="overflow-y-auto pull-scroll px-5" style={{ flex: 1 }}>
               {filtered.map(([g, count]) => {
                 const active = selected.includes(g);
                 return (
@@ -1281,7 +1358,7 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
   }, [films, type, plateforme, genresSel, dureeBucket, noteMin]);
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="EXPLORER" onBack={onBack} onMenu={onMenu} />
       <PillGroup label="Type de fiche" options={TYPES_LIST} value={type} onChange={setType} />
       <PillGroup label="Plateforme" options={PLATFORMS_LIST} value={plateforme} onChange={setPlateforme} />
@@ -1316,7 +1393,7 @@ function GenresScreen({ films, onNavigate, onBack, onMenu }) {
   }, [films]);
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="GENRES" onBack={onBack} onMenu={onMenu} />
       <div className="grid grid-cols-2 gap-2.5">
         {genreCounts.map(([g, count]) => (
@@ -1371,7 +1448,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
 
   if (!type) {
     return (
-      <div className="flex-1 overflow-y-auto pb-6 px-5">
+      <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
         <ScreenHeader title="QUEL TICKET ?" onBack={onBack} onMenu={onMenu} />
         <div className="flex flex-col gap-2.5">
           {AJOUT_TYPES.map((t) => (
@@ -1385,7 +1462,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="NOUVELLE ENTRÉE" onBack={() => setType(null)} onMenu={onMenu} />
       <SectionLabel>IDENTIFICATION</SectionLabel>
       <label className="block mb-4">
@@ -1442,7 +1519,7 @@ function ArchivesScreen({ films, onOpen, onBack, onMenu }) {
   }, [films, sortRecent]);
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="ARCHIVES" onBack={onBack} onMenu={onMenu}
         right={<button onClick={() => setSortRecent((v) => !v)} className="flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
           <span style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, letterSpacing: 0.4 }}>{sortRecent ? "PLUS RÉCENT" : "PLUS ANCIEN"}</span>
@@ -1477,7 +1554,7 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
   const list = films.filter((f) => tagMatches(f, tag) && !isArchived(f));
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="TAGS" onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-2 flex-wrap mb-4">
         {TAG_LIST().map((t) => (
@@ -1503,7 +1580,7 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
   const handleRefresh = () => { setRefreshing(true); onRefresh(); setTimeout(() => setRefreshing(false), 900); };
 
   return (
-    <div className="flex-1 overflow-y-auto pb-8 px-5">
+    <div className="flex-1 overflow-y-auto pull-scroll pb-8 px-5">
       <ScreenHeader title="RÉGLAGES" onBack={onBack} onMenu={onMenu} />
 
       <SectionLabel>STYLE VISUEL</SectionLabel>
@@ -1564,7 +1641,6 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
           MÉTADONNÉES ET AFFICHES : THE MOVIE DATABASE (TMDB). NOTES ET VOTES : LETTERBOXD. CINÉMAISON N'EST APPROUVÉ NI PAR L'UN NI PAR L'AUTRE.
         </p>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -1575,7 +1651,9 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
 function MenuDrawer({ open, onClose, films, onNavigate }) {
   const counts = useMemo(() => {
     const m = {};
-    films.forEach((f) => { m[f.type] = (m[f.type] || 0) + 1; });
+    // Ne compte que les fiches à date valable (non archivées), pour que
+    // ce chiffre corresponde exactement à ce que montre la bibliothèque.
+    films.filter((f) => !isArchived(f)).forEach((f) => { m[f.type] = (m[f.type] || 0) + 1; });
     return m;
   }, [films]);
 
@@ -1600,7 +1678,7 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
   return (
     <div className="fixed inset-0 z-40" style={{ pointerEvents: open ? "auto" : "none" }}>
       <div onClick={onClose} className="absolute inset-0" style={{ background: "rgba(10,8,6,0.7)", opacity: open ? 1 : 0, transition: "opacity 0.25s" }} />
-      <div className="absolute left-0 top-0 bottom-0 overflow-y-auto" style={{ width: 278, background: T.bg, borderRight: `1px solid ${T.line}`, transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s ease" }}>
+      <div className="absolute left-0 top-0 bottom-0 overflow-y-auto pull-scroll" style={{ width: 278, background: T.bg, borderRight: `1px solid ${T.line}`, transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s ease" }}>
         <div className="flex items-center justify-between px-4" style={{ paddingTop: "max(18px, env(safe-area-inset-top))", paddingBottom: 14 }}>
           <span style={{ fontFamily: F.marquee, fontSize: 21, color: T.accent, letterSpacing: 1.5 }}>GUICHET</span>
           <button onClick={onClose}><X size={18} color={T.muted} /></button>
@@ -1624,6 +1702,90 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
           <button onClick={() => onNavigate({ name: "reglages", params: {} })} className="block w-full text-left py-2" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Réglages</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* PULL-TO-REFRESH — tirer vers le bas en haut d'un écran recharge les */
+/* données depuis le Sheet. Utile après une modification/suppression   */
+/* pour resynchroniser sans attendre. Détecte le conteneur défilant    */
+/* réellement sous le doigt via la classe "pull-scroll" (posée sur     */
+/* chaque écran), pas de dépendance à une seule zone de scroll globale.*/
+/* ------------------------------------------------------------------ */
+const PULL_THRESHOLD = 64; // px à tirer avant que le relâchement déclenche le refresh
+const PULL_MAX = 92;
+
+function PullToRefresh({ onRefresh, children }) {
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const stateRef = useRef({ active: false, startY: 0, scrollEl: null }).current;
+
+  const handleTouchStart = (e) => {
+    if (refreshing) return;
+    const scrollEl = e.target.closest(".pull-scroll");
+    if (!scrollEl || scrollEl.scrollTop > 0) return;
+    stateRef.active = true;
+    stateRef.startY = e.touches[0].clientY;
+    stateRef.scrollEl = scrollEl;
+  };
+
+  const handleTouchMove = (e) => {
+    if (!stateRef.active) return;
+    if (!stateRef.scrollEl || stateRef.scrollEl.scrollTop > 0) {
+      stateRef.active = false;
+      setPullDistance(0);
+      return;
+    }
+    const delta = e.touches[0].clientY - stateRef.startY;
+    if (delta <= 0) {
+      setPullDistance(0);
+      return;
+    }
+    setPullDistance(Math.min(delta * 0.5, PULL_MAX));
+  };
+
+  const handleTouchEnd = async () => {
+    if (!stateRef.active) return;
+    stateRef.active = false;
+    if (pullDistance >= PULL_THRESHOLD) {
+      setRefreshing(true);
+      setPullDistance(PULL_THRESHOLD);
+      try {
+        await onRefresh();
+      } finally {
+        setRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  return (
+    <div
+      className="relative flex-1 min-h-0 flex flex-col"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {pullDistance > 0 && (
+        <div
+          className="absolute left-0 right-0 flex items-center justify-center z-30"
+          style={{ top: 0, height: pullDistance, transition: refreshing ? "none" : "height 0.2s ease" }}
+        >
+          <RefreshCw
+            size={17}
+            color={T.accent}
+            style={{
+              transform: `rotate(${pullDistance * 3}deg)`,
+              animation: refreshing ? "spin 0.8s linear infinite" : "none",
+              opacity: Math.min(pullDistance / PULL_THRESHOLD, 1),
+            }}
+          />
+        </div>
+      )}
+      {children}
     </div>
   );
 }
@@ -1680,7 +1842,9 @@ export default function App() {
   const [screen, setScreen] = useState({ name: "accueil", params: {} });
 
   const loadFilms = () => {
-    fetch("/api/get-films")
+    // Renvoie la promesse pour que pull-to-refresh puisse attendre la fin
+    // du chargement avant de masquer son indicateur.
+    return fetch("/api/get-films")
       .then((res) => {
         if (!res.ok) throw new Error(`Erreur ${res.status}`);
         return res.json();
@@ -1765,6 +1929,7 @@ export default function App() {
 
   return (
     <div className="w-full flex items-center justify-center" style={{ background: T.bg, height: "100dvh" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div className="flex flex-col w-full relative" style={{ maxWidth: 460, height: "100%", background: T.bg }}>
         {error && (
           <div className="m-4 rounded-lg p-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
@@ -1776,7 +1941,7 @@ export default function App() {
           <p className="p-4" style={{ fontFamily: F.serif, color: T.muted }}>Chargement des films…</p>
         )}
 
-        <div className="flex-1 min-h-0 flex flex-col">{body}</div>
+        <PullToRefresh onRefresh={loadFilms}>{body}</PullToRefresh>
 
         {films && <BottomNav active={activeTab} onNavigate={navigate} />}
         {films && <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} films={films} onNavigate={navigate} />}
