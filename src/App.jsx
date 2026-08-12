@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play } from "lucide-react";
+import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, FileText } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* THÈMES — deux palettes disponibles, sélectionnables dans Réglages.  */
@@ -11,6 +11,7 @@ import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, C
 const THEMES = {
   ticket: {
     label: "Ticket de cinéma",
+    groupe: "Originaux",
     colors: {
       bg: "#14100C",
       surface: "#1F1912",
@@ -34,6 +35,7 @@ const THEMES = {
   },
   bleu: {
     label: "Bleu moderne",
+    groupe: "Originaux",
     colors: {
       bg: "#0B0E14",
       surface: "#131720",
@@ -57,6 +59,7 @@ const THEMES = {
   },
   table: {
     label: "Table lumineuse",
+    groupe: "Signature",
     colors: {
       bg: "#EDEEE8",
       surface: "#FFFFFF",
@@ -80,6 +83,7 @@ const THEMES = {
   },
   affiche: {
     label: "Affiche de festival",
+    groupe: "Signature",
     colors: {
       bg: "#F2F0E8",
       surface: "#FFFFFF",
@@ -104,6 +108,7 @@ const THEMES = {
   },
   minitel: {
     label: "Minitel",
+    groupe: "Signature",
     colors: {
       bg: "#000000",
       surface: "#000000",
@@ -128,6 +133,7 @@ const THEMES = {
   },
   salle: {
     label: "Salle privée",
+    groupe: "Signature",
     colors: {
       bg: "#1B1720",
       surface: "#241F2C",
@@ -151,6 +157,7 @@ const THEMES = {
   },
   letterboxd: {
     label: "Letterboxd",
+    groupe: "Signature",
     colors: {
       bg: "#14181C",
       surface: "#1C2228",
@@ -177,6 +184,7 @@ const THEMES = {
   // pas de branche CURRENT_THEME dédiée, rendu par défaut comme Ticket/Bleu) ----
   sombre: {
     label: "Guichet Nocturne",
+    groupe: "Ambiances CinéRadar",
     colors: {
       bg: "#13100C",
       surface: "#1D1812",
@@ -201,6 +209,7 @@ const THEMES = {
   },
   clair: {
     label: "Matinée",
+    groupe: "Ambiances CinéRadar",
     colors: {
       bg: "#F5F1E8",
       surface: "#FFFFFF",
@@ -225,6 +234,7 @@ const THEMES = {
   },
   neon: {
     label: "Vidéoclub 88",
+    groupe: "Ambiances CinéRadar",
     colors: {
       bg: "#0D0620",
       surface: "#1A0E33",
@@ -249,6 +259,7 @@ const THEMES = {
   },
   noir: {
     label: "Film Noir",
+    groupe: "Ambiances CinéRadar",
     colors: {
       bg: "#0A0A0A",
       surface: "#161616",
@@ -273,6 +284,7 @@ const THEMES = {
   },
   sepia: {
     label: "Pellicule Vintage",
+    groupe: "Ambiances CinéRadar",
     colors: {
       bg: "#2B2013",
       surface: "#3A2C1A",
@@ -297,6 +309,7 @@ const THEMES = {
   },
   imax: {
     label: "Salle IMAX",
+    groupe: "Ambiances CinéRadar",
     colors: {
       bg: "#060B14",
       surface: "#0E1826",
@@ -321,6 +334,7 @@ const THEMES = {
   },
   drivein: {
     label: "Ciné Plein Air",
+    groupe: "Ambiances CinéRadar",
     colors: {
       bg: "#1B1B3A",
       surface: "#262650",
@@ -345,6 +359,7 @@ const THEMES = {
   },
   cannes: {
     label: "Tapis Rouge",
+    groupe: "Ambiances CinéRadar",
     colors: {
       bg: "#1A0A0C",
       surface: "#240F13",
@@ -366,6 +381,109 @@ const THEMES = {
       borderWidth: 1,
     },
     fonts: { marquee: "'Bebas Neue', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
+  },
+  // ---- 4 nouvelles directions : couleurs/police/forme intégrées, les     ----
+  // ---- inventions structurelles (grille bento, JSON, BD, blobs) restent  ----
+  // ---- propres aux aperçus — non reproduites sur tous les écrans ici.    ----
+  bento: {
+    label: "Bento Moderne",
+    groupe: "Mises en page réinventées",
+    colors: {
+      bg: "#EDE7FF",
+      surface: "rgba(255,255,255,0.6)",
+      surfaceRaised: "rgba(255,255,255,0.85)",
+      accent: "#9B7EF5",
+      accentSoft: "#EDE7FF",
+      accentSecondary: "#FF8FA3",
+      accentSecondarySoft: "#FFE8EE",
+      gold: "#4ED8B0",
+      cream: "#2B2140",
+      muted: "#6B6082",
+      mutedDim: "#9A91AC",
+      line: "rgba(255,255,255,0.9)",
+      alert: "#FF8FA3",
+      alertSoft: "#FFE8EE",
+      radius: 24,
+      radiusSm: 18,
+      shadow: "0 8px 24px rgba(155,126,245,0.15)",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'Inter', sans-serif", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
+  },
+  terminal: {
+    label: "Terminal Sombre",
+    groupe: "Mises en page réinventées",
+    colors: {
+      bg: "#1E1E1E",
+      surface: "#252526",
+      surfaceRaised: "#2D2D2D",
+      accent: "#569CD6",
+      accentSoft: "#1B2A38",
+      accentSecondary: "#CE9178",
+      accentSecondarySoft: "#2E2622",
+      gold: "#B5CEA8",
+      cream: "#D4D4D4",
+      muted: "#8A8A8A",
+      mutedDim: "#6A6A6A",
+      line: "#333333",
+      alert: "#CE9178",
+      alertSoft: "#2E2622",
+      radius: 0,
+      radiusSm: 0,
+      shadow: "none",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'IBM Plex Mono', monospace", serif: "'IBM Plex Mono', monospace", mono: "'IBM Plex Mono', monospace" },
+  },
+  bd: {
+    label: "Bulle BD",
+    groupe: "Mises en page réinventées",
+    colors: {
+      bg: "#FFF8E7",
+      surface: "#FFFFFF",
+      surfaceRaised: "#FFF3D0",
+      accent: "#E8394A",
+      accentSoft: "#FFC93C",
+      accentSecondary: "#2E6FE0",
+      accentSecondarySoft: "#E0EBFF",
+      gold: "#FFC93C",
+      cream: "#161414",
+      muted: "#161414B3",
+      mutedDim: "#16141480",
+      line: "#16141433",
+      alert: "#E8394A",
+      alertSoft: "#FFE1E4",
+      radius: 4,
+      radiusSm: 4,
+      shadow: "5px 5px 0 #161414",
+      borderWidth: 3,
+    },
+    fonts: { marquee: "'Archivo Black', sans-serif", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
+  },
+  jardin: {
+    label: "Jardin d'Hiver",
+    groupe: "Mises en page réinventées",
+    colors: {
+      bg: "#F4EFE6",
+      surface: "#FFFDF8",
+      surfaceRaised: "#EDE6D8",
+      accent: "#8A9A80",
+      accentSoft: "#E6EAE0",
+      accentSecondary: "#C97C5D",
+      accentSecondarySoft: "#F5E4DC",
+      gold: "#C97C5D",
+      cream: "#3A3630",
+      muted: "#8A8377",
+      mutedDim: "#B0AA9C",
+      line: "#8A9A8033",
+      alert: "#C97C5D",
+      alertSoft: "#F5E4DC",
+      radius: 32,
+      radiusSm: 24,
+      shadow: "none",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'Source Serif 4', serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
   },
 };
 
@@ -509,11 +627,27 @@ function PlatformIcon({ label }) {
       </span>
     );
   }
+  if (CURRENT_THEME === "bd") {
+    // Pastille blanche à contour encre épais, comme les cases de la planche
+    return (
+      <span className="inline-flex items-center px-3 py-1.5" style={{ background: T.surface, border: `2px solid ${T.cream}`, borderRadius: 6 }}>
+        <span style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{(label || "").toUpperCase()}</span>
+      </span>
+    );
+  }
   if (CURRENT_THEME === "salle") {
     // Pastille douce teintée mauve, plus discrète que le pilulier logo+texte
     return (
       <span className="inline-flex items-center px-2.5 py-1 rounded-full" style={{ background: `${T.accentSecondary}22`, border: `1px solid ${T.accentSecondary}44` }}>
         <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.8, color: T.accentSecondary, fontWeight: 500, textTransform: "uppercase" }}>{label}</span>
+      </span>
+    );
+  }
+  if (CURRENT_THEME === "jardin") {
+    // Pastille pleine, sans bordure — esprit galet posé, pas de contour dur
+    return (
+      <span className="inline-flex items-center px-3 py-1.5 rounded-full" style={{ background: T.surface }}>
+        <span style={{ fontFamily: F.serif, fontSize: 11, color: T.accent, fontWeight: 600 }}>{label}</span>
       </span>
     );
   }
@@ -608,23 +742,35 @@ function NegativeSprockets({ side }) {
 function Poster({ film, className, style }) {
   const [failed, setFailed] = useState(false);
   const isTable = CURRENT_THEME === "table";
+  const isJardin = CURRENT_THEME === "jardin";
+  // Coins asymétriques façon galet — remplace l'arrondi standard uniquement
+  // pour ce thème, quelle que soit la taille de l'affiche (mini-carte,
+  // grande affiche de fiche détail...).
+  const jardinRadius = "38% 62% 63% 37% / 41% 44% 56% 59%";
   let content;
 
   if (!film.affiche || failed) {
-    const flatBlockThemes = CURRENT_THEME === "affiche" || CURRENT_THEME === "minitel";
-    const background = flatBlockThemes
-      ? afficheBlockColor_(film.titre)
+    const flatBlockThemes = CURRENT_THEME === "affiche" || CURRENT_THEME === "minitel" || CURRENT_THEME === "bd";
+    const isBD = CURRENT_THEME === "bd";
+    const flatColor = flatBlockThemes ? afficheBlockColor_(film.titre) : null;
+    const background = isBD
+      // Trame de points par-dessus l'aplat de couleur, façon impression BD
+      ? `radial-gradient(${T.cream}33 1px, transparent 1px), ${flatColor}`
+      : flatBlockThemes
+      ? flatColor
       : `linear-gradient(160deg, ${T.accentSoft}, ${T.surfaceRaised})`;
-    const textColor = CURRENT_THEME === "affiche" ? T.cream : CURRENT_THEME === "minitel" ? "#000000" : T.accent;
+    const textColor = CURRENT_THEME === "affiche" || isBD ? T.cream : CURRENT_THEME === "minitel" ? "#000000" : T.accent;
     content = (
       <div
         className={isTable ? "w-full h-full" : className}
         style={{
           ...(isTable ? { border: `2px solid ${T.cream}`, boxSizing: "border-box" } : style),
+          ...(isBD ? { border: `${T.borderWidth}px solid ${T.cream}`, boxSizing: "border-box", backgroundSize: "7px 7px, auto" } : {}),
+          ...(isJardin ? { borderRadius: jardinRadius, overflow: "hidden" } : {}),
           background, display: "flex", alignItems: "center", justifyContent: "center", padding: 6,
         }}
       >
-        <span style={{ fontFamily: F.marquee, fontSize: 12, color: textColor, letterSpacing: 0.5, textAlign: "center", lineHeight: 1.15, fontWeight: CURRENT_THEME === "minitel" ? 700 : 400 }}>
+        <span style={{ fontFamily: isJardin ? F.serif : F.marquee, fontStyle: isJardin ? "italic" : "normal", fontSize: 12, color: textColor, letterSpacing: 0.5, textAlign: "center", lineHeight: 1.15, fontWeight: CURRENT_THEME === "minitel" || isBD ? 700 : 400 }}>
           {(film.titre || "").slice(0, 22).toUpperCase()}
         </span>
       </div>
@@ -634,7 +780,12 @@ function Poster({ film, className, style }) {
       <img
         src={film.affiche} alt={film.titre}
         className={isTable ? "w-full h-full" : className}
-        style={{ ...(isTable ? { border: `2px solid ${T.cream}`, boxSizing: "border-box" } : style), objectFit: "cover", objectPosition: "top" }}
+        style={{
+          ...(isTable ? { border: `2px solid ${T.cream}`, boxSizing: "border-box" } : style),
+          ...(CURRENT_THEME === "bd" ? { border: `${T.borderWidth}px solid ${T.cream}`, boxSizing: "border-box" } : {}),
+          ...(isJardin ? { borderRadius: jardinRadius } : {}),
+          objectFit: "cover", objectPosition: "top",
+        }}
         onError={() => setFailed(true)}
       />
     );
@@ -744,6 +895,43 @@ function SectionTitle({ children, icon: Icon = Film, onMore }) {
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.accentSecondary, display: "inline-block", marginLeft: -2.5 }} />
         </span>
         <span style={{ fontFamily: F.marquee, fontSize: 12.5, letterSpacing: 0.3, color: T.cream, fontWeight: 700 }}>{children}</span>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "bento") {
+    // Étiquette "pilule" façon dashboard, avec petit lien discret — l'esprit tuile
+    return (
+      <div className="flex items-center justify-between px-4 mb-3">
+        <span className="px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 999, fontFamily: F.marquee, fontSize: 12, color: T.cream, fontWeight: 700, boxShadow: T.shadow }}>{children}</span>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "terminal") {
+    // Commentaire de code, comme dans l'aperçu
+    return (
+      <div className="px-4 mb-2">
+        <span style={{ fontFamily: F.mono, fontSize: 11, color: "#6A9955" }}>{"// " + String(children).toLowerCase()}</span>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "bd") {
+    // Vraie bulle de dialogue, avec la pointe qui pointe vers le bas
+    return (
+      <div className="px-4 mb-5">
+        <div className="relative inline-block px-3 py-1.5" style={{ background: T.accentSoft, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 14 }}>
+          <span style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{children}</span>
+          <div className="absolute" style={{ left: 14, bottom: -9, width: 0, height: 0, borderLeft: "7px solid transparent", borderRight: "7px solid transparent", borderTop: `9px solid ${T.cream}` }} />
+          <div className="absolute" style={{ left: 17, bottom: -5.5, width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: `6px solid ${T.accentSoft}` }} />
+        </div>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "jardin") {
+    // Titre italique posé, simple filet fin — esprit "jardin", pas de bloc
+    return (
+      <div className="flex items-center gap-2 px-6 mb-4">
+        <span style={{ fontFamily: F.serif, fontSize: 16, color: T.cream, fontStyle: "italic" }}>{children}</span>
+        <div style={{ flex: 1, height: 1, background: `${T.accent}55` }} />
       </div>
     );
   }
@@ -918,7 +1106,30 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </div>
       )}
 
-      {bientot.length > 0 && (
+      {/* Jardin d'Hiver : bandeau vedette en forme de galet, teinte pleine    */}
+      {/* (pas de photo pleine largeur) — esprit carte postale posée.         */}
+      {suggestion && CURRENT_THEME === "jardin" && (
+        <div className="px-6 mb-8">
+          <button onClick={() => onOpen(suggestion)} className="relative w-full text-left p-5 block"
+            style={{ background: `linear-gradient(155deg, ${T.accent}, ${T.accentSecondary})`, borderRadius: "38% 62% 63% 37% / 41% 44% 56% 59%", minHeight: 190 }}>
+            <span style={{ fontFamily: F.mono, fontSize: 9.5, color: "#fff", letterSpacing: 1, opacity: 0.85 }}>CE SOIR, ON REGARDE</span>
+            <p className="mt-2" style={{ fontFamily: F.serif, fontSize: 26, color: "#fff", fontStyle: "italic", lineHeight: 1.1 }}>{suggestion.titre}</p>
+            <div className="flex items-center gap-2 mt-4">
+              <span className="px-3 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.25)" }}>
+                <span style={{ fontFamily: F.mono, fontSize: 9.5, color: "#fff" }}>{suggestion.plateforme}</span>
+              </span>
+              {parseRating(suggestion.noteLetterboxd) != null && (
+                <span className="flex items-center gap-1">
+                  <Star size={10} color="#fff" fill="#fff" />
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: "#fff" }}>{parseRating(suggestion.noteLetterboxd).toFixed(1)}</span>
+                </span>
+              )}
+            </div>
+          </button>
+        </div>
+      )}
+
+      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -930,15 +1141,117 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-      <div className="flex gap-3 px-4 overflow-x-auto mb-5">
-        {derniers.map((f) => (
-          <MiniCard key={f.id} film={f} onOpen={onOpen}
-            sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
-        ))}
-      </div>
+      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && (
+        <>
+          <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
+          <div className="flex gap-3 px-4 overflow-x-auto mb-5">
+            {derniers.map((f) => (
+              <MiniCard key={f.id} film={f} onOpen={onOpen}
+                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
+            ))}
+          </div>
+        </>
+      )}
 
-      {suggestion && CURRENT_THEME !== "salle" && (
+      {/* Bento Moderne : grille asymétrique unique (vedette + bientôt + */}
+      {/* ajouts), à la place des rangées horizontales classiques. */}
+      {CURRENT_THEME === "bento" && (
+        <div className="px-4 grid grid-cols-2 gap-3 mb-6" style={{ gridAutoRows: 84 }}>
+          {suggestion && (
+            <button onClick={() => onOpen(suggestion)} className="col-span-2 row-span-2 relative overflow-hidden text-left p-4"
+              style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow, backdropFilter: "blur(10px)" }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, fontWeight: 700, letterSpacing: 0.5 }}>SUGGESTION DU SOIR</span>
+              <p className="mt-1 truncate" style={{ fontFamily: F.marquee, fontSize: 21, fontWeight: 800, color: T.cream }}>{suggestion.titre}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <PlatformIcon label={suggestion.plateforme} />
+                {parseRating(suggestion.noteLetterboxd) != null && (
+                  <span className="flex items-center gap-1">
+                    <Star size={10} color={T.gold} fill={T.gold} />
+                    <span style={{ fontFamily: F.mono, fontSize: 10, color: T.cream, fontWeight: 700 }}>{parseRating(suggestion.noteLetterboxd).toFixed(1)}</span>
+                  </span>
+                )}
+              </div>
+              <div className="absolute" style={{ right: -24, bottom: -24, width: 100, height: 100, borderRadius: "50%", background: `${T.accent}22` }} />
+            </button>
+          )}
+
+          {bientot.slice(0, 2).map((f) => {
+            const days = computeExpiryDays(f);
+            return (
+              <button key={f.id} onClick={() => onOpen(f)} className="p-3 flex flex-col justify-between text-left"
+                style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
+                <span style={{ fontFamily: F.mono, fontSize: 8.5, color: T.accentSecondary, fontWeight: 700 }}>J-{days}</span>
+                <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, fontWeight: 700, color: T.cream, lineHeight: 1.2 }}>{f.titre}</p>
+              </button>
+            );
+          })}
+
+          <button onClick={() => onNavigate({ name: "biblio", params: { type: "Film" } })} className="col-span-2 flex items-center justify-between p-3 text-left"
+            style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
+            <span style={{ fontFamily: F.marquee, fontSize: 12.5, fontWeight: 800, color: T.cream }}>Derniers ajouts</span>
+            <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, fontWeight: 700 }}>Voir tout →</span>
+          </button>
+
+          {derniers.slice(0, 3).map((f, i) => (
+            <div key={f.id} className={i === 2 ? "col-span-2 p-2" : "p-2"} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
+              <button onClick={() => onOpen(f)} className="block w-full h-full text-left">
+                <Poster film={f} className="w-full" style={{ height: 64, borderRadius: T.radiusSm - 6, objectFit: "cover" }} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Terminal Sombre : listes façon déclaration JS syntax-highlightée, */}
+      {/* à la place des vignettes. */}
+      {CURRENT_THEME === "terminal" && (
+        <div className="px-4 pb-6">
+          {bientot.length > 0 && (
+            <>
+              <p style={{ color: "#569CD6", fontSize: 11 }}>const <span style={{ color: "#DCDCAA" }}>caPartBientot</span> = [</p>
+              {bientot.map((f) => {
+                const days = computeExpiryDays(f);
+                return (
+                  <button key={f.id} onClick={() => onOpen(f)} className="w-full pl-4 py-1.5 flex items-center justify-between text-left" style={{ borderLeft: `2px solid ${T.line}` }}>
+                    <span className="truncate">
+                      <span style={{ color: "#CE9178", fontSize: 11 }}>"{f.titre}"</span>
+                      <span style={{ color: T.mutedDim, fontSize: 10 }}>{"  //"} {f.plateforme}</span>
+                    </span>
+                    <span style={{ color: "#B5CEA8", fontSize: 11, flexShrink: 0, marginLeft: 8 }}>J-{days}</span>
+                  </button>
+                );
+              })}
+              <p style={{ color: "#569CD6", fontSize: 11 }}>];</p>
+            </>
+          )}
+
+          <p className="mt-5" style={{ color: "#569CD6", fontSize: 11 }}>const <span style={{ color: "#DCDCAA" }}>derniersAjouts</span> = [</p>
+          {derniers.map((f) => (
+            <button key={f.id} onClick={() => onOpen(f)} className="w-full pl-4 py-1.5 flex items-center justify-between text-left" style={{ borderLeft: `2px solid ${T.line}` }}>
+              <span className="truncate" style={{ color: "#CE9178", fontSize: 11 }}>"{f.titre}"</span>
+              {parseRating(f.noteLetterboxd) != null && (
+                <span className="flex items-center gap-1 flex-shrink-0 ml-2">
+                  <Star size={9} color="#B5CEA8" fill="#B5CEA8" />
+                  <span style={{ color: "#B5CEA8", fontSize: 10 }}>{parseRating(f.noteLetterboxd).toFixed(1)}</span>
+                </span>
+              )}
+            </button>
+          ))}
+          <p style={{ color: "#569CD6", fontSize: 11 }}>];</p>
+
+          {suggestion && (
+            <>
+              <p className="mt-6" style={{ color: "#6A9955", fontSize: 11 }}>{"/* suggestion du soir */"}</p>
+              <button onClick={() => onOpen(suggestion)} className="w-full mt-1.5 p-3 text-left" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+                <p><span style={{ color: "#569CD6", fontSize: 11 }}>return</span> <span style={{ color: "#DCDCAA", fontSize: 12 }}>{(suggestion.titre || "").replace(/\s+/g, "")}</span><span style={{ color: T.cream, fontSize: 11 }}>()</span></p>
+                <p className="mt-1" style={{ color: T.mutedDim, fontSize: 10 }}>// {suggestion.plateforme}{parseRating(suggestion.noteLetterboxd) != null ? ` · ★ ${parseRating(suggestion.noteLetterboxd).toFixed(1)}` : ""}{suggestion.duree ? ` · ${suggestion.duree}` : ""}</p>
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "jardin" && (
         <>
           <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
           <div className="px-4">
@@ -1155,6 +1468,112 @@ function FicheLabel({ children, className }) {
   return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
 }
 
+// Fiche détail en JSON syntax-highlighté, pour le thème "terminal" uniquement.
+// Mêmes données/actions que la fiche classique (édition, suppression, filmographie,
+// bande-annonce), présentées comme un fichier de code plutôt qu'une carte.
+const TERM = { key: "#569CD6", str: "#CE9178", num: "#B5CEA8", func: "#DCDCAA", comment: "#6A9955" };
+
+function FicheTerminal({ film, cast, expiryDays, archived, onBack, onOpenPerson, onEdit, confirmDelete, setConfirmDelete, deleting, onDelete, revising, revised, onAskReview }) {
+  const Ligne = ({ cle, valeur, commentaire, clickable, onClick }) => (
+    <p style={{ fontSize: 11.5 }}>
+      <span style={{ color: TERM.key }}>"{cle}"</span>
+      <span style={{ color: T.cream }}>: </span>
+      {clickable ? (
+        <button onClick={onClick} style={{ color: TERM.func, textDecoration: "underline" }}>"{valeur}"</button>
+      ) : typeof valeur === "number" ? (
+        <span style={{ color: TERM.num }}>{valeur}</span>
+      ) : (
+        <span style={{ color: TERM.str }}>"{valeur}"</span>
+      )}
+      <span style={{ color: T.cream }}>,</span>
+      {commentaire && <span style={{ color: TERM.comment }}> {"// " + commentaire}</span>}
+    </p>
+  );
+
+  return (
+    <div className="flex-1 overflow-y-auto pull-scroll" style={{ fontFamily: F.mono }}>
+      <div className="flex items-center justify-between px-4 pt-6 pb-3" style={{ borderBottom: `1px solid ${T.line}` }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <button onClick={onBack}><ChevronLeft size={14} color={T.cream} /></button>
+          <span style={{ color: T.mutedDim, fontSize: 11 }}>films/</span>
+          <span className="truncate" style={{ color: T.cream, fontSize: 11 }}>{(film.titre || "").toLowerCase().replace(/\s+/g, "-")}.json</span>
+        </div>
+        <div className="flex gap-3 flex-shrink-0">
+          <button onClick={onEdit}><Pencil size={13} color={TERM.key} /></button>
+          <button onClick={() => setConfirmDelete(true)}><Trash2 size={13} color={TERM.str} /></button>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <p style={{ color: T.cream, fontSize: 12 }}>{"{"}</p>
+        <div className="pl-3" style={{ borderLeft: `2px solid ${T.line}` }}>
+          <Ligne cle="titre" valeur={film.titre} />
+          <Ligne cle="annee" valeur={Number(film.annee)} />
+          {film.duree && <Ligne cle="duree" valeur={film.duree} />}
+          <Ligne cle="plateforme" valeur={film.plateforme} />
+          {parseRating(film.noteLetterboxd) != null && <Ligne cle="note" valeur={parseRating(film.noteLetterboxd)} />}
+          {archived ? (
+            <Ligne cle="statut" valeur="archivé" commentaire={`dépassé depuis ${Math.abs(daysUntil(parseDateFR(film.dateManuelle)))}j`} />
+          ) : expiryDays != null && expiryDays >= 0 ? (
+            <Ligne cle="disponibleEncore" valeur={expiryDays} commentaire="jours" />
+          ) : null}
+
+          {film.synopsis && (
+            <>
+              <p className="mt-2" style={{ fontSize: 11.5 }}><span style={{ color: TERM.key }}>"synopsis"</span><span style={{ color: T.cream }}>:</span></p>
+              <p style={{ fontSize: 11, color: TERM.str, lineHeight: 1.6, paddingLeft: 8 }}>"{film.synopsis}"<span style={{ color: T.cream }}>,</span></p>
+            </>
+          )}
+
+          {cast.length > 0 && (
+            <>
+              <p className="mt-2" style={{ fontSize: 11.5 }}><span style={{ color: TERM.key }}>"distribution"</span><span style={{ color: T.cream }}>: [</span></p>
+              {cast.map((c, i) => (
+                <p key={c} style={{ fontSize: 11, paddingLeft: 12 }}>
+                  <button onClick={() => onOpenPerson(c)} style={{ color: TERM.str, textDecoration: "underline" }}>"{c}"</button>
+                  {i < cast.length - 1 && <span style={{ color: T.cream }}>,</span>}
+                </p>
+              ))}
+              <p style={{ fontSize: 11.5, color: T.cream }}>],</p>
+            </>
+          )}
+
+          {film.realisateur && <Ligne cle="realisateur" valeur={film.realisateur} clickable onClick={() => onOpenPerson(film.realisateur)} />}
+          {film.genre && <Ligne cle="genre" valeur={film.genre} />}
+        </div>
+        <p style={{ color: T.cream, fontSize: 12 }}>{"}"}</p>
+
+        {film.urlBandeAnnonce && (
+          <a href={film.urlBandeAnnonce} target="_blank" rel="noreferrer" className="flex items-center gap-2 mt-5 px-3 py-2" style={{ background: T.surface, border: `1px solid ${TERM.key}` }}>
+            <Play size={11} color={TERM.key} fill={TERM.key} />
+            <span style={{ color: TERM.key, fontSize: 10.5 }}>./lancer-bande-annonce.sh</span>
+          </a>
+        )}
+
+        <button onClick={onAskReview} disabled={revising} className="flex items-center gap-2 mt-3 px-3 py-2" style={{ background: T.surface, border: `1px solid ${T.line}`, opacity: revising ? 0.6 : 1 }}>
+          <RefreshCw size={11} color={T.accentSecondary} style={{ animation: revising ? "spin 0.8s linear infinite" : "none" }} />
+          <span style={{ color: T.accentSecondary, fontSize: 10.5 }}>
+            {revised ? "// vérification demandée" : revising ? "// envoi…" : "./redemander-verification.sh"}
+          </span>
+        </button>
+      </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className="w-full p-5" style={{ maxWidth: 460, background: T.surface, border: `1px solid ${T.line}`, paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+            <p style={{ color: TERM.str, fontSize: 13 }}>{"// supprimer " + film.titre + " ?"}</p>
+            <p className="mt-1 mb-4" style={{ color: T.mutedDim, fontSize: 10.5 }}>Action irréversible — la ligne sera retirée du Sheet.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 py-2.5" style={{ background: T.surfaceRaised, color: T.cream, fontSize: 11 }}>annuler()</button>
+              <button onClick={onDelete} disabled={deleting} className="flex-1 py-2.5" style={{ background: TERM.str, color: "#1E1E1E", fontSize: 11, opacity: deleting ? 0.7 : 1 }}>{deleting ? "suppression…" : "confirmer()"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onOpenPerson }) {
   const [film, setFilm] = useState(filmProp);
   const [editing, setEditing] = useState(false);
@@ -1205,6 +1624,17 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           setEditing(false);
           if (onFilmUpdated) onFilmUpdated(film.id, updatedFilm);
         }}
+      />
+    );
+  }
+
+  if (CURRENT_THEME === "terminal") {
+    return (
+      <FicheTerminal
+        film={film} cast={cast} expiryDays={expiryDays} archived={archived}
+        onBack={onBack} onOpenPerson={onOpenPerson} onEdit={() => setEditing(true)}
+        confirmDelete={confirmDelete} setConfirmDelete={setConfirmDelete} deleting={deleting} onDelete={handleDelete}
+        revising={revising} revised={revised} onAskReview={handleAskReview}
       />
     );
   }
@@ -1266,6 +1696,17 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <span className="inline-flex items-center rounded px-2.5 py-1 mt-4" style={{ background: `${T.alert}1F` }}>
               <span style={{ fontFamily: F.mono, fontSize: 11, color: T.alert, fontWeight: 700 }}>J-{expiryDays} · dernière séance</span>
             </span>
+          ) : CURRENT_THEME === "bd" ? (
+            <div className="relative inline-block mt-5 px-3.5 py-2" style={{ background: T.alert, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 16 }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 13, color: "#fff" }}>DISPO ENCORE {expiryDays} JOURS !</span>
+              <div className="absolute" style={{ left: 18, bottom: -11, width: 0, height: 0, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: `11px solid ${T.cream}` }} />
+              <div className="absolute" style={{ left: 21.5, bottom: -6.5, width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: `7px solid ${T.alert}` }} />
+            </div>
+          ) : CURRENT_THEME === "jardin" ? (
+            <div className="mt-5 p-4" style={{ background: T.alertSoft, borderRadius: "32px 48px 32px 48px" }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, fontWeight: 700 }}>ENCORE DISPONIBLE</span>
+              <p style={{ fontFamily: F.serif, fontSize: 20, color: T.cream, fontStyle: "italic" }}>{expiryDays} jours</p>
+            </div>
           ) : (
             <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
               <span style={{ fontFamily: F.marquee, fontSize: 22, color: T.alert }}>J-{expiryDays}</span>
@@ -2198,7 +2639,47 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN RÉGLAGES                                                       */
 /* ------------------------------------------------------------------ */
-function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, onBack, onMenu, theme, onChangeTheme }) {
+// Ordre d'affichage des groupes — du plus "standard" au plus exploratoire.
+const GROUPES_THEMES_ORDRE = ["Originaux", "Signature", "Mises en page réinventées", "Ambiances CinéRadar"];
+
+function ThemesScreen({ theme, onChangeTheme, onBack, onMenu }) {
+  const parGroupe = useMemo(() => {
+    const m = {};
+    Object.entries(THEMES).forEach(([key, t]) => {
+      const g = t.groupe || "Autres";
+      (m[g] = m[g] || []).push([key, t]);
+    });
+    return m;
+  }, []);
+
+  return (
+    <div className="flex-1 overflow-y-auto pull-scroll pb-8 px-5">
+      <ScreenHeader title="THÈMES" onBack={onBack} onMenu={onMenu} />
+      {GROUPES_THEMES_ORDRE.filter((g) => parGroupe[g]).map((groupe) => (
+        <div key={groupe} className="mb-5">
+          <SectionLabel>{groupe.toUpperCase()}</SectionLabel>
+          <div className="flex flex-col gap-2">
+            {parGroupe[groupe].map(([key, t]) => {
+              const active = theme === key;
+              return (
+                <button key={key} onClick={() => onChangeTheme(key)} className="flex items-center justify-between rounded-xl px-4 py-3"
+                  style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}` }}>
+                  <span style={{ fontFamily: F.serif, fontSize: 13.5, color: active ? T.accent : T.cream }}>{t.label}</span>
+                  {active && <Check size={16} color={T.accent} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <p className="mt-1" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+        Change les couleurs, la police et parfois la mise en page dans toute l'appli. Ton choix est mémorisé sur cet appareil.
+      </p>
+    </div>
+  );
+}
+
+function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, onBack, onMenu, theme, onOpenThemes }) {
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = () => { setRefreshing(true); onRefresh(); setTimeout(() => setRefreshing(false), 900); };
 
@@ -2207,20 +2688,15 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
       <ScreenHeader title="RÉGLAGES" onBack={onBack} onMenu={onMenu} />
 
       <SectionLabel>STYLE VISUEL</SectionLabel>
-      <div className="flex flex-col gap-2">
-        {Object.entries(THEMES).map(([key, t]) => {
-          const active = theme === key;
-          return (
-            <button key={key} onClick={() => onChangeTheme(key)} className="flex items-center justify-between rounded-xl px-4 py-3"
-              style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}` }}>
-              <span style={{ fontFamily: F.serif, fontSize: 13.5, color: active ? T.accent : T.cream }}>{t.label}</span>
-              {active && <Check size={16} color={T.accent} />}
-            </button>
-          );
-        })}
-      </div>
+      <button onClick={onOpenThemes} className="w-full flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+        <div className="text-left">
+          <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Thèmes</p>
+          <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, marginTop: 2 }}>{THEMES[theme]?.label || theme}</p>
+        </div>
+        <ChevronRight size={16} color={T.mutedDim} />
+      </button>
       <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
-        Change les couleurs et la police dans toute l'appli. Ton choix est mémorisé sur cet appareil.
+        {Object.keys(THEMES).length} thèmes, groupés par famille. Ton choix est mémorisé sur cet appareil.
       </p>
 
       <SectionLabel>NOMBRE DE FILMS SUR L'ACCUEIL</SectionLabel>
@@ -2423,7 +2899,26 @@ function BottomNav({ active, onNavigate }) {
     { id: "alertes", label: "Alertes", icon: Clock, nav: { name: "alertes", params: { mode: "manuel" } } },
     { id: "ajouter", label: "Ajouter", icon: PlusCircle, nav: { name: "ajouter", params: {} } },
   ];
-  const dotIndicator = CURRENT_THEME === "salle" || CURRENT_THEME === "letterboxd";
+
+  if (CURRENT_THEME === "terminal") {
+    // Barre d'onglets de fichiers ouverts, façon éditeur de code
+    const fichiers = { accueil: "accueil.js", biblio: "films.js", alertes: "alertes.js", ajouter: "+ajouter.js" };
+    return (
+      <div className="flex-shrink-0 flex items-center px-3 py-3 overflow-x-auto" style={{ background: T.surface, borderTop: `1px solid ${T.line}`, paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+        {items.map((it) => {
+          const isActive = active === it.id;
+          return (
+            <button key={it.id} onClick={() => onNavigate(it.nav)} className="mr-4 flex items-center gap-1.5 flex-shrink-0">
+              <FileText size={10} color={isActive ? "#569CD6" : T.mutedDim} />
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: isActive ? T.cream : T.mutedDim }}>{fichiers[it.id]}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const dotIndicator = CURRENT_THEME === "salle" || CURRENT_THEME === "letterboxd" || CURRENT_THEME === "bento";
   return (
     <div className="flex-shrink-0 flex items-stretch" style={{ background: T.surface, borderTop: `1px solid ${T.line}`, paddingBottom: "env(safe-area-inset-bottom)" }}>
       {items.map((it) => {
@@ -2564,7 +3059,9 @@ export default function App() {
     } else if (name === "tags") {
       body = <TagsScreen films={films} tag={params.tag} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "reglages") {
-      body = <ReglagesScreen nbAccueil={nbAccueil} onChangeNbAccueil={setNbAccueil} onRefresh={loadFilms} filmCount={films.length} onBack={goAccueil} onMenu={() => setMenuOpen(true)} theme={theme} onChangeTheme={changeTheme} />;
+      body = <ReglagesScreen nbAccueil={nbAccueil} onChangeNbAccueil={setNbAccueil} onRefresh={loadFilms} filmCount={films.length} onBack={goAccueil} onMenu={() => setMenuOpen(true)} theme={theme} onOpenThemes={() => navigate({ name: "themes", params: {} })} />;
+    } else if (name === "themes") {
+      body = <ThemesScreen theme={theme} onChangeTheme={changeTheme} onBack={() => navigate({ name: "reglages", params: {} })} onMenu={() => setMenuOpen(true)} />;
     }
   }
 
@@ -2577,7 +3074,21 @@ export default function App() {
   return (
     <div className="w-full flex items-center justify-center" style={{ background: T.bg, height: "100dvh" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } }`}</style>
-      <div className="flex flex-col w-full relative" style={{ maxWidth: 460, height: "100%", background: T.bg }}>
+      <div
+        className="flex flex-col w-full relative"
+        style={{
+          maxWidth: 460, height: "100%", background: T.bg,
+          // Trame de points façon impression BD — uniquement en thème "bd"
+          ...(CURRENT_THEME === "bd" ? {
+            backgroundImage: `radial-gradient(${T.cream}22 1px, transparent 1px)`,
+            backgroundSize: "7px 7px",
+          } : {}),
+          // Dégradé pastel diagonal — uniquement en thème "bento"
+          ...(CURRENT_THEME === "bento" ? {
+            background: `linear-gradient(160deg, ${T.bg} 0%, ${T.accentSecondarySoft} 50%, ${T.surfaceRaised} 100%)`,
+          } : {}),
+        }}
+      >
         {error && (
           <div className="m-4 rounded-lg p-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
             <p style={{ fontFamily: F.mono, fontSize: 11, color: T.alert }}>Erreur : {error}</p>
