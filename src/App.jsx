@@ -1834,13 +1834,19 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             <span style={{ fontFamily: F.marquee, fontSize: 12.5, fontWeight: 800, color: T.cream }}>Derniers ajouts</span>
             <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, fontWeight: 700 }}>Voir tout →</span>
           </button>
+        </div>
+      )}
 
-          {derniers.slice(0, 3).map((f, i) => (
-            <div key={f.id} className={i === 2 ? "col-span-2 p-2" : "p-2"} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
-              <button onClick={() => onOpen(f)} className="block w-full h-full text-left">
-                <Poster film={f} className="w-full" style={{ height: 64, borderRadius: T.radiusSm - 6, objectFit: "cover" }} />
-              </button>
-            </div>
+      {/* Vignettes "Derniers ajouts" sorties de la grille à hauteur fixe    */}
+      {/* (84px) — sinon les affiches se retrouvent écrasées/rognées. Ici,  */}
+      {/* ratio 2:3 respecté quelle que soit la largeur de colonne.         */}
+      {CURRENT_THEME === "bento" && derniers.length > 0 && (
+        <div className="px-4 grid grid-cols-3 gap-3 mb-6">
+          {derniers.slice(0, 3).map((f) => (
+            <button key={f.id} onClick={() => onOpen(f)} className="text-left overflow-hidden relative"
+              style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow, aspectRatio: "2 / 3" }}>
+              <Poster film={f} className="w-full h-full absolute inset-0" style={{ objectFit: "cover" }} />
+            </button>
           ))}
         </div>
       )}
@@ -3681,6 +3687,86 @@ function BottomNav({ active, onNavigate }) {
 /* ------------------------------------------------------------------ */
 /* APP                                                                 */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/* INTRO DE CHARGEMENT — rideau/marquee joué UNE FOIS au vrai lancement */
+/* de l'appli (pas à chaque navigation), pendant le chargement réseau,  */
+/* quel que soit le thème actif. Son de projecteur synthétisé (Web      */
+/* Audio, pas de fichier externe) + tentative de vibration.             */
+/* ------------------------------------------------------------------ */
+function playProjectorSound_() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    // Bourdonnement grave de moteur de projecteur (bruit filtré)
+    const bufferSize = ctx.sampleRate * 1.4;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 180;
+    filter.Q.value = 0.7;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.5, now + 0.15);
+    gain.gain.linearRampToValueAtTime(0.0001, now + 1.3);
+    noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    noise.start(now); noise.stop(now + 1.4);
+    // Petit "clic" sec de déclenchement, comme un obturateur
+    const click = ctx.createOscillator();
+    const clickGain = ctx.createGain();
+    click.type = "square"; click.frequency.value = 800;
+    clickGain.gain.setValueAtTime(0.15, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    click.connect(clickGain); clickGain.connect(ctx.destination);
+    click.start(now); click.stop(now + 0.07);
+  } catch {
+    // Contexte audio indisponible ou bloqué par le navigateur — silencieux, pas grave.
+  }
+}
+
+function AppBootIntro() {
+  const [lit, setLit] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setLit(true), 30);
+    playProjectorSound_();
+    // Vibration : ne fonctionne PAS sur iPhone (Safari/PWA n'implémentent pas
+    // la Vibration API) — tentative silencieuse, sans effet visible sur iOS,
+    // mais active sur Android si jamais l'appli y tourne un jour.
+    try { if (navigator.vibrate) navigator.vibrate([25, 40, 25]); } catch {}
+    return () => clearTimeout(t);
+  }, []);
+  const word = "CINÉMAISON";
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: T.bg, zIndex: 100 }}>
+      <div className="flex gap-1 mb-6">
+        {Array.from({ length: 18 }).map((_, i) => (
+          <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: T.accent, boxShadow: `0 0 6px ${T.accent}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
+        ))}
+      </div>
+      <div className="flex overflow-hidden">
+        {[...word].map((ch, i) => (
+          <span key={i} style={{
+            fontFamily: F.marquee, fontSize: 30, lineHeight: 1, letterSpacing: 1.5,
+            color: lit ? T.cream : "transparent",
+            textShadow: lit ? `0 0 14px ${T.accent}55` : "none",
+            opacity: lit ? 1 : 0, transform: lit ? "translateY(0)" : "translateY(18px)",
+            transition: `all .5s ease ${i * 0.09}s`,
+          }}>{ch === " " ? "\u00A0" : ch}</span>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 mt-5" style={{ opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.1s" }}>
+        <Film size={13} color={T.accent} style={{ animation: "spin 1.6s linear infinite" }} />
+        <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 3, color: T.muted }}>OUVERTURE DE LA SALLE…</span>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [films, setFilms] = useState(null);
   const [error, setError] = useState(null);
@@ -3825,9 +3911,7 @@ export default function App() {
           </div>
         )}
 
-        {!films && !error && (
-          <p className="p-4" style={{ fontFamily: F.serif, color: T.muted }}>Chargement des films…</p>
-        )}
+        {!films && !error && <AppBootIntro />}
 
         <PullToRefresh onRefresh={loadFilms}>{body}</PullToRefresh>
 
