@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays } from "lucide-react";
+import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* THÈMES — deux palettes disponibles, sélectionnables dans Réglages.  */
@@ -535,6 +535,41 @@ function PlatformIcon({ label }) {
       )}
       <span style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: 0.6, color: T.cream, fontWeight: 600 }}>{(label || "").toUpperCase()}</span>
     </span>
+  );
+}
+
+// Petites perforations façon pellicule 35mm, utilisées uniquement par
+// TrailerButton (variante B validée). Purement décoratif.
+function FilmSprockets({ count = 7 }) {
+  return (
+    <div className="flex items-center justify-between px-2">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} style={{ width: 3.5, height: 3.5, borderRadius: 1, background: T.accent, opacity: 0.55, flexShrink: 0 }} />
+      ))}
+    </div>
+  );
+}
+
+// Bouton "Bande-annonce" — n'apparaît que si film.urlBandeAnnonce est
+// renseigné (rempli par le script d'enrichissement via TMDb). Ouvre le
+// lien YouTube dans un nouvel onglet.
+function TrailerButton({ url }) {
+  if (!url) return null;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="relative inline-flex flex-col rounded-lg overflow-hidden flex-shrink-0"
+      style={{ border: `1.5px solid ${T.accent}` }}
+    >
+      <div className="px-1 pt-1" style={{ background: `${T.accent}22` }}><FilmSprockets /></div>
+      <div className="flex items-center gap-2 px-3 py-1.5">
+        <Play size={13} color={T.accent} fill={T.accent} strokeWidth={0} />
+        <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 0.5, color: T.accent, fontWeight: 600 }}>TRAILER</span>
+      </div>
+      <div className="px-1 pb-1" style={{ background: `${T.accent}22` }}><FilmSprockets /></div>
+    </a>
   );
 }
 
@@ -1197,7 +1232,10 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <p style={{ fontFamily: F.mono, fontSize: 12, color: T.muted, letterSpacing: 0.6, fontWeight: 600 }}>
           {(film.type || "").toUpperCase()} · {film.annee} · {film.duree || "—"}
         </p>
-        <div className="mt-2"><PlatformIcon label={film.plateforme} /></div>
+        <div className="flex items-center gap-2.5 mt-2 flex-wrap">
+          <PlatformIcon label={film.plateforme} />
+          <TrailerButton url={film.urlBandeAnnonce} />
+        </div>
 
         {archived ? (
           <div className="rounded-xl p-3 mt-4" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
