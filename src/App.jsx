@@ -573,12 +573,10 @@ function TicketCard({ film, onOpen }) {
           <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>
             {film.annee} · {(film.type || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}
           </p>
+          {rating != null && <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600, marginTop: 3 }}>★ {rating.toFixed(1)}</p>}
         </div>
         <div className="flex items-center justify-between mt-1">
-          <div className="flex items-center gap-2">
-            {rating != null && <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600 }}>★ {rating.toFixed(1)}</span>}
-            <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.5, color: T.muted }}>{(film.plateforme || "").toUpperCase()}</span>
-          </div>
+          <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.5, color: T.muted }}>{(film.plateforme || "").toUpperCase()}</span>
           {expiryDays != null && expiryDays >= 0 && <span style={{ fontFamily: F.mono, fontSize: 10, color: T.alert, fontWeight: 600 }}>{`J-${expiryDays}`}</span>}
         </div>
       </div>
@@ -664,10 +662,12 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
         <div className="px-4 mb-8">
           <button onClick={() => onOpen(suggestion)} className="relative w-full text-left rounded-2xl overflow-hidden block" style={{ height: 220 }}>
             <Poster film={suggestion} className="absolute inset-0 w-full h-full" style={{ objectFit: "cover" }} />
-            <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(27,23,32,0.95) 15%, transparent 60%)" }} />
+            {/* Dégradé renforcé : la zone de texte doit rester lisible même sur */}
+            {/* une affiche très claire (ex. fond blanc/brumeux). */}
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(20,17,24,0.97) 35%, rgba(20,17,24,0.55) 65%, transparent 100%)" }} />
             <div className="absolute left-5 right-5 bottom-5">
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, letterSpacing: 1.5, fontWeight: 600 }}>SUGGESTION DU SOIR</span>
-              <h2 className="mt-1.5" style={{ fontFamily: F.marquee, fontSize: 26, color: T.cream, lineHeight: 1.05 }}>{suggestion.titre}</h2>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, letterSpacing: 1.5, fontWeight: 600, textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>SUGGESTION DU SOIR</span>
+              <h2 className="mt-1.5" style={{ fontFamily: F.marquee, fontSize: 26, color: T.cream, lineHeight: 1.05, textShadow: "0 2px 10px rgba(0,0,0,0.85)" }}>{suggestion.titre}</h2>
               <div className="flex items-center gap-2 mt-2.5">
                 <PlatformIcon label={suggestion.plateforme} />
                 {parseRating(suggestion.noteLetterboxd) != null && (
@@ -675,6 +675,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
                     <Star size={11} color={T.accent} fill={T.accent} strokeWidth={0} />
                     <span style={{ fontFamily: F.mono, fontSize: 11, color: T.accent, fontWeight: 600 }}>{parseRating(suggestion.noteLetterboxd).toFixed(2)}</span>
                   </span>
+                )}
+                {suggestion.duree && (
+                  <span style={{ fontFamily: F.mono, fontSize: 11, color: T.cream, textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>{suggestion.duree}</span>
                 )}
               </div>
             </div>
