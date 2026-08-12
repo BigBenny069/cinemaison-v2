@@ -637,6 +637,31 @@ const THEMES = {
     },
     fonts: { marquee: "'Anton', sans-serif", serif: "'Anton', sans-serif", mono: "'Archivo', sans-serif" },
   },
+  seance: {
+    label: "La Séance",
+    groupe: "Rituel",
+    colors: {
+      bg: "#050403",
+      surface: "#1F1912",
+      surfaceRaised: "#2A2216",
+      accent: "#C58D29",
+      accentSoft: "#3A2C13",
+      accentSecondary: "#56929F",
+      accentSecondarySoft: "#16262A",
+      gold: "#F4C44E",
+      cream: "#F3EEE3",
+      muted: "#9C9284",
+      mutedDim: "#6B6355",
+      line: "#332B22",
+      alert: "#B85C4A",
+      alertSoft: "#2E1A15",
+      radius: 16,
+      radiusSm: 8,
+      shadow: "none",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'Bebas Neue', sans-serif", serif: "'Cormorant Garamond', serif", mono: "'IBM Plex Mono', monospace" },
+  },
 };
 
 let T = { ...THEMES.ticket.colors };
@@ -1244,6 +1269,170 @@ function MiniCard({ film, onOpen, sub, showStamp }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* LA SÉANCE — rituel d'ouverture dédié (thème "seance") : marquee      */
+/* lumineux, rideau de velours, étagère 3D et tirage au sort façon      */
+/* bobine de projecteur pour la suggestion du soir.                     */
+/* ------------------------------------------------------------------ */
+function SeanceBoot({ onSkip }) {
+  const [lit, setLit] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setLit(true), 30);
+    return () => clearTimeout(t);
+  }, []);
+  const word = "CINÉMAISON";
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: "#050403", zIndex: 50 }}>
+      <div className="flex gap-1 mb-6">
+        {Array.from({ length: 22 }).map((_, i) => (
+          <span key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent, boxShadow: `0 0 6px ${T.accent}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.06}s` }} />
+        ))}
+      </div>
+      <div className="flex overflow-hidden">
+        {[...word].map((ch, i) => (
+          <span key={i} style={{
+            fontFamily: F.marquee, fontSize: 38, lineHeight: 1, letterSpacing: 2,
+            color: lit ? T.cream : "transparent",
+            WebkitTextStroke: `1px ${lit ? T.gold : T.accent + "55"}`,
+            textShadow: lit ? `0 0 18px ${T.accent}66` : "none",
+            opacity: lit ? 1 : 0, transform: lit ? "translateY(0)" : "translateY(24px)",
+            transition: `all .55s ease ${i * 0.11}s`,
+          }}>{ch === " " ? "\u00A0" : ch}</span>
+        ))}
+      </div>
+      <p style={{ marginTop: 14, fontFamily: F.mono, fontSize: 10, letterSpacing: 5, color: T.muted, opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.3s" }}>
+        VOTRE CINÉMA. VOS RÈGLES.
+      </p>
+      <button onClick={onSkip} className="absolute" style={{ bottom: 30, fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1, opacity: lit ? 0.6 : 0, transition: "opacity 1s ease 1.5s" }}>
+        Passer →
+      </button>
+    </div>
+  );
+}
+
+function SeanceCurtain({ open }) {
+  const fringeStyle = { position: "absolute", bottom: 0, left: 0, right: 0, height: 14, background: `repeating-linear-gradient(90deg, ${T.gold} 0 6px, transparent 6px 12px)`, opacity: 0.5 };
+  const base = {
+    position: "absolute", top: 0, bottom: 0, width: "52%", zIndex: 45,
+    background: "repeating-linear-gradient(90deg, #6E1F1A 0px, #6E1F1A 14px, #5A1815 14px, #5A1815 28px), linear-gradient(180deg,#7A2620,#4A1310)",
+    boxShadow: "inset -30px 0 60px rgba(0,0,0,0.55)",
+    transition: "transform 1.3s cubic-bezier(.65,0,.35,1)",
+    pointerEvents: open ? "none" : "auto",
+  };
+  return (
+    <>
+      <div style={{ ...base, left: 0, transformOrigin: "left", transform: open ? "translateX(-102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
+        <div style={fringeStyle} />
+      </div>
+      <div style={{ ...base, right: 0, transformOrigin: "right", transform: open ? "translateX(102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
+        <div style={fringeStyle} />
+      </div>
+    </>
+  );
+}
+
+function SeanceShelf({ films, onOpen }) {
+  const ref = useRef(null);
+  const updateTilt = () => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const center = rect.left + rect.width / 2;
+    el.querySelectorAll("[data-shelf-item]").forEach((item) => {
+      const r = item.getBoundingClientRect();
+      const dx = r.left + r.width / 2 - center;
+      const ratio = Math.max(-1, Math.min(1, dx / (rect.width / 2 || 1)));
+      item.style.transform = `rotateY(${ratio * 22}deg) scale(${1 - Math.abs(ratio) * 0.12})`;
+      item.style.filter = `brightness(${1 - Math.abs(ratio) * 0.35})`;
+    });
+  };
+  useEffect(() => {
+    const t = setTimeout(updateTilt, 60);
+    return () => clearTimeout(t);
+  }, [films]);
+  return (
+    <div ref={ref} onScroll={updateTilt} className="flex gap-6 overflow-x-auto"
+      style={{ padding: "26px 38%", scrollSnapType: "x mandatory", perspective: 1200, WebkitOverflowScrolling: "touch" }}>
+      {films.map((f) => {
+        const days = computeExpiryDays(f);
+        return (
+          <button key={f.id} data-shelf-item onClick={() => onOpen(f)} className="flex-shrink-0 text-left"
+            style={{ width: 116, scrollSnapAlign: "center", transformStyle: "preserve-3d", transition: "transform .25s ease, filter .25s ease", cursor: "grab" }}>
+            <div className="relative">
+              <Poster film={f} className="w-full" style={{ height: 168, borderRadius: 6, objectFit: "cover", boxShadow: "0 18px 30px rgba(0,0,0,0.5)" }} />
+              {days != null && (
+                <span className="absolute" style={{ top: 6, right: 6, background: T.alert, color: "#fff", fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 4 }}>J-{days}</span>
+              )}
+            </div>
+            <p className="truncate mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.muted }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SeanceDraw({ pool, suggestion, onOpen, onClose }) {
+  const [phase, setPhase] = useState("spin");
+  const trackRef = useRef(null);
+  const FRAME_H = 230;
+  const frames = useMemo(() => {
+    const base = pool.length > 0 ? pool : [suggestion];
+    let all = [];
+    for (let r = 0; r < 4; r++) all = all.concat(base);
+    all.push(suggestion);
+    return all;
+  }, [pool, suggestion]);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(0px)";
+    const raf = requestAnimationFrame(() => {
+      el.style.transition = "transform 3.1s cubic-bezier(.12,.7,.15,1)";
+      el.style.transform = `translateY(${-(frames.length - 1) * FRAME_H}px)`;
+    });
+    const t = setTimeout(() => setPhase("result"), 3300);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+  }, [frames]);
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center px-6" style={{ background: "rgba(5,4,3,0.94)", zIndex: 60 }}>
+      <div style={{ width: 176, height: FRAME_H, borderRadius: 10, overflow: "hidden", position: "relative", border: `2px solid ${T.accent}`, boxShadow: `0 0 40px ${T.accent}33` }}>
+        <div ref={trackRef} style={{ position: "absolute", left: 0, top: 0, width: "100%" }}>
+          {frames.map((f, i) => (
+            <div key={i} className="flex items-center justify-center" style={{ width: 176, height: FRAME_H, background: `linear-gradient(160deg, ${T.accentSoft}, ${T.bg})`, borderBottom: `2px solid ${T.bg}` }}>
+              <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <p style={{ marginTop: 20, fontFamily: F.mono, fontSize: 10, letterSpacing: 4, color: T.muted, textAlign: "center" }}>
+        {phase === "spin" ? "LA BOBINE TOURNE…" : "CE SOIR, ON REGARDE"}
+      </p>
+      {phase === "result" && (
+        <>
+          <div className="text-center mt-2">
+            <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 24, color: T.cream }}>{suggestion.titre}</p>
+            <p style={{ fontFamily: F.mono, fontSize: 10, color: T.muted, marginTop: 6 }}>
+              {suggestion.plateforme}{suggestion.duree ? ` · ${suggestion.duree}` : ""} · disponible ce soir
+            </p>
+          </div>
+          <div className="flex gap-2.5 mt-6">
+            <button onClick={() => onOpen(suggestion)} className="px-5 py-2.5 rounded-full" style={{ background: T.accent, color: T.bg, fontFamily: F.marquee, fontSize: 13, letterSpacing: 0.5 }}>
+              Voir la fiche
+            </button>
+            <button onClick={onClose} className="px-5 py-2.5 rounded-full" style={{ border: `1px solid ${T.accent}66`, color: T.accent, fontFamily: F.mono, fontSize: 10, letterSpacing: 1.5 }}>
+              FERMER
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* ECRAN ACCUEIL                                                       */
 /* ------------------------------------------------------------------ */
 function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbAccueil }) {
@@ -1274,6 +1463,64 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     const pool = eligibles.length > 0 ? eligibles : nonArchives.length > 0 ? nonArchives : films;
     return pool[Math.floor(Math.random() * pool.length)];
   });
+
+  // La Séance : rituel d'ouverture (marquee + rideau), une seule fois par
+  // session — sessionStorage garde le souvenir même si on change d'onglet
+  // puis revient, mais le rejoue à la prochaine visite du site.
+  const isSeance = CURRENT_THEME === "seance";
+  const [seanceBootDone, setSeanceBootDone] = useState(() => {
+    try { return !!sessionStorage.getItem("cinemaison_seance_played"); } catch { return true; }
+  });
+  const [seanceDrawOpen, setSeanceDrawOpen] = useState(false);
+  useEffect(() => {
+    if (!isSeance || seanceBootDone) return;
+    const t = setTimeout(() => {
+      setSeanceBootDone(true);
+      try { sessionStorage.setItem("cinemaison_seance_played", "1"); } catch {}
+    }, 2600);
+    return () => clearTimeout(t);
+  }, [isSeance, seanceBootDone]);
+
+  if (isSeance) {
+    return (
+      <div className="flex-1 relative overflow-hidden" style={{ background: T.bg }}>
+        <div className="h-full flex flex-col pull-scroll" style={{ opacity: seanceBootDone ? 1 : 0, transition: "opacity 1s ease 0.6s" }}>
+          <div className="text-center flex-shrink-0" style={{ padding: "max(20px, env(safe-area-inset-top)) 16px 4px" }}>
+            <p style={{ fontFamily: F.marquee, fontSize: 22, letterSpacing: 2, color: T.cream }}>CINÉMAISON</p>
+            <p style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 4, color: T.muted, marginTop: 2 }}>LA SÉANCE</p>
+          </div>
+
+          <div className="flex-1 flex flex-col justify-center overflow-y-auto" style={{ padding: "10px 0 4px" }}>
+            {bientot.length > 0 ? (
+              <>
+                <p className="text-center" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 3, color: T.accent, marginBottom: 14 }}>◆ ÇA PART BIENTÔT ◆</p>
+                <SeanceShelf films={bientot} onOpen={onOpen} />
+              </>
+            ) : (
+              <p className="text-center px-8" style={{ fontFamily: F.serif, fontSize: 15, color: T.muted, fontStyle: "italic" }}>Aucune expiration en vue — profitez-en.</p>
+            )}
+          </div>
+
+          <div className="px-6 flex-shrink-0" style={{ paddingBottom: "max(22px, env(safe-area-inset-bottom))" }}>
+            <button onClick={() => setSeanceDrawOpen(true)} disabled={!suggestion} className="w-full py-4 rounded-full text-center"
+              style={{ background: `linear-gradient(180deg, ${T.accent}, #9A6B18)`, color: T.bg, fontFamily: F.marquee, fontSize: 15, letterSpacing: 1, boxShadow: `0 10px 26px ${T.accent}44`, opacity: suggestion ? 1 : 0.5 }}>
+              🎬 QU'EST-CE QU'ON REGARDE CE SOIR ?
+            </button>
+            <button onClick={onMenu} className="w-full text-center mt-3" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>☰ menu</button>
+          </div>
+        </div>
+
+        {!seanceBootDone && (
+          <SeanceBoot onSkip={() => { setSeanceBootDone(true); try { sessionStorage.setItem("cinemaison_seance_played", "1"); } catch {} }} />
+        )}
+        <SeanceCurtain open={seanceBootDone} />
+
+        {seanceDrawOpen && suggestion && (
+          <SeanceDraw pool={[...bientot, ...derniers]} suggestion={suggestion} onOpen={onOpen} onClose={() => setSeanceDrawOpen(false)} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto pull-scroll pb-4">
@@ -3123,7 +3370,7 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
 /* ECRAN RÉGLAGES                                                       */
 /* ------------------------------------------------------------------ */
 // Ordre d'affichage des groupes — du plus "standard" au plus exploratoire.
-const GROUPES_THEMES_ORDRE = ["Originaux", "Signature", "Mises en page réinventées", "Six Directions", "Ambiances CinéRadar"];
+const GROUPES_THEMES_ORDRE = ["Rituel", "Originaux", "Signature", "Mises en page réinventées", "Six Directions", "Ambiances CinéRadar"];
 
 function ThemesScreen({ theme, onChangeTheme, onBack, onMenu }) {
   const parGroupe = useMemo(() => {
@@ -3556,7 +3803,7 @@ export default function App() {
 
   return (
     <div className="w-full flex items-center justify-center" style={{ background: T.bg, height: "100dvh" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } } @keyframes seanceChase { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } }`}</style>
       <div
         className="flex flex-col w-full relative"
         style={{
