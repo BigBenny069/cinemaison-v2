@@ -1644,29 +1644,38 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </div>
       )}
 
-      {/* Vidéoclub 2099 : rack de cassettes empilées, bordure néon magenta */}
-      {/* à gauche, échéance en rose façon LED.                             */}
+      {/* Vidéoclub 2099 : vrais boîtiers VHS — fenêtre affiche, bobines,   */}
+      {/* étiquette encadrée en pointillés (option A validée).              */}
       {bientot.length > 0 && CURRENT_THEME === "videoclub2099" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="px-4 flex flex-col gap-2 mb-5">
+          <div className="flex gap-3 px-4 overflow-x-auto mb-5 pb-1">
             {bientot.map((f) => {
               const days = computeExpiryDays(f);
               return (
-                <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 p-2 text-left"
-                  style={{ background: T.surface, borderLeft: `3px solid ${T.accent}`, borderRadius: T.radiusSm, boxShadow: `0 0 10px ${T.accent}22` }}>
-                  <Poster film={f} className="flex-shrink-0" style={{ width: 32, height: 44, borderRadius: 3 }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate" style={{ fontFamily: F.mono, fontSize: 11, color: T.cream }}>{f.titre}</p>
-                    <p style={{ fontFamily: F.mono, fontSize: 9, color: T.muted }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left p-1.5"
+                  style={{ width: 104, background: T.surface, borderRadius: 5, border: `1px solid ${T.accentSecondary}44`, boxShadow: "0 8px 18px rgba(0,0,0,0.45)" }}>
+                  <div className="relative overflow-hidden" style={{ borderRadius: 3, boxShadow: `inset 0 0 0 2px ${T.bg}` }}>
+                    <Poster film={f} className="w-full" style={{ height: 96, objectFit: "cover" }} />
+                    {days != null && (
+                      <span className="absolute" style={{ top: 3, right: 3, background: T.accent, color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 4px", borderRadius: 3 }}>J-{days}</span>
+                    )}
                   </div>
-                  <span style={{ fontFamily: F.marquee, fontSize: 13, color: T.accent, textShadow: `0 0 6px ${T.accent}88`, flexShrink: 0 }}>{days != null ? `J-${days}` : ""}</span>
+                  <div className="flex justify-between items-center px-0.5" style={{ marginTop: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", border: `2px solid ${T.accentSecondary}` }} />
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", border: `2px solid ${T.accentSecondary}` }} />
+                  </div>
+                  <div style={{ marginTop: 4, background: T.bg, border: `1px dashed ${T.accentSecondary}55`, borderRadius: 2, padding: "3px 4px" }}>
+                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, fontWeight: 700, color: T.accentSecondary, lineHeight: 1.15 }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 7, color: T.muted, marginTop: 1 }}>{f.duree || ""}{f.duree ? " · " : ""}VHS-C</p>
+                  </div>
                 </button>
               );
             })}
           </div>
         </>
       )}
+
 
       {/* Nouvelle Vague 74 : bandeau rouge alerte + rail encadré filet noir, */}
       {/* esprit une de revue avec chapeau éditorial.                       */}
@@ -1945,15 +1954,23 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {/* Vidéoclub 2099 : console lumineuse, cadre ambre, esprit console */}
-      {/* de sélection façon écran d'accueil vidéoclub.                    */}
+      {/* Vidéoclub 2099 : boîtier VHS (fenêtre + bobines) posé dans la     */}
+      {/* console lumineuse ambre — même esprit que le rail ci-dessus.      */}
       {suggestion && CURRENT_THEME === "videoclub2099" && (
         <>
           <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
           <div className="px-4 mb-6">
             <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-3"
               style={{ background: T.surface, border: `1px solid ${T.gold}`, borderRadius: T.radius, boxShadow: `0 0 14px ${T.gold}22` }}>
-              <Poster film={suggestion} className="flex-shrink-0" style={{ width: 52, height: 74, borderRadius: 4 }} />
+              <div className="flex-shrink-0" style={{ width: 58 }}>
+                <div className="relative overflow-hidden" style={{ borderRadius: 4, boxShadow: `inset 0 0 0 2px ${T.bg}` }}>
+                  <Poster film={suggestion} className="w-full" style={{ height: 74, objectFit: "cover" }} />
+                </div>
+                <div className="flex justify-between items-center px-0.5" style={{ marginTop: 3 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", border: `2px solid ${T.gold}` }} />
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", border: `2px solid ${T.gold}` }} />
+                </div>
+              </div>
               <div>
                 <span style={{ fontFamily: F.mono, fontSize: 9, color: T.gold, letterSpacing: 1 }}>▸ SUGGESTION_DU_SOIR.EXE</span>
                 <p className="mt-1" style={{ fontFamily: F.marquee, fontSize: 16, color: T.cream, fontWeight: 700 }}>{suggestion.titre}</p>
