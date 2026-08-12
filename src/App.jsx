@@ -126,6 +126,53 @@ const THEMES = {
     },
     fonts: { marquee: "'IBM Plex Mono', monospace", serif: "'IBM Plex Mono', monospace", mono: "'IBM Plex Mono', monospace" },
   },
+  salle: {
+    label: "Salle privée",
+    colors: {
+      bg: "#1B1720",
+      surface: "#241F2C",
+      surfaceRaised: "#2E2836",
+      accent: "#C9A876",
+      accentSoft: "#3A3226",
+      accentSecondary: "#8E7F9E",
+      accentSecondarySoft: "#332C42",
+      cream: "#F0EAE2",
+      muted: "#A69AAE",
+      mutedDim: "#6E637A",
+      line: "#332C3D",
+      alert: "#C97C6E",
+      alertSoft: "#3A2620",
+      radius: 20,
+      radiusSm: 16,
+      shadow: "0 8px 20px rgba(0,0,0,0.35)",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'Playfair Display', serif", serif: "'Source Serif 4', serif", mono: "'Inter', sans-serif" },
+  },
+  letterboxd: {
+    label: "Letterboxd",
+    colors: {
+      bg: "#14181C",
+      surface: "#1C2228",
+      surfaceRaised: "#242C33",
+      accent: "#00E054",
+      accentSoft: "#0F2A1C",
+      accentSecondary: "#40BCF4",
+      accentSecondarySoft: "#0F222E",
+      gold: "#FF8000",
+      cream: "#F5F5F5",
+      muted: "#8CA3B3",
+      mutedDim: "#5A6E7B",
+      line: "#2A333A",
+      alert: "#FF8000",
+      alertSoft: "#2E1F0A",
+      radius: 6,
+      radiusSm: 4,
+      shadow: "none",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'Inter', sans-serif", serif: "'Source Serif 4', serif", mono: "'IBM Plex Mono', monospace" },
+  },
 };
 
 let T = { ...THEMES.ticket.colors };
@@ -268,6 +315,14 @@ function PlatformIcon({ label }) {
       </span>
     );
   }
+  if (CURRENT_THEME === "salle") {
+    // Pastille douce teintée mauve, plus discrète que le pilulier logo+texte
+    return (
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full" style={{ background: `${T.accentSecondary}22`, border: `1px solid ${T.accentSecondary}44` }}>
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.8, color: T.accentSecondary, fontWeight: 500, textTransform: "uppercase" }}>{label}</span>
+      </span>
+    );
+  }
 
   return (
     <span className="inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
@@ -371,6 +426,28 @@ function Poster({ film, className, style }) {
 function RatingStamp({ value, size = 58 }) {
   const rating = parseRating(value);
   if (rating == null) return null;
+
+  if (CURRENT_THEME === "letterboxd") {
+    // Signature Letterboxd : étoiles pleines/demies, pas de pastille
+    const full = Math.floor(rating);
+    const half = rating - full >= 0.5;
+    return (
+      <div className="text-right flex-shrink-0">
+        <span style={{ color: T.gold, fontSize: size * 0.28, letterSpacing: -1 }}>{"★".repeat(full)}{half ? "½" : ""}</span>
+        <p style={{ fontFamily: F.mono, fontSize: size * 0.15, color: T.mutedDim, marginTop: 2 }}>{rating.toFixed(1)}</p>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "salle") {
+    // Pastille douce plutôt que le cachet pivoté façon ticket
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-full flex-shrink-0" style={{ padding: `${size * 0.1}px ${size * 0.18}px`, background: T.accentSoft }}>
+        <Star size={size * 0.2} color={T.accent} fill={T.accent} strokeWidth={0} />
+        <span style={{ fontFamily: F.mono, fontSize: size * 0.2, color: T.accent, fontWeight: 600 }}>{rating.toFixed(1)}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center justify-center flex-shrink-0"
       style={{ width: size, height: size, borderRadius: "50%", border: `2px solid ${T.accent}`,
@@ -412,6 +489,28 @@ function SectionTitle({ children, icon: Icon = Film }) {
         <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.5, color: "#000", background: T.accentSecondary, padding: "3px 8px", fontWeight: 700 }}>
           ■ {children}
         </span>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "salle") {
+    // Titre éditorial + "Voir tout", sans barre ni encadré — plus posé
+    return (
+      <div className="flex items-center justify-between px-5 mb-3.5">
+        <span style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream, fontWeight: 500 }}>{children}</span>
+        <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.accent, letterSpacing: 0.3 }}>Voir tout</span>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "letterboxd") {
+    // Tri-point du logo Letterboxd en repère de section
+    return (
+      <div className="flex items-center gap-2 px-4 mb-3">
+        <span className="inline-flex items-center">
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.gold, display: "inline-block" }} />
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.accent, display: "inline-block", marginLeft: -2.5 }} />
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.accentSecondary, display: "inline-block", marginLeft: -2.5 }} />
+        </span>
+        <span style={{ fontFamily: F.marquee, fontSize: 12.5, letterSpacing: 0.3, color: T.cream, fontWeight: 700 }}>{children}</span>
       </div>
     );
   }
@@ -472,15 +571,15 @@ function TicketCard({ film, onOpen }) {
         <div>
           <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: T.cream }}>{film.titre}</p>
           <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>
-            {film.annee}{film.duree ? ` · ${film.duree}` : ""} · {(film.type || "").toUpperCase()}
+            {film.annee} · {(film.type || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}
           </p>
         </div>
         <div className="flex items-center justify-between mt-1">
-          <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.5, color: T.muted }}>{(film.plateforme || "").toUpperCase()}</span>
           <div className="flex items-center gap-2">
             {rating != null && <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600 }}>★ {rating.toFixed(1)}</span>}
-            {expiryDays != null && <span style={{ fontFamily: F.mono, fontSize: 10, color: T.alert, fontWeight: 600 }}>{`J-${expiryDays}`}</span>}
+            <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.5, color: T.muted }}>{(film.plateforme || "").toUpperCase()}</span>
           </div>
+          {expiryDays != null && expiryDays >= 0 && <span style={{ fontFamily: F.mono, fontSize: 10, color: T.alert, fontWeight: 600 }}>{`J-${expiryDays}`}</span>}
         </div>
       </div>
     </button>
@@ -525,8 +624,11 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
   }, [films, nbAccueil]);
 
   const [suggestion] = useState(() => {
-    const eligibles = films.filter((f) => f.type === "Film");
-    const pool = eligibles.length > 0 ? eligibles : films;
+    // Ne jamais suggérer une fiche déjà expirée (dateManuelle dépassée) —
+    // évite un badge J-X négatif absurde sur la carte suggestion.
+    const nonArchives = films.filter((f) => !isArchived(f));
+    const eligibles = nonArchives.filter((f) => f.type === "Film");
+    const pool = eligibles.length > 0 ? eligibles : nonArchives.length > 0 ? nonArchives : films;
     return pool[Math.floor(Math.random() * pool.length)];
   });
 
@@ -556,6 +658,30 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
         </button>
       </div>
 
+      {/* Salle Privée : bandeau vedette pleine largeur en haut, façon */}
+      {/* Netflix/Apple TV+, à la place du ticket classique en bas de page. */}
+      {suggestion && CURRENT_THEME === "salle" && (
+        <div className="px-4 mb-8">
+          <button onClick={() => onOpen(suggestion)} className="relative w-full text-left rounded-2xl overflow-hidden block" style={{ height: 220 }}>
+            <Poster film={suggestion} className="absolute inset-0 w-full h-full" style={{ objectFit: "cover" }} />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(27,23,32,0.95) 15%, transparent 60%)" }} />
+            <div className="absolute left-5 right-5 bottom-5">
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, letterSpacing: 1.5, fontWeight: 600 }}>SUGGESTION DU SOIR</span>
+              <h2 className="mt-1.5" style={{ fontFamily: F.marquee, fontSize: 26, color: T.cream, lineHeight: 1.05 }}>{suggestion.titre}</h2>
+              <div className="flex items-center gap-2 mt-2.5">
+                <PlatformIcon label={suggestion.plateforme} />
+                {parseRating(suggestion.noteLetterboxd) != null && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: T.accentSoft }}>
+                    <Star size={11} color={T.accent} fill={T.accent} strokeWidth={0} />
+                    <span style={{ fontFamily: F.mono, fontSize: 11, color: T.accent, fontWeight: 600 }}>{parseRating(suggestion.noteLetterboxd).toFixed(2)}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
+
       {bientot.length > 0 && (
         <>
           <SectionTitle icon={Clock}>ÇA PART BIENTÔT</SectionTitle>
@@ -576,7 +702,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
         ))}
       </div>
 
-      {suggestion && (
+      {suggestion && CURRENT_THEME !== "salle" && (
         <>
           <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
           <div className="px-4">
@@ -892,6 +1018,15 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
               <span style={{ fontFamily: F.serif, fontSize: 18, fontWeight: 700, color: T.cream }}>Expire dans {expiryDays} jours</span>
               <div className="absolute" style={{ left: -6, right: -6, bottom: -2, height: 2, background: T.accent, transform: "rotate(-1deg)" }} />
             </div>
+          ) : CURRENT_THEME === "salle" ? (
+            <div className="flex items-center gap-2.5 rounded-2xl px-4 py-3 mt-5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.alert, flexShrink: 0 }} />
+              <span style={{ fontFamily: F.mono, fontSize: 11.5, color: T.cream }}>Disponible encore <span style={{ color: T.alert, fontWeight: 600 }}>{expiryDays} jours</span></span>
+            </div>
+          ) : CURRENT_THEME === "letterboxd" ? (
+            <span className="inline-flex items-center rounded px-2.5 py-1 mt-4" style={{ background: `${T.alert}1F` }}>
+              <span style={{ fontFamily: F.mono, fontSize: 11, color: T.alert, fontWeight: 700 }}>J-{expiryDays} · dernière séance</span>
+            </span>
           ) : (
             <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
               <span style={{ fontFamily: F.marquee, fontSize: 22, color: T.alert }}>J-{expiryDays}</span>
@@ -915,6 +1050,20 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
                 {cast.map((c) => (
                   <button key={c} onClick={() => onOpenPerson(c)} className="text-left" style={{ fontFamily: F.mono, fontSize: 11, color: T.cream }}>· {c.toUpperCase()}</button>
                 ))}
+              </div>
+            ) : CURRENT_THEME === "letterboxd" ? (
+              <div className="flex gap-3 overflow-x-auto mb-2 pb-1">
+                {cast.map((c) => {
+                  const initials = c.split(" ").map((n) => n[0]).join("").slice(0, 2);
+                  return (
+                    <button key={c} onClick={() => onOpenPerson(c)} className="flex-shrink-0 text-center" style={{ width: 64 }}>
+                      <div className="rounded-full mx-auto flex items-center justify-center" style={{ width: 52, height: 52, background: T.surfaceRaised, border: `1.5px solid ${T.line}` }}>
+                        <span style={{ fontFamily: F.mono, fontSize: 14, color: T.muted, fontWeight: 700 }}>{initials}</span>
+                      </div>
+                      <p className="mt-1.5 truncate" style={{ fontFamily: F.marquee, fontSize: 9.5, color: T.cream }}>{c}</p>
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="flex gap-2 flex-wrap mb-2">
@@ -1033,7 +1182,7 @@ function SearchResultCard({ film, match, onOpen }) {
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: T.cream }}>{film.titre}</p>
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>
-          {film.annee}{film.duree ? ` · ${film.duree}` : ""} · {(film.plateforme || "").toUpperCase()}
+          {film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}
         </p>
         <MatchTag match={match} />
       </div>
@@ -1183,7 +1332,7 @@ function ListResultCard({ film, onOpen, right }) {
       <Poster film={film} className="w-20 h-28 flex-shrink-0" style={isArchived(film) ? { filter: "grayscale(55%)", opacity: 0.75 } : undefined} />
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: isArchived(film) ? T.muted : T.cream }}>{film.titre}</p>
-        <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>{film.annee}{film.duree ? ` · ${film.duree}` : ""} · {(film.plateforme || "").toUpperCase()}</p>
+        <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>{film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}</p>
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
           {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
         </p>
@@ -2016,21 +2165,29 @@ function BottomNav({ active, onNavigate }) {
     { id: "alertes", label: "Alertes", icon: Clock, nav: { name: "alertes", params: { mode: "manuel" } } },
     { id: "ajouter", label: "Ajouter", icon: PlusCircle, nav: { name: "ajouter", params: {} } },
   ];
+  const dotIndicator = CURRENT_THEME === "salle" || CURRENT_THEME === "letterboxd";
   return (
     <div className="flex-shrink-0 flex items-stretch" style={{ background: T.surface, borderTop: `1px solid ${T.line}`, paddingBottom: "env(safe-area-inset-bottom)" }}>
       {items.map((it) => {
         const isActive = active === it.id;
         const Icon = it.icon;
         return (
-          <button key={it.id} onClick={() => onNavigate(it.nav)} className="flex-1 flex flex-col items-center gap-0.5 py-1.5">
-            {it.id === "accueil" ? (
+          <button key={it.id} onClick={() => onNavigate(it.nav)} className="flex-1 flex flex-col items-center gap-1 py-1.5">
+            {dotIndicator ? (
+              it.id === "accueil" ? (
+                <span style={{ fontFamily: F.marquee, fontSize: 11, fontWeight: 800, color: isActive ? T.cream : T.mutedDim }}>C</span>
+              ) : (
+                <Icon size={17} color={isActive ? T.cream : T.mutedDim} strokeWidth={isActive ? 2.2 : 1.8} />
+              )
+            ) : it.id === "accueil" ? (
               <span className="flex items-center justify-center" style={{ width: 17, height: 17, borderRadius: 4, background: isActive ? T.accent : T.accentSoft }}>
                 <span style={{ fontFamily: F.marquee, fontSize: 9.5, color: isActive ? T.bg : T.accent }}>C</span>
               </span>
             ) : (
               <Icon size={15} color={isActive ? T.accent : T.mutedDim} />
             )}
-            <span style={{ fontFamily: F.mono, fontSize: 8, letterSpacing: 0.3, color: isActive ? T.accent : T.mutedDim }}>{it.label.toUpperCase()}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 8, letterSpacing: 0.3, color: isActive ? (dotIndicator ? T.cream : T.accent) : T.mutedDim, fontWeight: dotIndicator && isActive ? 600 : 400 }}>{it.label.toUpperCase()}</span>
+            {dotIndicator && <span style={{ width: 4, height: 4, borderRadius: "50%", background: isActive ? T.accent : "transparent", marginTop: -2 }} />}
           </button>
         );
       })}
