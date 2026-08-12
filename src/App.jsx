@@ -2270,6 +2270,8 @@ function FicheTerminal({ film, cast, expiryDays, archived, onBack, onOpenPerson,
           ) : expiryDays != null && expiryDays >= 0 ? (
             <Ligne cle="disponibleEncore" valeur={expiryDays} commentaire="jours" />
           ) : null}
+          {film.dateManuelle && <Ligne cle="finManuel" valeur={film.dateManuelle} />}
+          {film.dateAuto && <Ligne cle="finAuto" valeur={film.dateAuto} />}
 
           {film.synopsis && (
             <>
@@ -2466,6 +2468,27 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
               <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
             </div>
           )
+        )}
+
+        {/* Dates de fin de disponibilité — manuelle et auto — toujours       */}
+        {/* affichées ensemble, juste avant le synopsis, quel que soit le     */}
+        {/* thème (pas de variante par thème ici, contrairement au badge      */}
+        {/* d'expiration ci-dessus qui reste stylé par thème).                */}
+        {(film.dateManuelle || film.dateAuto) && (
+          <div className="flex gap-2 mt-4 flex-wrap">
+            {film.dateManuelle && (
+              <div className="flex-1" style={{ minWidth: 130, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "8px 12px" }}>
+                <p style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1, color: T.mutedDim, fontWeight: 700 }}>FIN · MANUEL</p>
+                <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, marginTop: 2 }}>{film.dateManuelle}</p>
+              </div>
+            )}
+            {film.dateAuto && (
+              <div className="flex-1" style={{ minWidth: 130, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "8px 12px" }}>
+                <p style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1, color: T.mutedDim, fontWeight: 700 }}>FIN · AUTO</p>
+                <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, marginTop: 2 }}>{film.dateAuto}</p>
+              </div>
+            )}
+          </div>
         )}
 
         {film.synopsis && (
@@ -3746,8 +3769,10 @@ function playProjectorSound_() {
   }
 }
 
-function AppBootIntro() {
+function AppBootIntro({ ready, onDone }) {
   const [lit, setLit] = useState(false);
+  const [curtainOpen, setCurtainOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setLit(true), 30);
     playProjectorSound_();
@@ -3757,28 +3782,55 @@ function AppBootIntro() {
     try { if (navigator.vibrate) navigator.vibrate([25, 40, 25]); } catch {}
     return () => clearTimeout(t);
   }, []);
+  // Le rideau ne s'ouvre que lorsque les films sont réellement chargés —
+  // si le réseau est lent, le marquee/bobine continue de tourner en boucle
+  // au lieu d'ouvrir sur un écran vide.
+  useEffect(() => {
+    if (!ready) return;
+    const t1 = setTimeout(() => setCurtainOpen(true), 900);
+    const t2 = setTimeout(() => { setHidden(true); onDone && onDone(); }, 900 + 1400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [ready]);
+  if (hidden) return null;
   const word = "CINÉMAISON";
+  const fringeStyle = { position: "absolute", bottom: 0, left: 0, right: 0, height: 14, background: `repeating-linear-gradient(90deg, ${T.gold} 0 6px, transparent 6px 12px)`, opacity: 0.5 };
+  const curtainBase = {
+    position: "absolute", top: 0, bottom: 0, width: "52%", zIndex: 101,
+    background: "repeating-linear-gradient(90deg, #6E1F1A 0px, #6E1F1A 14px, #5A1815 14px, #5A1815 28px), linear-gradient(180deg,#7A2620,#4A1310)",
+    boxShadow: "inset -30px 0 60px rgba(0,0,0,0.55)",
+    transition: "transform 1.3s cubic-bezier(.65,0,.35,1)",
+    pointerEvents: curtainOpen ? "none" : "auto",
+  };
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: T.bg, zIndex: 100 }}>
-      <div className="flex gap-1 mb-6">
-        {Array.from({ length: 18 }).map((_, i) => (
-          <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: T.accent, boxShadow: `0 0 6px ${T.accent}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
-        ))}
+    <div className="absolute inset-0" style={{ zIndex: 100, overflow: "hidden" }}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: T.bg, opacity: curtainOpen ? 0 : 1, transition: "opacity 1s ease" }}>
+        <div className="flex gap-1 mb-6">
+          {Array.from({ length: 18 }).map((_, i) => (
+            <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: T.accent, boxShadow: `0 0 6px ${T.accent}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
+          ))}
+        </div>
+        <div className="flex overflow-hidden">
+          {[...word].map((ch, i) => (
+            <span key={i} style={{
+              fontFamily: F.marquee, fontSize: 30, lineHeight: 1, letterSpacing: 1.5,
+              color: lit ? T.cream : "transparent",
+              textShadow: lit ? `0 0 14px ${T.accent}55` : "none",
+              opacity: lit ? 1 : 0, transform: lit ? "translateY(0)" : "translateY(18px)",
+              transition: `all .5s ease ${i * 0.09}s`,
+            }}>{ch === " " ? "\u00A0" : ch}</span>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-5" style={{ opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.1s" }}>
+          <Film size={13} color={T.accent} style={{ animation: "spin 1.6s linear infinite" }} />
+          <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 3, color: T.muted }}>{ready ? "OUVERTURE DE LA SALLE…" : "CHARGEMENT DES FILMS…"}</span>
+        </div>
       </div>
-      <div className="flex overflow-hidden">
-        {[...word].map((ch, i) => (
-          <span key={i} style={{
-            fontFamily: F.marquee, fontSize: 30, lineHeight: 1, letterSpacing: 1.5,
-            color: lit ? T.cream : "transparent",
-            textShadow: lit ? `0 0 14px ${T.accent}55` : "none",
-            opacity: lit ? 1 : 0, transform: lit ? "translateY(0)" : "translateY(18px)",
-            transition: `all .5s ease ${i * 0.09}s`,
-          }}>{ch === " " ? "\u00A0" : ch}</span>
-        ))}
+
+      <div style={{ ...curtainBase, left: 0, transformOrigin: "left", transform: curtainOpen ? "translateX(-102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
+        <div style={fringeStyle} />
       </div>
-      <div className="flex items-center gap-2 mt-5" style={{ opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.1s" }}>
-        <Film size={13} color={T.accent} style={{ animation: "spin 1.6s linear infinite" }} />
-        <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 3, color: T.muted }}>OUVERTURE DE LA SALLE…</span>
+      <div style={{ ...curtainBase, right: 0, transformOrigin: "right", transform: curtainOpen ? "translateX(102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
+        <div style={fringeStyle} />
       </div>
     </div>
   );
@@ -3799,6 +3851,11 @@ export default function App() {
   // screen = { name, params }. "fiche" a un champ params.film et params.from
   // (l'écran précédent) pour que le bouton retour ramène au bon endroit.
   const [screen, setScreen] = useState({ name: "accueil", params: {} });
+  // Écran d'ouverture (marquee + rideau) — reste monté jusqu'à ce que le
+  // rideau ait fini de s'ouvrir, PAS juste tant que films est vide, pour
+  // avoir une vraie transition au lieu d'un cut brutal dès l'arrivée des
+  // données.
+  const [showBoot, setShowBoot] = useState(true);
 
   const loadFilms = () => {
     // Renvoie la promesse pour que pull-to-refresh puisse attendre la fin
@@ -3813,6 +3870,26 @@ export default function App() {
   };
 
   useEffect(() => { loadFilms(); }, []);
+
+  // Recharge automatiquement les films à chaque fois que l'appli redevient
+  // visible — pas seulement au tout premier chargement. Sur iOS, fermer
+  // l'appli (sans la tuer) puis la rouvrir déclenche un simple retour au
+  // premier plan (pas un vrai rechargement de page), donc sans ce listener
+  // les données restaient figées depuis la dernière ouverture, parfois
+  // depuis plusieurs heures.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadFilms();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    // Filet de sécurité supplémentaire : certains navigateurs/PWA déclenchent
+    // "pageshow" (retour de cache arrière) sans passer par visibilitychange.
+    window.addEventListener("pageshow", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+    };
+  }, []);
 
   // Applique le thème mémorisé sur cet appareil dès le premier rendu.
   useEffect(() => {
@@ -3928,7 +4005,7 @@ export default function App() {
           </div>
         )}
 
-        {!films && !error && <AppBootIntro />}
+        {showBoot && <AppBootIntro ready={!!films || !!error} onDone={() => setShowBoot(false)} />}
 
         <PullToRefresh onRefresh={loadFilms}>{body}</PullToRefresh>
 
