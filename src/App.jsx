@@ -1930,12 +1930,25 @@ function GenreField({ genreCounts, selected, onChange }) {
   );
 }
 
+// État des filtres Explorer — persiste en mémoire tant que l'appli reste
+// ouverte (pas localStorage, se réinitialise à la fermeture). ExplorerScreen
+// est démonté puis remonté à chaque navigation (ouvrir une fiche, revenir
+// en arrière), ce qui effacerait ses useState internes sans ce filet.
+let explorerFiltersState_ = { type: null, plateforme: null, duree: null, genresSel: [], noteMin: 0 };
+
 function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
-  const [type, setType] = useState(null);
-  const [plateforme, setPlateforme] = useState(null);
-  const [duree, setDuree] = useState(null);
-  const [genresSel, setGenresSel] = useState(initialGenre ? [initialGenre] : []);
-  const [noteMin, setNoteMin] = useState(0);
+  const [type, setType] = useState(explorerFiltersState_.type);
+  const [plateforme, setPlateforme] = useState(explorerFiltersState_.plateforme);
+  const [duree, setDuree] = useState(explorerFiltersState_.duree);
+  const [genresSel, setGenresSel] = useState(
+    explorerFiltersState_.genresSel.length > 0 ? explorerFiltersState_.genresSel : (initialGenre ? [initialGenre] : [])
+  );
+  const [noteMin, setNoteMin] = useState(explorerFiltersState_.noteMin);
+
+  // Recopie à chaque changement, pour que le prochain montage reparte d'ici.
+  useEffect(() => {
+    explorerFiltersState_ = { type, plateforme, duree, genresSel, noteMin };
+  }, [type, plateforme, duree, genresSel, noteMin]);
 
   const genreCounts = useMemo(() => {
     const m = {};
