@@ -49,9 +49,11 @@ export default async function handler(req, res) {
       return film;
     }).filter((f) => f.titre); // ignore les lignes vides
 
-    // Cache léger côté CDN Vercel (5 min) — les données changent au
-    // rythme du Mode Vacances quotidien, pas besoin de temps réel strict
-    res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate");
+    // Cache très court côté CDN Vercel (10s) — juste assez pour absorber
+    // les rafales de requêtes (plusieurs onglets ouverts en même temps),
+    // sans retarder l'apparition d'un ajout/modif récent. Les 5 minutes
+    // d'origine causaient un délai perceptible après chaque ajout.
+    res.setHeader("Cache-Control", "s-maxage=10, stale-while-revalidate=30");
     return res.status(200).json(films);
   } catch (e) {
     console.error(e);
