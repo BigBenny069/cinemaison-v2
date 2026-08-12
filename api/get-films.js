@@ -7,6 +7,7 @@ const EXPOSED_COLUMNS = [
   "Genre", "GenrePrincipal", "Benoit", "Romy", "À deux", "En famille", "Vu",
   "Affiche", "NoteTMDb", "Casting", "Réalisateur", "Synopsis",
   "NoteLetterboxd", "VotesLetterboxd", "URLLetterboxd", "DateDisponibiliteAuto",
+  "URLBandeAnnonce",
 ];
 
 async function getSheetsClient() {
@@ -68,6 +69,7 @@ function toCamelCase(header) {
     Réalisateur: "realisateur", Synopsis: "synopsis",
     NoteLetterboxd: "noteLetterboxd", VotesLetterboxd: "votesLetterboxd",
     URLLetterboxd: "urlLetterboxd", DateDisponibiliteAuto: "dateAuto",
+    URLBandeAnnonce: "urlBandeAnnonce",
   };
   return map[header] || header;
 }
