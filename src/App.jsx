@@ -471,7 +471,7 @@ function DateStamp({ days }) {
   );
 }
 
-function SectionTitle({ children, icon: Icon = Film }) {
+function SectionTitle({ children, icon: Icon = Film, onMore }) {
   if (CURRENT_THEME === "affiche") {
     // Thème festival : titre encadré en bloc plat turquoise (couleur principale validée)
     return (
@@ -497,7 +497,11 @@ function SectionTitle({ children, icon: Icon = Film }) {
     return (
       <div className="flex items-center justify-between px-5 mb-3.5">
         <span style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream, fontWeight: 500 }}>{children}</span>
-        <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.accent, letterSpacing: 0.3 }}>Voir tout</span>
+        {onMore ? (
+          <button onClick={onMore} style={{ fontFamily: F.mono, fontSize: 10.5, color: T.accent, letterSpacing: 0.3 }}>Voir tout</button>
+        ) : (
+          <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.accent, letterSpacing: 0.3 }}>Voir tout</span>
+        )}
       </div>
     );
   }
@@ -602,7 +606,7 @@ function MiniCard({ film, onOpen, sub, showStamp }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN ACCUEIL                                                       */
 /* ------------------------------------------------------------------ */
-function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
+function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbAccueil }) {
   const bientot = useMemo(() => {
     return films
       .map((f) => ({ f, days: computeExpiryDays(f) }))
@@ -687,7 +691,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
 
       {bientot.length > 0 && (
         <>
-          <SectionTitle icon={Clock}>ÇA PART BIENTÔT</SectionTitle>
+          <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
@@ -697,7 +701,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, nbAccueil }) {
         </>
       )}
 
-      <SectionTitle icon={Film}>DERNIERS AJOUTS</SectionTitle>
+      <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
       <div className="flex gap-3 px-4 overflow-x-auto mb-5">
         {derniers.map((f) => (
           <MiniCard key={f.id} film={f} onOpen={onOpen}
@@ -2287,7 +2291,7 @@ export default function App() {
     const { name, params } = screen;
     if (name === "accueil") {
       body = <AccueilScreen films={films} onOpen={openFiche} onSearch={() => navigate({ name: "recherche", params: {} })}
-        onMenu={() => setMenuOpen(true)} onAdd={() => navigate({ name: "ajouter", params: {} })} nbAccueil={nbAccueil} />;
+        onMenu={() => setMenuOpen(true)} onAdd={() => navigate({ name: "ajouter", params: {} })} onNavigate={navigate} nbAccueil={nbAccueil} />;
     } else if (name === "recherche") {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "fiche") {
