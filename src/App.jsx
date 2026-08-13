@@ -1798,8 +1798,11 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             {derniers.map((f, i) => (
               <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 py-2.5 text-left"
                 style={{ borderBottom: i < derniers.length - 1 ? `1px solid ${T.line}` : "none" }}>
-                <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 38, height: 38, borderRadius: "50%", border: `2px solid ${T.mutedDim}`, background: `radial-gradient(circle, ${T.surface} 0 7px, ${T.surfaceRaised} 8px 18px)` }}>
-                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: T.bg }} />
+                <div className="flex-shrink-0 relative overflow-hidden" style={{ width: 38, height: 38, borderRadius: "50%", border: `2px solid ${T.mutedDim}` }}>
+                  <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                  {/* Perforations de bobine en surimpression, sur le pourtour du cercle */}
+                  <div className="absolute inset-0" style={{ borderRadius: "50%", boxShadow: `inset 0 0 0 8px ${T.bg}bb` }} />
+                  <span className="absolute" style={{ top: "50%", left: "50%", width: 4, height: 4, borderRadius: "50%", background: T.bg, transform: "translate(-50%,-50%)" }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 13, color: T.cream }}>{f.titre}</p>
@@ -3947,10 +3950,15 @@ function AppBootIntro({ ready, onDone }) {
             }}>{ch === " " ? "\u00A0" : ch}</span>
           ))}
         </div>
-        <div className="flex items-center gap-2 mt-5" style={{ opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.1s" }}>
-          <Film size={13} color={GOLD} style={{ animation: "spin 1.6s linear infinite" }} />
-          <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 3, color: MUTED }}>{ready ? "OUVERTURE DE LA SALLE…" : "CHARGEMENT DES FILMS…"}</span>
-        </div>
+        <p style={{ marginTop: 14, fontFamily: MONO, fontSize: 10, letterSpacing: 5, color: MUTED, opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.3s" }}>
+          VOTRE CINÉMA. VOS RÈGLES.
+        </p>
+        {!ready && (
+          <div className="flex items-center gap-2 mt-5" style={{ opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.1s" }}>
+            <Film size={13} color={GOLD} style={{ animation: "spin 1.6s linear infinite" }} />
+            <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 3, color: MUTED }}>CHARGEMENT DES FILMS…</span>
+          </div>
+        )}
       </div>
     </div>
   );
