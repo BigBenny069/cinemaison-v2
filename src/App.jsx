@@ -6003,19 +6003,50 @@ export default function App() {
           ...(CURRENT_THEME === "bento" ? {
             background: `linear-gradient(160deg, ${T.bg} 0%, ${T.accentSecondarySoft} 50%, ${T.surfaceRaised} 100%)`,
           } : {}),
-          // Texture papier washi (fibres + grain léger, esprit rouleau
-          // ancien) — uniquement en thème "kansoHeritage".
+          // Papier ancien nettement marqué (taches d'encre contrastées aux  //
+          // quatre coins + grain fibreux visible) — uniquement en thème     //
+          // "kansoHeritage".                                                //
           ...(CURRENT_THEME === "kansoHeritage" ? {
             backgroundImage: `
-              radial-gradient(${T.line} 0.5px, transparent 0.6px),
-              linear-gradient(115deg, transparent 40%, ${T.accentSoft} 40.5%, ${T.accentSoft} 41%, transparent 41.5%),
-              linear-gradient(25deg, transparent 60%, ${T.line} 60.5%, ${T.line} 61%, transparent 61.5%)
+              radial-gradient(ellipse 340px 260px at 8% 0%, rgba(90,65,30,0.22), transparent 65%),
+              radial-gradient(ellipse 300px 300px at 100% 20%, rgba(38,53,74,0.14), transparent 62%),
+              radial-gradient(ellipse 260px 300px at 0% 75%, rgba(200,90,50,0.13), transparent 62%),
+              radial-gradient(ellipse 380px 260px at 95% 95%, rgba(90,65,30,0.20), transparent 65%),
+              radial-gradient(circle 6px at 30% 35%, rgba(90,65,30,0.22), transparent 75%),
+              radial-gradient(circle 9px at 70% 55%, rgba(90,65,30,0.18), transparent 75%),
+              radial-gradient(circle 5px at 55% 82%, rgba(90,65,30,0.20), transparent 75%),
+              radial-gradient(${T.cream}35 0.6px, transparent 0.7px)
             `,
-            backgroundSize: "3px 3px, 100% 100%, 100% 100%",
-            backgroundColor: T.bg,
+            backgroundSize: "100% 100%,100% 100%,100% 100%,100% 100%,100% 100%,100% 100%,100% 100%, 3px 3px",
+            backgroundColor: "#EBDFC0",
           } : {}),
         }}
       >
+        {/* Kanso Héritage : reliure cousue sur le bord gauche + paquet      */}
+        {/* ficelé (ficelle + sceau) sous l'en-tête — décor en surimpression, */}
+        {/* visible sur tous les écrans du thème sans repousser le contenu   */}
+        {/* existant (pointer-events désactivés, ne gêne jamais le tap).     */}
+        {CURRENT_THEME === "kansoHeritage" && (
+          <>
+            <div className="absolute" style={{
+              left: 8, top: 60, bottom: 16, width: 2, zIndex: 5, pointerEvents: "none", opacity: 0.5,
+              background: "repeating-linear-gradient(180deg, #B79A58 0 10px, #8A7038 10px 12px)",
+            }}>
+              <span className="absolute rounded-full" style={{ left: -3, top: -4, width: 8, height: 8, background: "#8A7038" }} />
+              <span className="absolute rounded-full" style={{ left: -3, bottom: -4, width: 8, height: 8, background: "#8A7038" }} />
+            </div>
+            <div className="absolute" style={{ top: 96, left: "8%", width: "84%", height: 4, zIndex: 5, pointerEvents: "none", opacity: 0.5, background: "#B79A58", borderRadius: 2, transform: "rotate(1.5deg)" }}>
+              <span className="absolute rounded-full" style={{
+                top: -13, left: "50%", width: 30, height: 30, marginLeft: -15,
+                background: "radial-gradient(circle at 35% 30%, #D46A3F, #A6472A)", boxShadow: "0 2px 5px rgba(0,0,0,.35)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <span style={{ color: "#F5E9D8", fontSize: 11, fontFamily: "'Noto Serif Display', serif" }}>感</span>
+              </span>
+            </div>
+          </>
+        )}
+
         {error && (
           <div className="m-4 rounded-lg p-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
             <p style={{ fontFamily: F.mono, fontSize: 11, color: T.alert }}>Erreur : {error}</p>
