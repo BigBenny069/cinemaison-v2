@@ -662,6 +662,31 @@ const THEMES = {
     },
     fonts: { marquee: "'Bebas Neue', sans-serif", serif: "'Cormorant Garamond', serif", mono: "'IBM Plex Mono', monospace" },
   },
+  projectionniste: {
+    label: "Le Projectionniste",
+    groupe: "Rituel",
+    colors: {
+      bg: "#0A0908",
+      surface: "#161310",
+      surfaceRaised: "#201B16",
+      accent: "#B8763A",
+      accentSoft: "#3A2A16",
+      accentSecondary: "#5C6B6F",
+      accentSecondarySoft: "#1A2224",
+      gold: "#B8763A",
+      cream: "#E8E0D0",
+      muted: "#7A6F5C",
+      mutedDim: "#4A4030",
+      line: "#2A241D",
+      alert: "#8B3A2A",
+      alertSoft: "#2A1510",
+      radius: 3,
+      radiusSm: 2,
+      shadow: "none",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'Oswald', sans-serif", serif: "'Special Elite', monospace", mono: "'IBM Plex Mono', monospace" },
+  },
 };
 
 let T = { ...THEMES.ticket.colors };
@@ -1137,6 +1162,17 @@ function SectionTitle({ children, icon: Icon = Film, onMore }) {
       </div>
     );
   }
+  if (CURRENT_THEME === "projectionniste") {
+    // Le Projectionniste : petite capitale technique avec un losange
+    // ambre en repère — esprit feuille de route de cabine.
+    return (
+      <div className="flex items-center gap-2 px-5 mb-2.5">
+        <span style={{ color: T.accent, fontSize: 11 }}>◆</span>
+        <span style={{ fontFamily: F.marquee, fontSize: 12, letterSpacing: 1.5, color: T.accent, fontWeight: 600 }}>{children}</span>
+        <span style={{ height: 1, flex: 1, background: T.line }} />
+      </div>
+    );
+  }
   if (CURRENT_THEME === "kanso") {
     // Kanso Cinéma : titre serif sobre, un simple idéogramme en repère,
     // pas de bloc — esprit calme et épuré.
@@ -1433,6 +1469,39 @@ function SeanceDraw({ pool, suggestion, onOpen, onClose }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* LE PROJECTIONNISTE — compte à rebours d'amorce 35mm affiché avant   */
+/* chaque ouverture de fiche (si l'option est activée dans Réglages).  */
+/* ------------------------------------------------------------------ */
+function LeaderCountdown({ onDone }) {
+  const [n, setN] = useState(5);
+  useEffect(() => {
+    if (n <= 0) {
+      const t = setTimeout(onDone, 120);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => setN((v) => v - 1), 480);
+    return () => clearTimeout(t);
+  }, [n]);
+  return (
+    <div className="fixed inset-0 flex flex-col items-center justify-center" style={{ background: T.bg, zIndex: 200 }}>
+      <div className="absolute inset-0" style={{
+        opacity: 0.06, pointerEvents: "none",
+        backgroundImage: "radial-gradient(circle, #fff 0.5px, transparent 0.6px)",
+        backgroundSize: "3px 3px",
+      }} />
+      <div className="relative flex items-center justify-center" style={{ width: 170, height: 170, borderRadius: "50%", border: `2px solid ${T.accent}` }}>
+        <div className="absolute" style={{ width: "100%", height: 1, background: T.accent, opacity: 0.5 }} />
+        <div className="absolute" style={{ width: 1, height: "100%", background: T.accent, opacity: 0.5 }} />
+        <span style={{ fontFamily: F.marquee, fontWeight: 700, fontSize: 60, color: T.cream, textShadow: `0 0 20px ${T.accent}88` }}>{n > 0 ? n : ""}</span>
+      </div>
+      <p className="mt-6" style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 4, color: T.muted }}>
+        {n > 2 ? "AMORCE — CHARGEMENT DE LA BOBINE" : "PROJECTION IMMINENTE"}
+      </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* ECRAN ACCUEIL                                                       */
 /* ------------------------------------------------------------------ */
 function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbAccueil }) {
@@ -1600,7 +1669,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </div>
       )}
 
-      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "videoclub2099" && CURRENT_THEME !== "prisme" && CURRENT_THEME !== "kanso" && CURRENT_THEME !== "popbrutal" && (
+      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "videoclub2099" && CURRENT_THEME !== "prisme" && CURRENT_THEME !== "kanso" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -1749,13 +1818,66 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "kanso" && (
+      {/* Le Projectionniste : bande de pellicule perforée horizontale,     */}
+      {/* photogrammes numérotés — remplace le rail de cartes classique.    */}
+      {bientot.length > 0 && CURRENT_THEME === "projectionniste" && (
+        <>
+          <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
+          <div className="mx-4 mb-6 overflow-x-auto" style={{ background: "#000", borderRadius: 3, padding: "10px 4px" }}>
+            <div className="flex gap-0.5">
+              {bientot.map((f) => {
+                const days = computeExpiryDays(f);
+                const holes = Array.from({ length: 6 });
+                return (
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 84, background: T.surface, borderLeft: "1px solid #000", borderRight: "1px solid #000" }}>
+                    <div className="flex justify-around px-1 py-0.5">{holes.map((_, i) => <span key={i} style={{ width: 5, height: 5, background: "#000", borderRadius: 1 }} />)}</div>
+                    <div className="px-1.5 pb-2 pt-0.5">
+                      <div className="relative mb-1 overflow-hidden flex items-center justify-center" style={{ height: 64, borderRadius: 2 }}>
+                        <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                        {days != null && <span className="absolute" style={{ top: 2, right: 2, background: T.alert, color: "#fff", fontSize: 7, fontWeight: 700, padding: "1px 3px", borderRadius: 2 }}>J-{days}</span>}
+                      </div>
+                      <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 8.5, color: T.cream, lineHeight: 1.2 }}>{f.titre}</p>
+                      <p style={{ fontFamily: F.mono, fontSize: 6.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                    </div>
+                    <div className="flex justify-around px-1 py-0.5">{holes.map((_, i) => <span key={i} style={{ width: 5, height: 5, background: "#000", borderRadius: 1 }} />)}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "kanso" && CURRENT_THEME !== "projectionniste" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
             {derniers.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
                 sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Le Projectionniste : le "chariot" — la feuille de route de       */}
+      {/* cabine, en liste de bobines qui tournent au survol/tap.          */}
+      {CURRENT_THEME === "projectionniste" && (
+        <>
+          <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>CHARIOT — FEUILLE DE ROUTE</SectionTitle>
+          <div className="px-4 mb-6">
+            {derniers.map((f, i) => (
+              <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 py-2.5 text-left"
+                style={{ borderBottom: i < derniers.length - 1 ? `1px solid ${T.line}` : "none" }}>
+                <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 38, height: 38, borderRadius: "50%", border: `2px solid ${T.mutedDim}`, background: `radial-gradient(circle, ${T.surface} 0 7px, ${T.surfaceRaised} 8px 18px)` }}>
+                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: T.bg }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 13, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+                <span style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, flexShrink: 0 }}>N°{String(i + 1).padStart(2, "0")}</span>
+              </button>
             ))}
           </div>
         </>
@@ -2004,7 +2126,29 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "jardin" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "videoclub2099" && CURRENT_THEME !== "prisme" && CURRENT_THEME !== "kanso" && CURRENT_THEME !== "popbrutal" && (
+      {/* Le Projectionniste : la bobine "actuellement chargée" — cadre    */}
+      {/* rond façon fenêtre de projecteur, halo ambre.                    */}
+      {suggestion && CURRENT_THEME === "projectionniste" && (
+        <>
+          <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
+          <div className="px-4 mb-6">
+            <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-3" style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm }}>
+              <div className="flex-shrink-0 overflow-hidden" style={{ width: 64, height: 64, borderRadius: "50%", border: `2px solid ${T.accent}`, boxShadow: `0 0 16px ${T.accent}33` }}>
+                <Poster film={suggestion} className="w-full h-full" style={{ objectFit: "cover" }} />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <span style={{ fontFamily: F.mono, fontSize: 8.5, color: T.accent, letterSpacing: 1 }}>BOBINE CHARGÉE</span>
+                <p className="truncate mt-1" style={{ fontFamily: F.marquee, fontSize: 16, color: T.cream }}>{suggestion.titre}</p>
+                <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 2 }}>
+                  {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
+                </p>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+
+      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "jardin" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "videoclub2099" && CURRENT_THEME !== "prisme" && CURRENT_THEME !== "kanso" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && (
         <>
           <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
           <div className="px-4">
@@ -2461,6 +2605,10 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <div className="mt-5 p-4" style={{ background: T.alertSoft, borderRadius: "32px 48px 32px 48px" }}>
               <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, fontWeight: 700 }}>ENCORE DISPONIBLE</span>
               <p style={{ fontFamily: F.serif, fontSize: 20, color: T.cream, fontStyle: "italic" }}>{expiryDays} jours</p>
+            </div>
+          ) : CURRENT_THEME === "projectionniste" ? (
+            <div className="inline-block mt-5 px-3.5 py-2" style={{ border: `1px solid ${T.alert}`, borderRadius: 2 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.5, color: T.alert }}>DISPO ENCORE — J-{expiryDays}</span>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
@@ -3418,7 +3566,7 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
 // Ordre d'affichage des groupes — du plus "standard" au plus exploratoire.
 const GROUPES_THEMES_ORDRE = ["Rituel", "Originaux", "Signature", "Mises en page réinventées", "Six Directions", "Ambiances CinéRadar"];
 
-function ThemesScreen({ theme, onChangeTheme, onBack, onMenu }) {
+function ThemesScreen({ theme, onChangeTheme, onBack, onMenu, leaderEnabled, onToggleLeader }) {
   const parGroupe = useMemo(() => {
     const m = {};
     Object.entries(THEMES).forEach(([key, t]) => {
@@ -3438,11 +3586,26 @@ function ThemesScreen({ theme, onChangeTheme, onBack, onMenu }) {
             {parGroupe[groupe].map(([key, t]) => {
               const active = theme === key;
               return (
-                <button key={key} onClick={() => onChangeTheme(key)} className="flex items-center justify-between rounded-xl px-4 py-3"
-                  style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}` }}>
-                  <span style={{ fontFamily: F.serif, fontSize: 13.5, color: active ? T.accent : T.cream }}>{t.label}</span>
-                  {active && <Check size={16} color={T.accent} />}
-                </button>
+                <div key={key}>
+                  <button onClick={() => onChangeTheme(key)} className="w-full flex items-center justify-between rounded-xl px-4 py-3"
+                    style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}` }}>
+                    <span style={{ fontFamily: F.serif, fontSize: 13.5, color: active ? T.accent : T.cream }}>{t.label}</span>
+                    {active && <Check size={16} color={T.accent} />}
+                  </button>
+                  {/* Le Projectionniste : bouton dédié pour activer/désactiver le    */}
+                  {/* compte à rebours d'amorce à chaque ouverture de fiche — on      */}
+                  {/* garde le rituel par défaut, mais on peut le couper vite fait    */}
+                  {/* si on enchaîne beaucoup de recherches un soir donné.            */}
+                  {key === "projectionniste" && active && (
+                    <button onClick={() => onToggleLeader(!leaderEnabled)} className="w-full flex items-center justify-between rounded-xl px-4 py-2.5 mt-1.5"
+                      style={{ background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
+                      <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.muted }}>Compte à rebours à l'ouverture des fiches</span>
+                      <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: leaderEnabled ? T.accent : T.mutedDim, letterSpacing: 0.5 }}>
+                        {leaderEnabled ? "AVEC ●" : "SANS ○"}
+                      </span>
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -3931,7 +4094,24 @@ export default function App() {
   };
 
   const navigate = (nav) => { setScreen(nav); setMenuOpen(false); };
-  const openFiche = (film) => setScreen({ name: "fiche", params: { film, from: screen } });
+  // Le Projectionniste : compte à rebours d'amorce avant chaque ouverture
+  // de fiche, activable/désactivable depuis Réglages (localStorage), pour
+  // ne pas ralentir une session où on enchaîne beaucoup de fiches.
+  const [leaderEnabled, setLeaderEnabled] = useState(() => {
+    try { return localStorage.getItem("cinemaison_leader_countdown") !== "0"; } catch { return true; }
+  });
+  const [leaderPendingFilm, setLeaderPendingFilm] = useState(null);
+  const toggleLeaderEnabled = (value) => {
+    setLeaderEnabled(value);
+    try { localStorage.setItem("cinemaison_leader_countdown", value ? "1" : "0"); } catch {}
+  };
+  const openFiche = (film) => {
+    if (CURRENT_THEME === "projectionniste" && leaderEnabled) {
+      setLeaderPendingFilm(film);
+      return;
+    }
+    setScreen({ name: "fiche", params: { film, from: screen } });
+  };
   const backFromFiche = () => setScreen(screen.params.from || { name: "accueil", params: {} });
   const openPerson = (nom) => setScreen({ name: "personne", params: { nom, from: screen } });
   const backFromPerson = () => setScreen(screen.params.from || { name: "accueil", params: {} });
@@ -3984,7 +4164,7 @@ export default function App() {
     } else if (name === "reglages") {
       body = <ReglagesScreen nbAccueil={nbAccueil} onChangeNbAccueil={setNbAccueil} onRefresh={loadFilms} filmCount={films.length} onBack={goAccueil} onMenu={() => setMenuOpen(true)} theme={theme} onOpenThemes={() => navigate({ name: "themes", params: {} })} />;
     } else if (name === "themes") {
-      body = <ThemesScreen theme={theme} onChangeTheme={changeTheme} onBack={() => navigate({ name: "reglages", params: {} })} onMenu={() => setMenuOpen(true)} />;
+      body = <ThemesScreen theme={theme} onChangeTheme={changeTheme} onBack={() => navigate({ name: "reglages", params: {} })} onMenu={() => setMenuOpen(true)} leaderEnabled={leaderEnabled} onToggleLeader={toggleLeaderEnabled} />;
     }
   }
 
@@ -4019,6 +4199,13 @@ export default function App() {
         )}
 
         {showBoot && <AppBootIntro ready={!!films || !!error} onDone={() => setShowBoot(false)} />}
+        {leaderPendingFilm && (
+          <LeaderCountdown onDone={() => {
+            const film = leaderPendingFilm;
+            setLeaderPendingFilm(null);
+            setScreen({ name: "fiche", params: { film, from: screen } });
+          }} />
+        )}
 
         <PullToRefresh onRefresh={loadFilms}>{body}</PullToRefresh>
 
