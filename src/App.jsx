@@ -1251,6 +1251,28 @@ function SectionTitle({ children, icon: Icon = Film, onMore }) {
       </div>
     );
   }
+  if (CURRENT_THEME === "ticket") {
+    // Petite touche signature : la ligne qui suit le titre devient
+    // pointillée, comme la ligne de déchirure d'un vrai ticket.
+    return (
+      <div className="flex items-center gap-2 px-4 mb-2">
+        <Icon size={13} color={T.accent} style={{ flexShrink: 0 }} />
+        <span style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: 1.4, color: T.cream, fontWeight: 600, whiteSpace: "nowrap" }}>{children}</span>
+        <span style={{ height: 0, flex: 1, borderTop: `1px dashed ${T.accent}88` }} />
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "bleu") {
+    // Petite touche signature : la ligne devient un dégradé bleu, esprit
+    // interface sleek plutôt qu'un simple filet plat.
+    return (
+      <div className="flex items-center gap-2 px-4 mb-2">
+        <Icon size={13} color={T.accent} style={{ flexShrink: 0 }} />
+        <span style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: 1.4, color: T.cream, fontWeight: 600, whiteSpace: "nowrap" }}>{children}</span>
+        <span style={{ height: 2, flex: 1, background: `linear-gradient(90deg, ${T.accent}, transparent)`, borderRadius: 2 }} />
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-2 px-4 mb-2">
       <Icon size={13} color={T.accent} style={{ flexShrink: 0 }} />
@@ -1333,6 +1355,66 @@ function MiniCard({ film, onOpen, sub, showStamp }) {
       <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{film.plateforme}{film.duree ? ` · ${film.duree}` : ""}</p>
       <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent }}>{sub}</p>
     </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* VIDÉOCLUB 2099 — étagère de cassettes VHS en vraie 3D CSS (face      */
+/* avant + tranche latérale + dessus), angle qui suit le défilement.    */
+/* Point important : la perspective vit sur CHAQUE cassette (perspective */
+/* posée sur le bouton lui-même), jamais sur le conteneur qui défile —  */
+/* un overflow-x:auto sur le même élément qu'un preserve-3d aplatit la   */
+/* 3D dans la quasi-totalité des navigateurs, piège classique déjà       */
+/* rencontré en aperçu avant d'arriver ici.                              */
+/* ------------------------------------------------------------------ */
+function VhsShelf({ films, onOpen }) {
+  const ref = useRef(null);
+  const updateTilt = () => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const center = rect.left + rect.width / 2;
+    el.querySelectorAll("[data-vhs-item]").forEach((item) => {
+      const r = item.getBoundingClientRect();
+      const dx = r.left + r.width / 2 - center;
+      const ratio = Math.max(-1, Math.min(1, dx / (rect.width / 2 || 1)));
+      const inner = item.querySelector("[data-vhs-inner]");
+      if (inner) inner.style.transform = `rotateY(${26 + ratio * 30}deg)`;
+      item.style.filter = `brightness(${1 - Math.abs(ratio) * 0.3})`;
+    });
+  };
+  useEffect(() => {
+    const t = setTimeout(updateTilt, 60);
+    return () => clearTimeout(t);
+  }, [films]);
+  return (
+    <div ref={ref} onScroll={updateTilt} className="flex gap-4 overflow-x-auto px-4 pb-2" style={{ WebkitOverflowScrolling: "touch" }}>
+      {films.map((f) => {
+        const days = computeExpiryDays(f);
+        return (
+          <button key={f.id} data-vhs-item onClick={() => onOpen(f)} className="flex-shrink-0 text-left relative" style={{ width: 36, paddingTop: 10 }}>
+            {days != null && (
+              <span className="absolute" style={{ top: 0, left: "50%", transform: "translateX(-50%)", background: T.accent, color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3, zIndex: 5, whiteSpace: "nowrap" }}>J-{days}</span>
+            )}
+            <div style={{ width: 36, height: 138, perspective: 340 }}>
+              <div data-vhs-inner style={{ position: "absolute", width: 36, height: 138, transformStyle: "preserve-3d", transform: "rotateY(26deg)", transition: "transform .2s ease" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 7, background: "linear-gradient(90deg,#252f56,#0d1128)", transform: "rotateX(90deg) translateZ(7px) translateY(-7px)", backfaceVisibility: "hidden" }} />
+                <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 14, background: "linear-gradient(180deg,#04060d,#0a0f24 45%,#020308)", transform: "rotateY(90deg) translateZ(7px) translateX(7px)", backfaceVisibility: "hidden" }} />
+                <div style={{ position: "absolute", inset: 0, borderRadius: "2px 3px 3px 2px", background: "linear-gradient(100deg,#0A1124 0%,#1c2650 30%,#0d1330 65%,#0A1124 100%)", border: `1px solid ${T.accentSecondary}66`, transform: "translateZ(7px)", backfaceVisibility: "hidden", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "9px 3px", boxShadow: "2px 4px 12px rgba(0,0,0,.5)" }}>
+                  <span style={{ fontSize: 5.5, color: T.gold, writingMode: "vertical-rl", letterSpacing: 1, flexShrink: 0 }}>VHS</span>
+                  <span className="truncate" style={{ fontFamily: F.mono, fontSize: 7, letterSpacing: 0.5, color: T.cream, fontWeight: 600, writingMode: "vertical-rl", textOrientation: "mixed", maxHeight: 78 }}>{f.titre}</span>
+                  <span style={{ fontSize: 5.5, color: T.muted, writingMode: "vertical-rl", flexShrink: 0 }}>{f.duree || ""}</span>
+                </div>
+              </div>
+            </div>
+            <p className="truncate text-center mt-1.5" style={{ width: 60, marginLeft: -12, fontFamily: F.mono, fontSize: 7, color: T.muted }}>{f.plateforme}</p>
+            {parseRating(f.noteLetterboxd) != null && (
+              <p className="text-center" style={{ width: 60, marginLeft: -12, fontFamily: F.mono, fontSize: 7, color: T.gold, fontWeight: 700 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1636,7 +1718,116 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </div>
       )}
 
-      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "videoclub2099" && CURRENT_THEME !== "prisme" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "kansoNeo" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && (
+      {/* Bulle BD : case d'action encadrée, éclat façon onomatopée pour le */}
+      {/* badge J-X — remplace le rail générique.                          */}
+      {bientot.length > 0 && CURRENT_THEME === "bd" && (
+        <>
+          <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT !</SectionTitle>
+          <div className="mx-4 mb-6 overflow-x-auto" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: T.radiusSm, boxShadow: T.shadow, padding: 12 }}>
+            <div className="flex gap-3.5">
+              {bientot.map((f) => {
+                const days = computeExpiryDays(f);
+                return (
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 96 }}>
+                    <div className="relative overflow-hidden" style={{ height: 110, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 3 }}>
+                      <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                      {days != null && (
+                        <span className="absolute flex items-center justify-center" style={{
+                          top: -14, right: -14, width: 44, height: 44, background: T.accent, color: "#fff",
+                          fontFamily: F.marquee, fontSize: 12, transform: "rotate(-12deg)", zIndex: 3,
+                          clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
+                        }}>{`J-${days}`}</span>
+                      )}
+                    </div>
+                    <p className="truncate mt-1.5" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 1 }}>
+                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}{parseRating(f.noteLetterboxd) != null ? ` · ★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Table lumineuse : bande de pellicule négative, esprit visionneuse  */}
+      {/* de table lumineuse — filet rouge, perforations fines.              */}
+      {bientot.length > 0 && CURRENT_THEME === "table" && (
+        <>
+          <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
+          <div className="mx-4 mb-6 overflow-x-auto" style={{ background: "#0D0D0D", padding: "10px 6px", borderRadius: 2 }}>
+            <div className="flex gap-1">
+              {bientot.map((f) => {
+                const days = computeExpiryDays(f);
+                return (
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 88 }}>
+                    <div className="relative overflow-hidden" style={{ height: 100, border: `2px solid ${T.accent}` }}>
+                      <Poster film={f} className="w-full h-full" style={{ objectFit: "cover", filter: "invert(1) hue-rotate(180deg)" }} />
+                      {days != null && <span className="absolute" style={{ top: 3, right: 3, background: T.accent, color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 4px" }}>J-{days}</span>}
+                    </div>
+                    <p className="truncate mt-1.5" style={{ fontFamily: F.mono, fontSize: 8.5, color: "#F2F0E8" }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 7.5, color: "#F2F0E880" }}>
+                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}{parseRating(f.noteLetterboxd) != null ? ` · ★${parseRating(f.noteLetterboxd).toFixed(1)}` : ""}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Affiche de festival : cartes néobrutalistes, ombre dure décalée,  */}
+      {/* bordure noire épaisse — esprit programme de festival imprimé.      */}
+      {bientot.length > 0 && CURRENT_THEME === "affiche" && (
+        <>
+          <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
+          <div className="flex gap-4 px-4 overflow-x-auto mb-6 pb-1">
+            {bientot.map((f) => {
+              const days = computeExpiryDays(f);
+              return (
+                <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100, background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
+                  <div className="relative">
+                    <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover", borderBottom: `2px solid ${T.cream}` }} />
+                    {days != null && <span className="absolute" style={{ top: -8, right: -8, background: T.accentSoft, color: T.cream, fontFamily: F.marquee, fontSize: 11, padding: "3px 7px", border: `2px solid ${T.cream}`, borderRadius: 999 }}>J-{days}</span>}
+                  </div>
+                  <div className="p-2">
+                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Letterboxd : cartes sombres, note en étoiles vertes, esprit        */}
+      {/* application communautaire de cinéphiles.                           */}
+      {bientot.length > 0 && CURRENT_THEME === "letterboxd" && (
+        <>
+          <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
+          <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+            {bientot.map((f) => {
+              const days = computeExpiryDays(f);
+              const rating = parseRating(f.noteLetterboxd);
+              return (
+                <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
+                  <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
+                    <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                    {days != null && <span className="absolute" style={{ top: 4, right: 4, background: T.alert, color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3 }}>J-{days}</span>}
+                  </div>
+                  <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, fontWeight: 600, color: T.cream }}>{f.titre}</p>
+                  {rating != null && <p style={{ color: T.accent, fontSize: 9, marginTop: 1 }}>{"★".repeat(Math.floor(rating)) + (rating % 1 >= 0.5 ? "½" : "")}</p>}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "videoclub2099" && CURRENT_THEME !== "prisme" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "kansoNeo" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -1686,35 +1877,13 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
       {/* Vidéoclub 2099 : vrais boîtiers VHS — fenêtre affiche, bobines,   */}
       {/* étiquette encadrée en pointillés (option A validée).              */}
+      {/* Vidéoclub 2099 : vraie étagère de cassettes VHS en 3D (VhsShelf,   */}
+      {/* voir plus haut) — remplace les anciens boîtiers plats.             */}
       {bientot.length > 0 && CURRENT_THEME === "videoclub2099" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-5 pb-1">
-            {bientot.map((f) => {
-              const days = computeExpiryDays(f);
-              return (
-                <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left p-1.5"
-                  style={{ width: 104, background: T.surface, borderRadius: 5, border: `1px solid ${T.accentSecondary}44`, boxShadow: "0 8px 18px rgba(0,0,0,0.45)" }}>
-                  <div className="relative overflow-hidden" style={{ borderRadius: 3, boxShadow: `inset 0 0 0 2px ${T.bg}` }}>
-                    <Poster film={f} className="w-full" style={{ height: 96, objectFit: "cover" }} />
-                    {days != null && (
-                      <span className="absolute" style={{ top: 3, right: 3, background: T.accent, color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 4px", borderRadius: 3 }}>J-{days}</span>
-                    )}
-                  </div>
-                  <div className="flex justify-between items-center px-0.5" style={{ marginTop: 4 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", border: `2px solid ${T.accentSecondary}` }} />
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", border: `2px solid ${T.accentSecondary}` }} />
-                  </div>
-                  <div style={{ marginTop: 4, background: T.bg, border: `1px dashed ${T.accentSecondary}55`, borderRadius: 2, padding: "3px 4px" }}>
-                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, fontWeight: 700, color: T.accentSecondary, lineHeight: 1.15 }}>{f.titre}</p>
-                    <p style={{ fontFamily: F.mono, fontSize: 7, color: T.muted, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
-                    {parseRating(f.noteLetterboxd) != null && (
-                      <p style={{ fontFamily: F.mono, fontSize: 7, color: T.gold, marginTop: 1, fontWeight: 700 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+          <div className="mb-6">
+            <VhsShelf films={bientot} onOpen={onOpen} />
           </div>
         </>
       )}
@@ -1836,7 +2005,30 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "kansoNeo" && CURRENT_THEME !== "projectionniste" && (
+      {/* Bulle BD : vraie planche en cases (grille 2 colonnes, bordures    */}
+      {/* épaisses, ombre dure décalée) — esprit gouttières de bande        */}
+      {/* dessinée plutôt qu'un simple rail défilant.                       */}
+      {derniers.length > 0 && CURRENT_THEME === "bd" && (
+        <>
+          <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
+          <div className="mx-4 mb-6 grid grid-cols-2 gap-3">
+            {derniers.slice(0, 4).map((f) => (
+              <button key={f.id} onClick={() => onOpen(f)} className="text-left overflow-hidden" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 3, boxShadow: `4px 4px 0 ${T.cream}88` }}>
+                <Poster film={f} className="w-full" style={{ height: 108, objectFit: "cover" }} />
+                <div className="p-2">
+                  <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                  {parseRating(f.noteLetterboxd) != null && (
+                    <p style={{ fontFamily: F.mono, fontSize: 8, color: T.accent, fontWeight: 700, marginTop: 2 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "kansoNeo" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -2268,7 +2460,86 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "jardin" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "videoclub2099" && CURRENT_THEME !== "prisme" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "kansoNeo" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && (
+      {/* Bulle BD : la suggestion devient une grande bulle de dialogue qui  */}
+      {/* "sort" du cadre avec sa pointe — au lieu du ticket classique.      */}
+      {suggestion && CURRENT_THEME === "bd" && (
+        <>
+          <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
+          <div className="mx-4 mb-8" style={{ position: "relative" }}>
+            <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-3.5" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 20, boxShadow: T.shadow }}>
+              <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 4 }} />
+              <div className="min-w-0">
+                <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>{suggestion.titre}</p>
+                <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 3 }}>
+                  {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
+                  {parseRating(suggestion.noteLetterboxd) != null ? ` · ★ ${parseRating(suggestion.noteLetterboxd).toFixed(1)}` : ""}
+                </p>
+              </div>
+            </button>
+            <div className="absolute" style={{ left: 36, bottom: -14, width: 0, height: 0, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: `16px solid ${T.cream}` }} />
+            <div className="absolute" style={{ left: 29, bottom: -7.5, width: 0, height: 0, borderLeft: "7px solid transparent", borderRight: "7px solid transparent", borderTop: `13px solid ${T.surface}` }} />
+          </div>
+        </>
+      )}
+
+      {/* Table lumineuse : suggestion sur écran lumineux, filet rouge.      */}
+      {suggestion && CURRENT_THEME === "table" && (
+        <>
+          <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
+          <div className="mx-4 mb-6 flex gap-3 p-3" style={{ background: T.surface, border: `2px solid ${T.accent}` }}>
+            <Poster film={suggestion} className="flex-shrink-0" style={{ width: 60, height: 84, objectFit: "cover" }} />
+            <div className="min-w-0">
+              <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 15, color: T.cream }}>{suggestion.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 3 }}>
+                {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
+                {parseRating(suggestion.noteLetterboxd) != null ? ` · ★ ${parseRating(suggestion.noteLetterboxd).toFixed(1)}` : ""}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Affiche de festival : carte plein cadre, ombre dure XL.            */}
+      {suggestion && CURRENT_THEME === "affiche" && (
+        <>
+          <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
+          <div className="mx-4 mb-8">
+            <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-3" style={{ background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
+              <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, objectFit: "cover" }} />
+              <div className="min-w-0">
+                <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>{suggestion.titre}</p>
+                <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 4 }}>
+                  {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
+                  {parseRating(suggestion.noteLetterboxd) != null ? ` · ★ ${parseRating(suggestion.noteLetterboxd).toFixed(1)}` : ""}
+                </p>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Letterboxd : carte sombre, note en étoiles vertes.                 */}
+      {suggestion && CURRENT_THEME === "letterboxd" && (
+        <>
+          <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
+          <div className="mx-4 mb-6 flex gap-3 p-3" style={{ background: T.surface, borderRadius: T.radiusSm }}>
+            <Poster film={suggestion} className="flex-shrink-0" style={{ width: 64, height: 90, borderRadius: 4 }} />
+            <div className="min-w-0">
+              <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 14, color: T.cream }}>{suggestion.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 3 }}>
+                {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
+              </p>
+              {parseRating(suggestion.noteLetterboxd) != null && (
+                <p style={{ color: T.accent, fontSize: 11, marginTop: 3 }}>
+                  {"★".repeat(Math.floor(parseRating(suggestion.noteLetterboxd))) + (parseRating(suggestion.noteLetterboxd) % 1 >= 0.5 ? "½" : "")}
+                </p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "jardin" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "videoclub2099" && CURRENT_THEME !== "prisme" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "kansoNeo" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && (
         <>
           <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
           <div className="px-4">
@@ -2660,18 +2931,63 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
 
   return (
     <div className="flex-1 overflow-y-auto pull-scroll relative pb-6">
-      <div onClick={() => setPosterOpen(true)} className="relative" style={{ height: 340, cursor: "pointer" }}>
-        <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
-        <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,16,12,0.1) 40%, ${T.bg} 100%)` }} />
-        <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="absolute left-4 w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(20,16,12,0.55)" }}>
-          <ChevronLeft size={18} color="#F3EEE3" />
-        </button>
-        <div className="absolute right-4 flex gap-2" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
-          <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Pencil size={15} color={T.accentSecondary} /></button>
-          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Trash2 size={16} color={T.alert} /></button>
+      {CURRENT_THEME === "videoclub2099" ? (
+        /* Vidéoclub 2099 : boîtier VHS "ouvert" — pochette (vraie affiche)  */
+        /* à gauche, tranche intérieure décorative à droite (scanlines +    */
+        /* plateforme réelle écrite à la verticale). Pas de fausses données */
+        /* de confiance par plateforme : l'appli ne stocke qu'une seule     */
+        /* plateforme par fiche, donc rien d'inventé ici.                   */
+        <div onClick={() => setPosterOpen(true)} className="relative flex" style={{ height: 300, cursor: "pointer", background: "#000" }}>
+          <div className="relative overflow-hidden" style={{ flex: 1.3 }}>
+            <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
+            <span className="absolute" style={{ bottom: 8, left: 8, fontFamily: F.mono, fontSize: 8, color: T.gold, letterSpacing: 1 }}>VHS · {film.annee}</span>
+          </div>
+          <div className="relative overflow-hidden flex items-center justify-center" style={{ flex: 1, background: `linear-gradient(160deg, ${T.surfaceRaised}, #000)` }}>
+            <div className="absolute inset-0" style={{ opacity: 0.08, backgroundImage: "repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px)" }} />
+            <span style={{ writingMode: "vertical-rl", fontFamily: F.marquee, fontSize: 13, letterSpacing: 3, color: T.accentSecondary }}>{(film.plateforme || "").toUpperCase()}</span>
+          </div>
+          <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(5,8,23,0) 55%, ${T.bg} 100%)` }} />
+          <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="absolute left-4 w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(5,8,23,0.7)", border: `1px solid ${T.accentSecondary}44` }}>
+            <ChevronLeft size={18} color={T.cream} />
+          </button>
+          <div className="absolute right-4 flex gap-2" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
+            <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(5,8,23,0.7)", border: `1px solid ${T.accentSecondary}44` }}><Pencil size={15} color={T.accentSecondary} /></button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(5,8,23,0.7)", border: `1px solid ${T.accentSecondary}44` }}><Trash2 size={16} color={T.alert} /></button>
+          </div>
         </div>
-      </div>
+      ) : CURRENT_THEME === "bd" ? (
+        /* Bulle BD : la couverture devient une vraie case encadrée, avec   */
+        /* une bordure épaisse en retrait (esprit planche imprimée) et un   */
+        /* petit macaron rond pour le type, comme un numéro de page.        */
+        <div className="relative" style={{ height: 340, padding: 14, background: T.bg }}>
+          <div onClick={() => setPosterOpen(true)} className="relative w-full h-full overflow-hidden" style={{ border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 6, boxShadow: T.shadow, cursor: "pointer" }}>
+            <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(22,20,20,0) 55%, rgba(22,20,20,0.65) 100%)" }} />
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="absolute left-6 w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ top: "max(24px, env(safe-area-inset-top))", background: T.cream, border: `2px solid ${T.bg}` }}>
+            <ChevronLeft size={18} color={T.bg} />
+          </button>
+          <div className="absolute right-6 flex gap-2" style={{ top: "max(24px, env(safe-area-inset-top))" }}>
+            <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: T.cream, border: `2px solid ${T.bg}` }}><Pencil size={15} color={T.accentSecondary} /></button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: T.cream, border: `2px solid ${T.bg}` }}><Trash2 size={16} color={T.alert} /></button>
+          </div>
+        </div>
+      ) : (
+        <div onClick={() => setPosterOpen(true)} className="relative" style={{ height: 340, cursor: "pointer" }}>
+          <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
+          <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,16,12,0.1) 40%, ${T.bg} 100%)` }} />
+          <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="absolute left-4 w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(20,16,12,0.55)" }}>
+            <ChevronLeft size={18} color="#F3EEE3" />
+          </button>
+          <div className="absolute right-4 flex gap-2" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
+            <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Pencil size={15} color={T.accentSecondary} /></button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(20,16,12,0.55)" }}><Trash2 size={16} color={T.alert} /></button>
+          </div>
+        </div>
+      )}
 
       <div className="px-5 -mt-10 relative">
         <div className="flex items-end justify-between mb-1">
@@ -2739,6 +3055,51 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ border: `1px solid ${T.accent}66`, borderRadius: T.radiusSm, boxShadow: `0 0 12px ${T.accent}22` }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, boxShadow: `0 0 6px ${T.accent}` }} />
               <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: T.cream }}>J-{expiryDays} · dernière chance</span>
+            </div>
+          ) : CURRENT_THEME === "videoclub2099" ? (
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.surface, border: `1px solid ${T.accent}`, borderRadius: T.radiusSm, boxShadow: `0 0 14px ${T.accent}33` }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 14, color: T.accent, textShadow: `0 0 6px ${T.accent}88` }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 1, color: T.muted }}>AVANT ÉJECTION</span>
+            </div>
+          ) : CURRENT_THEME === "bento" ? (
+            <div className="inline-flex items-center gap-2 mt-5 px-4 py-2.5" style={{ background: T.accentSoft, borderRadius: 999, boxShadow: T.shadow }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.accent, fontWeight: 800 }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: T.cream }}>avant expiration</span>
+            </div>
+          ) : CURRENT_THEME === "palais" ? (
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ border: `1px solid ${T.accent}`, borderRadius: 999 }}>
+              <span style={{ fontFamily: F.serif, fontSize: 15, color: T.accent }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 9, letterSpacing: 1, color: T.mutedDim }}>DERNIÈRES SÉANCES</span>
+            </div>
+          ) : CURRENT_THEME === "nvague" ? (
+            <div className="inline-block mt-5 px-3 py-1.5" style={{ background: T.accent, color: T.surface }}>
+              <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700 }}>J-{expiryDays} · QUITTE BIENTÔT LE CATALOGUE</span>
+            </div>
+          ) : CURRENT_THEME === "prisme" ? (
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.accentSoft, border: `1px solid ${T.accentSecondary}44`, borderRadius: T.radiusSm }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.accentSecondary, boxShadow: `0 0 8px ${T.accentSecondary}` }} />
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: T.cream, letterSpacing: 0.5 }}>J-{expiryDays} en orbite</span>
+            </div>
+          ) : CURRENT_THEME === "popbrutal" ? (
+            <div className="inline-block mt-5 px-4 py-2" style={{ background: T.accent, color: "#fff", border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: "rotate(-1.5deg)" }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 14 }}>J-{expiryDays} AVANT DISPARITION</span>
+            </div>
+          ) : CURRENT_THEME === "seance" ? (
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.surfaceRaised, border: `1px solid ${T.accent}66`, borderRadius: T.radiusSm }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 14, color: T.accent }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, letterSpacing: 1 }}>DERNIÈRES SÉANCES</span>
+            </div>
+          ) : CURRENT_THEME === "ticket" ? (
+            <div className="relative inline-flex items-center gap-3 mt-4 rounded-xl p-3" style={{ background: T.alertSoft, border: `1px dashed ${T.alert}66` }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 22, color: T.alert }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
+              <span className="absolute" style={{ left: -6, top: "50%", width: 12, height: 12, borderRadius: "50%", background: T.bg, transform: "translateY(-50%)" }} />
+              <span className="absolute" style={{ right: -6, top: "50%", width: 12, height: 12, borderRadius: "50%", background: T.bg, transform: "translateY(-50%)" }} />
+            </div>
+          ) : CURRENT_THEME === "bleu" ? (
+            <div className="inline-flex items-center gap-3 mt-4 rounded-full px-4 py-2.5" style={{ background: T.alertSoft, boxShadow: `0 0 16px ${T.alert}33` }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 18, color: T.alert }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert, letterSpacing: 0.5 }}>DERNIÈRE SÉANCE PRÉVUE</span>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
@@ -3160,6 +3521,367 @@ function AlertesListe({ films, field, onOpen }) {
     });
     return m;
   }, [films, field]);
+
+  // Minitel : rangées façon page vidéotex — blocs de couleur pleins,
+  // curseur clignotant sur la ligne la plus urgente.
+  if (CURRENT_THEME === "minitel") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.mono, fontSize: 13, color: T.mutedDim }}>RIEN A VENIR.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-1.5">
+        {flat.map(({ f, days }, i) => {
+          const urgent = days <= 3;
+          return (
+            <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+              style={{ background: urgent ? T.accent : "#000", border: `2px solid ${T.accent}` }}>
+              <span style={{ fontFamily: F.mono, fontSize: 12, color: urgent ? "#000" : T.cream, letterSpacing: 0.5 }}>
+                {f.titre.toUpperCase()}{i === 0 && <span style={{ animation: "minitelBlink 1s step-end infinite" }}>█</span>}
+              </span>
+              <span style={{ fontFamily: F.mono, fontSize: 12, color: urgent ? "#000" : T.accent, fontWeight: 700 }}>J-{days}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Salle Privée : programme de soirée élégant, filet doré, typographie
+  // raffinée — esprit affichage de salle de projection.
+  if (CURRENT_THEME === "salle") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col">
+        {flat.map(({ f, days }, i) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left py-3"
+            style={{ borderBottom: i < flat.length - 1 ? `1px solid ${T.line}` : "none" }}>
+            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: "50%", border: `1px solid ${T.accent}` }}>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600 }}>J-{days}</span>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Terminal Sombre : même esprit que l'Accueil — un tableau JS commenté,
+  // pas une liste d'UI classique.
+  if (CURRENT_THEME === "terminal") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    return (
+      <div>
+        <p style={{ color: "#569CD6", fontSize: 11, marginBottom: 6 }}>const <span style={{ color: "#DCDCAA" }}>alertes</span> = [</p>
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full pl-4 py-1.5 flex items-center justify-between text-left" style={{ borderLeft: `2px solid ${T.line}` }}>
+            <span className="truncate" style={{ color: "#CE9178", fontSize: 11 }}>"{f.titre}"</span>
+            <span style={{ color: "#B5CEA8", fontSize: 11, flexShrink: 0, marginLeft: 8 }}>J-{days}</span>
+          </button>
+        ))}
+        <p style={{ color: "#569CD6", fontSize: 11, marginTop: 6 }}>];</p>
+        {flat.length === 0 && <p style={{ color: "#6A9955", fontSize: 11 }}>{"// rien à venir pour l'instant"}</p>}
+      </div>
+    );
+  }
+
+  // Jardin d'Hiver : cartes organiques, arrondis très généreux, esprit
+  // galet — pas de ligne dure, tout en douceur.
+  if (CURRENT_THEME === "jardin") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-2.5">
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-3"
+            style={{ background: T.surface, borderRadius: "28px 40px 28px 40px" }}>
+            <span className="flex-shrink-0 px-2.5 py-1" style={{ background: T.accentSecondarySoft, borderRadius: 999 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, fontWeight: 700 }}>J-{days}</span>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Le Projectionniste : bande de pellicule verticale perforée, même
+  // langage visuel que le rail "Ça part bientôt" de l'Accueil.
+  if (CURRENT_THEME === "projectionniste") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="relative pl-3" style={{ borderLeft: `2px dashed ${T.line}` }}>
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left relative mb-4">
+            <span className="absolute flex items-center justify-center" style={{ left: -19, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, borderRadius: "50%", background: T.accent }} />
+            <Poster film={f} className="flex-shrink-0" style={{ width: 38, height: 54, borderRadius: 2, marginLeft: 10 }} />
+            <div className="min-w-0 flex-1">
+              <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, fontWeight: 700 }}>J-{days}</p>
+              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Bento Moderne : cartes vitrées, mêmes codes visuels que l'Accueil.
+  if (CURRENT_THEME === "bento") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-2.5">
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
+            style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
+            <Poster film={f} className="flex-shrink-0" style={{ width: 44, height: 62, borderRadius: 10, objectFit: "cover" }} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+            <span className="flex-shrink-0 px-2.5 py-1" style={{ background: T.accentSoft, borderRadius: 999 }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 11, color: T.accent, fontWeight: 800 }}>J-{days}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Palais 1932 : rail vertical à médaillons, même langage que l'Accueil.
+  if (CURRENT_THEME === "palais") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div>
+        {flat.map(({ f, days }, i) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 py-2.5 text-left"
+            style={{ borderBottom: i < flat.length - 1 ? `1px solid ${T.accent}22` : "none" }}>
+            <div className="flex-shrink-0 overflow-hidden" style={{ width: 42, height: 42, borderRadius: "50%", border: `2px solid ${T.accent}` }}>
+              <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, fontWeight: 600, color: T.cream }}>{f.titre}</p>
+              <p style={{ fontFamily: "'Manrope', sans-serif", fontSize: 9.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+            <span style={{ fontFamily: F.serif, fontSize: 15, color: T.alert, flexShrink: 0 }}>J-{days}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Nouvelle Vague 74 : bandeau rouge + liste encadrée filet noir.
+  if (CURRENT_THEME === "nvague") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    return (
+      <div>
+        <div className="mb-3 px-3 py-2" style={{ background: T.accent, color: T.surface }}>
+          <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700 }}>{flat.length} titre{flat.length > 1 ? "s" : ""} à surveiller</span>
+        </div>
+        {flat.map(({ f, days }, i) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center justify-between py-2.5 text-left" style={{ borderBottom: `1px solid ${T.cream}` }}>
+            <div className="min-w-0">
+              <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 13, color: T.cream }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+            <span style={{ fontFamily: F.mono, fontSize: 12, color: T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+          </button>
+        ))}
+        {flat.length === 0 && <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>}
+      </div>
+    );
+  }
+
+  // Prisme Spatial : liste flottante en verre, points lumineux.
+  if (CURRENT_THEME === "prisme") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-2.5">
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
+            style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radius }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.accentSecondary, boxShadow: `0 0 8px ${T.accentSecondary}`, flexShrink: 0 }} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+            <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, flexShrink: 0 }}>J-{days}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Studio Pop Brutal : cartes sticker pivotées, ombre dure.
+  if (CURRENT_THEME === "popbrutal") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-3">
+        {flat.map(({ f, days }, i) => {
+          const rot = i % 2 === 0 ? -1 : 1;
+          return (
+            <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
+              style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: `rotate(${rot}deg)` }}>
+              <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, border: `2px solid ${T.line}` }} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
+                <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8, color: T.muted, marginTop: 1, fontWeight: 700 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+              </div>
+              <span className="flex-shrink-0 px-2 py-1" style={{ background: T.accent, color: "#fff", fontFamily: F.marquee, fontSize: 11 }}>J-{days}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // La Séance : liste façon souche de ticket, dorée et feutrée.
+  if (CURRENT_THEME === "seance") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-2">
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
+            style={{ background: T.surfaceRaised, borderRadius: T.radiusSm, borderLeft: `3px solid ${T.accent}` }}>
+            <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, borderRadius: 4 }} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 13, color: T.cream }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+            <span style={{ fontFamily: F.marquee, fontSize: 13, color: T.accent, flexShrink: 0 }}>J-{days}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Table lumineuse : liste sur fond noir façon visionneuse, filet rouge.
+  if (CURRENT_THEME === "table") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-2 -mx-5 px-5 py-3" style={{ background: "#0D0D0D" }}>
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center justify-between py-2 text-left" style={{ borderBottom: `1px solid #F2F0E822` }}>
+            <div className="min-w-0">
+              <p className="truncate" style={{ fontFamily: F.mono, fontSize: 12, color: "#F2F0E8" }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#F2F0E880", marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+            <span style={{ fontFamily: F.mono, fontSize: 12, color: T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Affiche de festival : cartes ticket, ombre dure, bordure noire.
+  if (CURRENT_THEME === "affiche") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-3">
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
+            style={{ background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
+            <Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+            <span className="flex-shrink-0 px-2 py-1" style={{ background: T.accentSoft, fontFamily: F.marquee, fontSize: 10, color: T.cream, borderRadius: 999, border: `1px solid ${T.cream}` }}>J-{days}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Letterboxd : liste sombre, note en étoiles vertes.
+  if (CURRENT_THEME === "letterboxd") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-2.5">
+        {flat.map(({ f, days }) => {
+          const rating = parseRating(f.noteLetterboxd);
+          return (
+            <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2" style={{ background: T.surface, borderRadius: T.radiusSm }}>
+              <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, borderRadius: 4 }} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+                {rating != null && <p style={{ color: T.accent, fontSize: 9, marginTop: 2 }}>{"★".repeat(Math.floor(rating)) + (rating % 1 >= 0.5 ? "½" : "")}</p>}
+              </div>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: T.alert, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Bulle BD : liste en cases avec ombre dure décalée, éclat onomatopée
+  // pour l'échéance — même esprit que l'Accueil, pas de rail générique.
+  if (CURRENT_THEME === "bd") {
+    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    if (flat.length === 0) {
+      return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-4">
+        {flat.map(({ f, days }) => (
+          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left relative p-2.5"
+            style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
+            <div className="relative flex-shrink-0" style={{ width: 46, height: 64 }}>
+              <Poster film={f} className="w-full h-full" style={{ border: `2px solid ${T.cream}`, borderRadius: 3, objectFit: "cover" }} />
+              <span className="absolute flex items-center justify-center" style={{
+                top: -12, right: -12, width: 32, height: 32, background: T.accent, color: "#fff",
+                fontFamily: F.marquee, fontSize: 9, transform: "rotate(-10deg)", zIndex: 3,
+                clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
+              }}>{`J-${days}`}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   // Kanso Héritage / Kanso Neo : ligne temporelle verticale (pastilles J-X
   // reliées), au lieu de la liste groupée par date classique — bien plus
@@ -3895,6 +4617,38 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
             <span style={{ fontFamily: F.marquee, fontSize: 16, color: T.cream, letterSpacing: 1 }}>印 LE GUICHET</span>
           ) : CURRENT_THEME === "kansoNeo" ? (
             <span style={{ fontFamily: F.marquee, fontSize: 14, color: T.cream, letterSpacing: 3, fontWeight: 600 }}>LE GUICHET</span>
+          ) : CURRENT_THEME === "bd" ? (
+            <span className="relative inline-block px-3 py-1.5" style={{ background: T.accentSoft, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 14 }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 13, color: T.cream }}>LE GUICHET</span>
+            </span>
+          ) : CURRENT_THEME === "minitel" ? (
+            <span style={{ fontFamily: F.mono, fontSize: 16, color: T.accent, letterSpacing: 1 }}>GUICHET_<span style={{ animation: "minitelBlink 1s step-end infinite" }}>█</span></span>
+          ) : CURRENT_THEME === "salle" ? (
+            <span style={{ fontFamily: F.serif, fontSize: 18, color: T.cream, letterSpacing: 2, fontStyle: "italic" }}>Le Guichet</span>
+          ) : CURRENT_THEME === "terminal" ? (
+            <span style={{ fontFamily: F.mono, fontSize: 13, color: "#6A9955" }}>{"// le_guichet.js"}</span>
+          ) : CURRENT_THEME === "jardin" ? (
+            <span style={{ fontFamily: F.serif, fontSize: 17, color: T.cream, fontStyle: "italic" }}>Le Guichet</span>
+          ) : CURRENT_THEME === "projectionniste" ? (
+            <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.accent, letterSpacing: 1.5 }}>CARNET DE CABINE</span>
+          ) : CURRENT_THEME === "bento" ? (
+            <span className="px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 999, fontFamily: F.marquee, fontSize: 13, color: T.cream, fontWeight: 700, boxShadow: T.shadow }}>Guichet</span>
+          ) : CURRENT_THEME === "palais" ? (
+            <span style={{ fontFamily: F.serif, fontSize: 20, color: T.cream, letterSpacing: 3 }}>LE GUICHET</span>
+          ) : CURRENT_THEME === "nvague" ? (
+            <span style={{ fontFamily: F.marquee, fontSize: 22, color: T.cream }}>LE GUICHET</span>
+          ) : CURRENT_THEME === "prisme" ? (
+            <span style={{ fontFamily: F.marquee, fontSize: 14, color: T.cream, letterSpacing: 3, fontWeight: 600 }}>LE GUICHET</span>
+          ) : CURRENT_THEME === "popbrutal" ? (
+            <span className="px-3 py-1" style={{ background: T.cream, color: T.bg, fontFamily: F.marquee, fontSize: 16, border: `${T.borderWidth}px solid ${T.cream}`, transform: "rotate(-1deg)", display: "inline-block" }}>GUICHET</span>
+          ) : CURRENT_THEME === "seance" ? (
+            <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.accent, letterSpacing: 2 }}>LE GUICHET</span>
+          ) : CURRENT_THEME === "table" ? (
+            <span style={{ fontFamily: F.mono, fontSize: 16, color: T.accent, letterSpacing: 1, fontWeight: 700 }}>LE GUICHET</span>
+          ) : CURRENT_THEME === "affiche" ? (
+            <span className="px-3 py-1" style={{ background: T.cream, color: T.bg, fontFamily: F.marquee, fontSize: 15, boxShadow: T.shadow }}>GUICHET</span>
+          ) : CURRENT_THEME === "letterboxd" ? (
+            <span style={{ fontFamily: F.serif, fontSize: 18, color: T.cream, fontWeight: 700 }}>Le Guichet</span>
           ) : (
             <span style={{ fontFamily: F.marquee, fontSize: 21, color: T.accent, letterSpacing: 1.5 }}>GUICHET</span>
           )}
@@ -3903,9 +4657,11 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
         {groups.map((g, gi) => (
           <div key={gi} className="px-4 mb-4">
             <p className="mb-1.5" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.4, color: T.mutedDim }}>{g.label}</p>
-            <div className="rounded-xl overflow-hidden" style={{
-              background: T.surface, border: `1px solid ${T.line}`,
-              boxShadow: CURRENT_THEME === "kansoNeo" ? `0 0 0 1px ${T.accentSecondary}22` : "none",
+            <div className="overflow-hidden" style={{
+              background: T.surface,
+              border: CURRENT_THEME === "bd" ? `${T.borderWidth}px solid ${T.cream}` : CURRENT_THEME === "minitel" ? `2px solid ${T.accent}` : CURRENT_THEME === "terminal" ? `1px dashed ${T.line}` : `1px solid ${T.line}`,
+              borderRadius: CURRENT_THEME === "bd" ? T.radiusSm : 12,
+              boxShadow: CURRENT_THEME === "kansoNeo" ? `0 0 0 1px ${T.accentSecondary}22` : CURRENT_THEME === "bd" ? T.shadow : CURRENT_THEME === "minitel" ? `0 0 10px ${T.accent}22` : "none",
             }}>
               {g.items.map((it, i) => (
                 <button key={it.id} onClick={() => onNavigate(it.nav)} className="w-full text-left px-3.5 py-2.5 flex items-center justify-between"
