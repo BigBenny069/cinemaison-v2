@@ -386,21 +386,21 @@ const THEMES = {
     label: "Pop Art",
     groupe: "Mises en page réinventées",
     colors: {
-      bg: "#0F0A18",
-      surface: "#1C1428",
-      surfaceRaised: "#241A35",
+      bg: "#FFF8ED",
+      surface: "#FFFFFF",
+      surfaceRaised: "#F3EAD6",
       accent: "#FF2D78",
-      accentSoft: "rgba(255,45,120,0.16)",
+      accentSoft: "rgba(255,45,120,0.14)",
       accentSecondary: "#00C2D1",
-      accentSecondarySoft: "rgba(0,194,209,0.16)",
+      accentSecondarySoft: "rgba(0,194,209,0.14)",
       accentTertiary: "#8B2FE0",
       gold: "#F4E409",
-      cream: "#FFFFFF",
-      muted: "#9992A8",
-      mutedDim: "#5C5570",
-      line: "rgba(255,255,255,0.14)",
+      cream: "#161414",
+      muted: "#6B6458",
+      mutedDim: "#A89F8E",
+      line: "rgba(22,20,20,0.14)",
       alert: "#FF2D78",
-      alertSoft: "rgba(255,45,120,0.16)",
+      alertSoft: "rgba(255,45,120,0.14)",
       radius: 4,
       radiusSm: 3,
       shadow: "none",
@@ -2369,7 +2369,32 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "kansoNeo" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && (
+      {/* Pop Art : "Derniers ajouts" avec les mêmes cadres colorés en       */}
+      {/* rotation que "Ça part bientôt".                                    */}
+      {derniers.length > 0 && CURRENT_THEME === "popart" && (
+        <>
+          <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
+          <div className="grid grid-cols-2 gap-3.5 px-4 mb-6">
+            {derniers.slice(0, 4).map((f, i) => {
+              const frameColors = [T.accentSecondary, T.gold, T.accentTertiary, T.accent];
+              const frameColor = frameColors[i % frameColors.length];
+              return (
+                <button key={f.id} onClick={() => onOpen(f)} className="text-left" style={{ border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius, overflow: "hidden", background: T.surface }}>
+                  <Poster film={f} className="w-full" style={{ height: 120, objectFit: "cover" }} />
+                  <div className="p-2">
+                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10.5, color: T.cream }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 2 }}>
+                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}{parseRating(f.noteLetterboxd) != null ? ` · ★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "terminal" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "kansoNeo" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "popart" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -4054,8 +4079,16 @@ function ScreenHeader({ title, onBack, onMenu, right }) {
 }
 
 function ListResultCard({ film, onOpen, right }) {
+  // Pop Art : cadre coloré flashy, stable par film (basé sur son id) pour
+  // qu'il ne change pas de couleur selon l'écran ou le tri utilisé.
+  let borderColor = T.line;
+  if (CURRENT_THEME === "popart") {
+    const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
+    const hash = String(film.id || film.titre || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    borderColor = frameColors[hash % frameColors.length];
+  }
   return (
-    <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
+    <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${borderColor}`, borderRadius: T.radius, boxShadow: T.shadow }}>
       <Poster film={film} className="w-20 h-28 flex-shrink-0" style={isArchived(film) ? { filter: "grayscale(55%)", opacity: 0.75 } : undefined} />
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: isArchived(film) ? T.muted : T.cream }}>{film.titre}</p>
