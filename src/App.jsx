@@ -2471,51 +2471,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {/* pour les ajouts, recommandation façon cinémathèque.               */}
       {CURRENT_THEME === "kansoHeritage" && (
         <>
-          {bientot.length > 0 && (
-            <>
-              <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="mx-4 mb-6 flex overflow-hidden" style={{ height: 160, borderRadius: T.radius, border: `1px solid ${T.line}`, boxShadow: T.shadow }}>
-                {(() => {
-                  const f = bientot[0];
-                  const days = computeExpiryDays(f);
-                  return (
-                    <button onClick={() => onOpen(f)} className="flex text-left w-full">
-                      <div className="flex-1 p-3.5 flex flex-col justify-between" style={{ background: T.accentSecondary, color: T.bg }}>
-                        <div>
-                          <p style={{ fontFamily: F.mono, fontSize: 8, opacity: 0.7 }}>Derniers jours</p>
-                          <p className="mt-1.5" style={{ fontFamily: F.marquee, fontSize: 16, lineHeight: 1.15 }}>{f.titre}</p>
-                        </div>
-                        <div>
-                          <p style={{ fontFamily: F.mono, fontSize: 7.5, opacity: 0.7 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
-                          {parseRating(f.noteLetterboxd) != null && <p style={{ fontFamily: F.mono, fontSize: 7.5, opacity: 0.85 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>}
-                          {days != null && <span className="inline-block mt-1.5 px-2 py-0.5" style={{ background: T.accent, color: "#fff", fontFamily: F.mono, fontSize: 9, borderRadius: 3 }}>J-{days}</span>}
-                        </div>
-                      </div>
-                      <Poster film={f} className="flex-1" style={{ objectFit: "cover" }} />
-                    </button>
-                  );
-                })()}
-              </div>
-            </>
-          )}
-
-          {derniers.length > 0 && (
-            <>
-              <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-              <div className="flex gap-2.5 px-4 overflow-x-auto mb-6">
-                {derniers.slice(0, 6).map((f) => (
-                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 82 }}>
-                    <Poster film={f} className="w-full" style={{ height: 100, borderRadius: T.radiusSm, border: `1px solid ${T.line}` }} />
-                    <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 9.5, fontWeight: 600, color: T.cream }}>{f.titre}</p>
-                    <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 1 }}>
-                      {f.annee}{parseRating(f.noteLetterboxd) != null ? ` · ★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
           {suggestion && (
             <>
               <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
@@ -2530,6 +2485,59 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {suggestion.synopsis && <p className="mt-1" style={{ fontSize: 9, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>}
                   </div>
                 </button>
+              </div>
+            </>
+          )}
+
+          {/* Rail de vraies affiches (une par film à venir), même taille   */}
+          {/* que les autres thèmes récents — l'ancienne version n'affichait */}
+          {/* qu'un seul film en grande carte, ce qui était le bug signalé.  */}
+          {bientot.length > 0 && (
+            <>
+              <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
+              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+                {bientot.map((f) => {
+                  const days = computeExpiryDays(f);
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left overflow-hidden" style={{ width: 100, background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
+                      <div className="relative">
+                        <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover" }} />
+                        {days != null && <span className="absolute" style={{ top: 4, right: 4, background: T.accent, color: "#fff", fontFamily: F.mono, fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 2 }}>J-{days}</span>}
+                      </div>
+                      <div className="p-2">
+                        <p className="truncate" style={{ fontFamily: F.serif, fontSize: 9.5, fontWeight: 600, color: T.cream }}>{f.titre}</p>
+                        <p style={{ fontFamily: F.mono, fontSize: 7.5, color: T.mutedDim, marginTop: 1 }}>
+                          {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                          {parseRating(f.noteLetterboxd) != null && (
+                            <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                          )}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {derniers.length > 0 && (
+            <>
+              <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
+              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+                {derniers.map((f) => (
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left overflow-hidden" style={{ width: 108, background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
+                    <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
+                    <div className="p-2">
+                      <p className="truncate" style={{ fontFamily: F.serif, fontSize: 9.5, fontWeight: 600, color: T.cream }}>{f.titre}</p>
+                      <p style={{ fontFamily: F.mono, fontSize: 7.5, color: T.mutedDim, marginTop: 1 }}>
+                        {f.annee}
+                        {parseRating(f.noteLetterboxd) != null && (
+                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        )}
+                      </p>
+                    </div>
+                  </button>
+                ))}
               </div>
             </>
           )}
@@ -5994,6 +6002,17 @@ export default function App() {
           // Dégradé pastel diagonal — uniquement en thème "bento"
           ...(CURRENT_THEME === "bento" ? {
             background: `linear-gradient(160deg, ${T.bg} 0%, ${T.accentSecondarySoft} 50%, ${T.surfaceRaised} 100%)`,
+          } : {}),
+          // Texture papier washi (fibres + grain léger, esprit rouleau
+          // ancien) — uniquement en thème "kansoHeritage".
+          ...(CURRENT_THEME === "kansoHeritage" ? {
+            backgroundImage: `
+              radial-gradient(${T.line} 0.5px, transparent 0.6px),
+              linear-gradient(115deg, transparent 40%, ${T.accentSoft} 40.5%, ${T.accentSoft} 41%, transparent 41.5%),
+              linear-gradient(25deg, transparent 60%, ${T.line} 60.5%, ${T.line} 61%, transparent 61.5%)
+            `,
+            backgroundSize: "3px 3px, 100% 100%, 100% 100%",
+            backgroundColor: T.bg,
           } : {}),
         }}
       >
