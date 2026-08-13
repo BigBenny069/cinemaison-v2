@@ -3792,45 +3792,58 @@ function AppBootIntro({ ready, onDone }) {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [ready]);
   if (hidden) return null;
+
   const word = "CINÉMAISON";
-  const fringeStyle = { position: "absolute", bottom: 0, left: 0, right: 0, height: 14, background: `repeating-linear-gradient(90deg, ${T.gold} 0 6px, transparent 6px 12px)`, opacity: 0.5 };
+  // Couleurs et polices fixes, volontairement PAS liées au thème actif (T/F)
+  // — Ben veut la même animation d'ouverture, à l'identique, quel que soit
+  // le thème choisi (contrairement au reste de l'appli qui suit T/F).
+  const GOLD = "#C58D29";
+  const CREAM = "#F3EEE3";
+  const MUTED = "#9C9284";
+  const MONO = "'IBM Plex Mono', monospace";
+  const MARQUEE_FONT = "'Bebas Neue', sans-serif";
+
+  const fringeStyle = { position: "absolute", bottom: 0, left: 0, right: 0, height: 14, background: `repeating-linear-gradient(90deg, ${GOLD} 0 6px, transparent 6px 12px)`, opacity: 0.5 };
   const curtainBase = {
-    position: "absolute", top: 0, bottom: 0, width: "52%", zIndex: 101,
+    // z-index 45 : SOUS le marquee (z-index 50 ci-dessous), pour que
+    // "CINÉMAISON" et la bobine soient visibles EN SURIMPRESSION du
+    // velours pendant la fermeture — pas cachés derrière.
+    position: "absolute", top: 0, bottom: 0, width: "52%", zIndex: 45,
     background: "repeating-linear-gradient(90deg, #6E1F1A 0px, #6E1F1A 14px, #5A1815 14px, #5A1815 28px), linear-gradient(180deg,#7A2620,#4A1310)",
     boxShadow: "inset -30px 0 60px rgba(0,0,0,0.55)",
     transition: "transform 1.3s cubic-bezier(.65,0,.35,1)",
     pointerEvents: curtainOpen ? "none" : "auto",
   };
   return (
-    <div className="absolute inset-0" style={{ zIndex: 100, overflow: "hidden" }}>
-      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: T.bg, opacity: curtainOpen ? 0 : 1, transition: "opacity 1s ease" }}>
+    <div className="absolute inset-0" style={{ zIndex: 100, overflow: "hidden", background: "#050403" }}>
+      <div style={{ ...curtainBase, left: 0, transformOrigin: "left", transform: curtainOpen ? "translateX(-102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
+        <div style={fringeStyle} />
+      </div>
+      <div style={{ ...curtainBase, right: 0, transformOrigin: "right", transform: curtainOpen ? "translateX(102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
+        <div style={fringeStyle} />
+      </div>
+
+      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 50, opacity: curtainOpen ? 0 : 1, transition: "opacity 1s ease", pointerEvents: "none" }}>
         <div className="flex gap-1 mb-6">
           {Array.from({ length: 18 }).map((_, i) => (
-            <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: T.accent, boxShadow: `0 0 6px ${T.accent}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
+            <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: GOLD, boxShadow: `0 0 6px ${GOLD}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
           ))}
         </div>
         <div className="flex overflow-hidden">
           {[...word].map((ch, i) => (
             <span key={i} style={{
-              fontFamily: F.marquee, fontSize: 30, lineHeight: 1, letterSpacing: 1.5,
-              color: lit ? T.cream : "transparent",
-              textShadow: lit ? `0 0 14px ${T.accent}55` : "none",
+              fontFamily: MARQUEE_FONT, fontSize: 30, lineHeight: 1, letterSpacing: 1.5,
+              color: lit ? CREAM : "transparent",
+              textShadow: lit ? `0 0 14px ${GOLD}88` : "none",
               opacity: lit ? 1 : 0, transform: lit ? "translateY(0)" : "translateY(18px)",
               transition: `all .5s ease ${i * 0.09}s`,
             }}>{ch === " " ? "\u00A0" : ch}</span>
           ))}
         </div>
         <div className="flex items-center gap-2 mt-5" style={{ opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.1s" }}>
-          <Film size={13} color={T.accent} style={{ animation: "spin 1.6s linear infinite" }} />
-          <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 3, color: T.muted }}>{ready ? "OUVERTURE DE LA SALLE…" : "CHARGEMENT DES FILMS…"}</span>
+          <Film size={13} color={GOLD} style={{ animation: "spin 1.6s linear infinite" }} />
+          <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 3, color: MUTED }}>{ready ? "OUVERTURE DE LA SALLE…" : "CHARGEMENT DES FILMS…"}</span>
         </div>
-      </div>
-
-      <div style={{ ...curtainBase, left: 0, transformOrigin: "left", transform: curtainOpen ? "translateX(-102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
-        <div style={fringeStyle} />
-      </div>
-      <div style={{ ...curtainBase, right: 0, transformOrigin: "right", transform: curtainOpen ? "translateX(102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
-        <div style={fringeStyle} />
       </div>
     </div>
   );
