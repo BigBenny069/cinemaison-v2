@@ -2530,7 +2530,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <div className="p-2">
                       <p className="truncate" style={{ fontFamily: F.serif, fontSize: 9.5, fontWeight: 600, color: T.cream }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 7.5, color: T.mutedDim, marginTop: 1 }}>
-                        {f.annee}
+                        {f.annee}{f.duree ? ` · ${f.duree}` : ""}
                         {parseRating(f.noteLetterboxd) != null && (
                           <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                         )}
