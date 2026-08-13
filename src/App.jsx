@@ -1417,7 +1417,7 @@ function SeanceDraw({ pool, suggestion, onOpen, onClose }) {
 /* chaque ouverture de fiche (si l'option est activée dans Réglages).  */
 /* ------------------------------------------------------------------ */
 function LeaderCountdown({ onDone }) {
-  const [n, setN] = useState(5);
+  const [n, setN] = useState(3);
   useEffect(() => {
     if (n <= 0) {
       const t = setTimeout(onDone, 120);
@@ -1439,7 +1439,7 @@ function LeaderCountdown({ onDone }) {
         <span style={{ fontFamily: F.marquee, fontWeight: 700, fontSize: 60, color: T.cream, textShadow: `0 0 20px ${T.accent}88` }}>{n > 0 ? n : ""}</span>
       </div>
       <p className="mt-6" style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 4, color: T.muted }}>
-        {n > 2 ? "AMORCE — CHARGEMENT DE LA BOBINE" : "PROJECTION IMMINENTE"}
+        {n > 1 ? "AMORCE — CHARGEMENT DE LA BOBINE" : "PROJECTION IMMINENTE"}
       </p>
     </div>
   );
