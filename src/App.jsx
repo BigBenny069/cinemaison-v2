@@ -2143,28 +2143,77 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
       {/* Pop Art : cadres colorés flashy (rose/cyan/jaune/violet en rotation) */}
       {/* autour des vraies affiches — texte du titre volontairement sobre.    */}
-      {bientot.length > 0 && CURRENT_THEME === "popart" && (
+      {/* Pop Art : ordre spécifique — Suggestion, puis Ça part bientôt,    */}
+      {/* puis Derniers ajouts — regroupés ici en un seul bloc pour          */}
+      {/* contrôler l'ordre (les 3 zones sont normalement à 3 endroits       */}
+      {/* distincts du fichier, partagés avec les autres thèmes).            */}
+      {CURRENT_THEME === "popart" && (
         <>
-          <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
-            {bientot.map((f, i) => {
-              const days = computeExpiryDays(f);
-              const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
-              const frameColor = frameColors[i % frameColors.length];
-              return (
-                <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 88 }}>
-                  <div className="relative overflow-hidden" style={{ border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
-                    <Poster film={f} className="w-full" style={{ height: 108, objectFit: "cover" }} />
-                    {days != null && <span className="absolute" style={{ top: 4, right: 4, background: frameColor, color: "#000", fontFamily: F.mono, fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 2 }}>J-{days}</span>}
+          {suggestion && (
+            <>
+              <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
+              <div className="mx-4 mb-6">
+                <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-3" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accentTertiary}`, borderRadius: T.radius }}>
+                  <Poster film={suggestion} className="flex-shrink-0" style={{ width: 64, height: 88, objectFit: "cover" }} />
+                  <div className="min-w-0">
+                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>{suggestion.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, marginTop: 4 }}>
+                      {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
+                      {parseRating(suggestion.noteLetterboxd) != null ? ` · ★ ${parseRating(suggestion.noteLetterboxd).toFixed(1)}` : ""}
+                    </p>
                   </div>
-                  <p className="truncate mt-1.5" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
-                  <p style={{ fontFamily: F.mono, fontSize: 7.5, color: T.muted, marginTop: 1 }}>
-                    {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}{parseRating(f.noteLetterboxd) != null ? ` · ★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""}
-                  </p>
                 </button>
-              );
-            })}
-          </div>
+              </div>
+            </>
+          )}
+
+          {bientot.length > 0 && (
+            <>
+              <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
+              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+                {bientot.map((f, i) => {
+                  const days = computeExpiryDays(f);
+                  const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
+                  const frameColor = frameColors[i % frameColors.length];
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
+                      <div className="relative overflow-hidden" style={{ border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
+                        <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover" }} />
+                        {days != null && <span className="absolute" style={{ top: 4, right: 4, background: frameColor, color: "#000", fontFamily: F.mono, fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 2 }}>J-{days}</span>}
+                      </div>
+                      <p className="truncate mt-1.5" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
+                      <p style={{ fontFamily: F.mono, fontSize: 7.5, color: T.muted, marginTop: 1 }}>
+                        {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}{parseRating(f.noteLetterboxd) != null ? ` · ★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {derniers.length > 0 && (
+            <>
+              <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
+              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+                {derniers.map((f, i) => {
+                  const frameColors = [T.accentSecondary, T.gold, T.accentTertiary, T.accent];
+                  const frameColor = frameColors[i % frameColors.length];
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
+                      <div className="overflow-hidden" style={{ border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
+                        <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover" }} />
+                      </div>
+                      <p className="truncate mt-1.5" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
+                      <p style={{ fontFamily: F.mono, fontSize: 7.5, color: T.muted, marginTop: 1 }}>
+                        {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}{parseRating(f.noteLetterboxd) != null ? ` · ★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -2365,31 +2414,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 </div>
               </button>
             ))}
-          </div>
-        </>
-      )}
-
-      {/* Pop Art : "Derniers ajouts" avec les mêmes cadres colorés en       */}
-      {/* rotation que "Ça part bientôt".                                    */}
-      {derniers.length > 0 && CURRENT_THEME === "popart" && (
-        <>
-          <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-          <div className="grid grid-cols-2 gap-3.5 px-4 mb-6">
-            {derniers.slice(0, 4).map((f, i) => {
-              const frameColors = [T.accentSecondary, T.gold, T.accentTertiary, T.accent];
-              const frameColor = frameColors[i % frameColors.length];
-              return (
-                <button key={f.id} onClick={() => onOpen(f)} className="text-left" style={{ border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius, overflow: "hidden", background: T.surface }}>
-                  <Poster film={f} className="w-full" style={{ height: 120, objectFit: "cover" }} />
-                  <div className="p-2">
-                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10.5, color: T.cream }}>{f.titre}</p>
-                    <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 2 }}>
-                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}{parseRating(f.noteLetterboxd) != null ? ` · ★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : ""}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
           </div>
         </>
       )}
@@ -3135,25 +3159,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <p className="truncate mt-1" style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>{suggestion.titre}</p>
                 <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 3 }}>
                   {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
-                </p>
-              </div>
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Pop Art : suggestion encadrée d'une des 4 couleurs flashy.         */}
-      {suggestion && CURRENT_THEME === "popart" && (
-        <>
-          <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
-          <div className="mx-4 mb-6">
-            <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-3" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accentTertiary}`, borderRadius: T.radius }}>
-              <Poster film={suggestion} className="flex-shrink-0" style={{ width: 64, height: 88, objectFit: "cover" }} />
-              <div className="min-w-0">
-                <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>{suggestion.titre}</p>
-                <p style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, marginTop: 4 }}>
-                  {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
-                  {parseRating(suggestion.noteLetterboxd) != null ? ` · ★ ${parseRating(suggestion.noteLetterboxd).toFixed(1)}` : ""}
                 </p>
               </div>
             </button>
