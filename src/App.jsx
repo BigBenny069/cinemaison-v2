@@ -1305,67 +1305,11 @@ function MiniCard({ film, onOpen, sub, showStamp }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* LA SÉANCE — rituel d'ouverture dédié (thème "seance") : marquee      */
-/* lumineux, rideau de velours, étagère 3D et tirage au sort façon      */
-/* bobine de projecteur pour la suggestion du soir.                     */
+/* LA SÉANCE — étagère 3D et tirage au sort façon bobine de projecteur  */
+/* pour la suggestion du soir. Le rituel d'ouverture (marquee + rideau) */
+/* est désormais géré une fois pour toutes par AppBootIntro, au niveau  */
+/* racine de l'appli, pour tous les thèmes — plus de doublon ici.       */
 /* ------------------------------------------------------------------ */
-function SeanceBoot({ onSkip }) {
-  const [lit, setLit] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setLit(true), 30);
-    return () => clearTimeout(t);
-  }, []);
-  const word = "CINÉMAISON";
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: "#050403", zIndex: 50 }}>
-      <div className="flex gap-1 mb-6">
-        {Array.from({ length: 22 }).map((_, i) => (
-          <span key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent, boxShadow: `0 0 6px ${T.accent}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.06}s` }} />
-        ))}
-      </div>
-      <div className="flex overflow-hidden">
-        {[...word].map((ch, i) => (
-          <span key={i} style={{
-            fontFamily: F.marquee, fontSize: 38, lineHeight: 1, letterSpacing: 2,
-            color: lit ? T.cream : "transparent",
-            WebkitTextStroke: `1px ${lit ? T.gold : T.accent + "55"}`,
-            textShadow: lit ? `0 0 18px ${T.accent}66` : "none",
-            opacity: lit ? 1 : 0, transform: lit ? "translateY(0)" : "translateY(24px)",
-            transition: `all .55s ease ${i * 0.11}s`,
-          }}>{ch === " " ? "\u00A0" : ch}</span>
-        ))}
-      </div>
-      <p style={{ marginTop: 14, fontFamily: F.mono, fontSize: 10, letterSpacing: 5, color: T.muted, opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.3s" }}>
-        VOTRE CINÉMA. VOS RÈGLES.
-      </p>
-      <button onClick={onSkip} className="absolute" style={{ bottom: 30, fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1, opacity: lit ? 0.6 : 0, transition: "opacity 1s ease 1.5s" }}>
-        Passer →
-      </button>
-    </div>
-  );
-}
-
-function SeanceCurtain({ open }) {
-  const fringeStyle = { position: "absolute", bottom: 0, left: 0, right: 0, height: 14, background: `repeating-linear-gradient(90deg, ${T.gold} 0 6px, transparent 6px 12px)`, opacity: 0.5 };
-  const base = {
-    position: "absolute", top: 0, bottom: 0, width: "52%", zIndex: 45,
-    background: "repeating-linear-gradient(90deg, #6E1F1A 0px, #6E1F1A 14px, #5A1815 14px, #5A1815 28px), linear-gradient(180deg,#7A2620,#4A1310)",
-    boxShadow: "inset -30px 0 60px rgba(0,0,0,0.55)",
-    transition: "transform 1.3s cubic-bezier(.65,0,.35,1)",
-    pointerEvents: open ? "none" : "auto",
-  };
-  return (
-    <>
-      <div style={{ ...base, left: 0, transformOrigin: "left", transform: open ? "translateX(-102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
-        <div style={fringeStyle} />
-      </div>
-      <div style={{ ...base, right: 0, transformOrigin: "right", transform: open ? "translateX(102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
-        <div style={fringeStyle} />
-      </div>
-    </>
-  );
-}
-
 function SeanceShelf({ films, onOpen }) {
   const ref = useRef(null);
   const updateTilt = () => {
@@ -1533,27 +1477,17 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     return pool[Math.floor(Math.random() * pool.length)];
   });
 
-  // La Séance : rituel d'ouverture (marquee + rideau), une seule fois par
-  // session — sessionStorage garde le souvenir même si on change d'onglet
-  // puis revient, mais le rejoue à la prochaine visite du site.
+  // La Séance : l'écran d'accueil dédié à ce thème. Le rituel d'ouverture
+  // (marquee + rideau) est maintenant géré une seule fois, au niveau
+  // racine de l'appli (AppBootIntro), pour TOUS les thèmes — il ne se
+  // rejoue plus ici séparément à chaque passage sur l'Accueil en Séance.
   const isSeance = CURRENT_THEME === "seance";
-  const [seanceBootDone, setSeanceBootDone] = useState(() => {
-    try { return !!sessionStorage.getItem("cinemaison_seance_played"); } catch { return true; }
-  });
   const [seanceDrawOpen, setSeanceDrawOpen] = useState(false);
-  useEffect(() => {
-    if (!isSeance || seanceBootDone) return;
-    const t = setTimeout(() => {
-      setSeanceBootDone(true);
-      try { sessionStorage.setItem("cinemaison_seance_played", "1"); } catch {}
-    }, 2600);
-    return () => clearTimeout(t);
-  }, [isSeance, seanceBootDone]);
 
   if (isSeance) {
     return (
       <div className="flex-1 relative overflow-hidden" style={{ background: T.bg }}>
-        <div className="h-full flex flex-col pull-scroll" style={{ opacity: seanceBootDone ? 1 : 0, transition: "opacity 1s ease 0.6s" }}>
+        <div className="h-full flex flex-col pull-scroll">
           <div className="text-center flex-shrink-0" style={{ padding: "max(20px, env(safe-area-inset-top)) 16px 4px" }}>
             <p style={{ fontFamily: F.marquee, fontSize: 22, letterSpacing: 2, color: T.cream }}>CINÉMAISON</p>
             <p style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 4, color: T.muted, marginTop: 2 }}>LA SÉANCE</p>
@@ -1578,11 +1512,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             <button onClick={onMenu} className="w-full text-center mt-3" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>☰ menu</button>
           </div>
         </div>
-
-        {!seanceBootDone && (
-          <SeanceBoot onSkip={() => { setSeanceBootDone(true); try { sessionStorage.setItem("cinemaison_seance_played", "1"); } catch {} }} />
-        )}
-        <SeanceCurtain open={seanceBootDone} />
 
         {seanceDrawOpen && suggestion && (
           <SeanceDraw pool={[...bientot, ...derniers]} suggestion={suggestion} onOpen={onOpen} onClose={() => setSeanceDrawOpen(false)} />
@@ -3935,6 +3864,7 @@ function playProjectorSound_() {
 function AppBootIntro({ ready, onDone }) {
   const [lit, setLit] = useState(false);
   const [curtainOpen, setCurtainOpen] = useState(false);
+  const [fadingOut, setFadingOut] = useState(false);
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setLit(true), 30);
@@ -3945,14 +3875,25 @@ function AppBootIntro({ ready, onDone }) {
     try { if (navigator.vibrate) navigator.vibrate([25, 40, 25]); } catch {}
     return () => clearTimeout(t);
   }, []);
-  // Le rideau ne s'ouvre que lorsque les films sont réellement chargés —
-  // si le réseau est lent, le marquee/bobine continue de tourner en boucle
-  // au lieu d'ouvrir sur un écran vide.
+  // Chronologie, une fois les films chargés :
+  //   1. le rideau s'ouvre (1,3 s) ;
+  //   2. le logo CINÉMAISON reste ensuite affiché, fixe, sur fond noir
+  //      pendant une courte pause (1,1 s) — c'est la "photo" demandée ;
+  //   3. tout s'efface en fondu (0,6 s) pour révéler l'appli en dessous.
+  // Durée totale de l'intro une fois les données prêtes : ≈ 3,2 s (900 ms
+  // avant le début de l'ouverture + 1,3 s d'ouverture + 1,1 s de pause +
+  // 0,6 s de fondu final). Si le réseau est lent, le marquee/bobine
+  // continue de tourner en boucle avant même que ce minutage démarre.
+  const CURTAIN_OPEN_DELAY = 900;
+  const CURTAIN_OPEN_DURATION = 1300;
+  const HOLD_DURATION = 1100;
+  const FADE_OUT_DURATION = 600;
   useEffect(() => {
     if (!ready) return;
-    const t1 = setTimeout(() => setCurtainOpen(true), 900);
-    const t2 = setTimeout(() => { setHidden(true); onDone && onDone(); }, 900 + 1400);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const t1 = setTimeout(() => setCurtainOpen(true), CURTAIN_OPEN_DELAY);
+    const t2 = setTimeout(() => setFadingOut(true), CURTAIN_OPEN_DELAY + CURTAIN_OPEN_DURATION + HOLD_DURATION);
+    const t3 = setTimeout(() => { setHidden(true); onDone && onDone(); }, CURTAIN_OPEN_DELAY + CURTAIN_OPEN_DURATION + HOLD_DURATION + FADE_OUT_DURATION);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [ready]);
   if (hidden) return null;
 
@@ -3974,11 +3915,11 @@ function AppBootIntro({ ready, onDone }) {
     position: "absolute", top: 0, bottom: 0, width: "52%", zIndex: 45,
     background: "repeating-linear-gradient(90deg, #6E1F1A 0px, #6E1F1A 14px, #5A1815 14px, #5A1815 28px), linear-gradient(180deg,#7A2620,#4A1310)",
     boxShadow: "inset -30px 0 60px rgba(0,0,0,0.55)",
-    transition: "transform 1.3s cubic-bezier(.65,0,.35,1)",
+    transition: `transform ${CURTAIN_OPEN_DURATION}ms cubic-bezier(.65,0,.35,1)`,
     pointerEvents: curtainOpen ? "none" : "auto",
   };
   return (
-    <div className="absolute inset-0" style={{ zIndex: 100, overflow: "hidden", background: "#050403" }}>
+    <div className="absolute inset-0" style={{ zIndex: 100, overflow: "hidden", background: "#050403", opacity: fadingOut ? 0 : 1, transition: `opacity ${FADE_OUT_DURATION}ms ease` }}>
       <div style={{ ...curtainBase, left: 0, transformOrigin: "left", transform: curtainOpen ? "translateX(-102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
         <div style={fringeStyle} />
       </div>
@@ -3986,7 +3927,10 @@ function AppBootIntro({ ready, onDone }) {
         <div style={fringeStyle} />
       </div>
 
-      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 50, opacity: curtainOpen ? 0 : 1, transition: "opacity 1s ease", pointerEvents: "none" }}>
+      {/* Le logo reste affiché, fixe, sur fond noir après l'ouverture du   */}
+      {/* rideau — il ne s'efface plus en même temps que le rideau s'ouvre, */}
+      {/* seulement au moment du fondu final (fadingOut).                  */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 50, pointerEvents: "none" }}>
         <div className="flex gap-1 mb-6">
           {Array.from({ length: 18 }).map((_, i) => (
             <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: GOLD, boxShadow: `0 0 6px ${GOLD}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
