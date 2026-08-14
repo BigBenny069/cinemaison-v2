@@ -3049,12 +3049,12 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
   }
 
   return (
-    <div className="flex-1 relative">
-      {/* Barre retour/édition/suppression FIXE — en dehors du flux qui      */}
-      {/* défile, donc toujours accessible même tout en bas d'une longue     */}
-      {/* fiche. Remplace les 3 boutons dupliqués (un par variante de hero)  */}
-      {/* qui défilaient avec le contenu — c'était le bug signalé.           */}
-      <div className="absolute left-0 right-0 z-30 flex items-center justify-between px-4" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
+    <>
+      {/* Barre retour/édition/suppression FIXE — en position:fixed réelle,   */}
+      {/* donc ancrée à l'écran indépendamment de la hauteur du conteneur     */}
+      {/* parent (contrairement à un "h-full" dans un parent flex, qui s'est  */}
+      {/* révélé fragile). Toujours accessible même tout en bas d'une fiche.  */}
+      <div className="fixed left-0 right-0 z-30 flex items-center justify-between px-4" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
         <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}>
           <ChevronLeft size={18} color="#fff" />
         </button>
@@ -3064,7 +3064,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         </div>
       </div>
 
-      <div className="h-full overflow-y-auto pull-scroll pb-6">
+      <div className="flex-1 overflow-y-auto pull-scroll relative pb-6">
       {CURRENT_THEME === "videoclub2099" ? (
         /* Vidéoclub 2099 : boîtier VHS "ouvert" — pochette (vraie affiche)  */
         /* à gauche, tranche intérieure décorative à droite (scanlines +    */
@@ -3365,7 +3365,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         </div>
       )}
       </div>
-    </div>
+    </>
   );
 }
 
