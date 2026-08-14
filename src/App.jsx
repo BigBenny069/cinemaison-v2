@@ -383,6 +383,31 @@ const THEMES = {
     },
     fonts: { marquee: "'Inter', sans-serif", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
   },
+  canalplus: {
+    label: "Chaîne Cryptée",
+    groupe: "Mises en page réinventées",
+    colors: {
+      bg: "#0A0A0A",
+      surface: "#161616",
+      surfaceRaised: "#1E1E1E",
+      accent: "#EC1953",
+      accentSoft: "rgba(236,25,83,0.14)",
+      accentSecondary: "#EC1953",
+      accentSecondarySoft: "rgba(236,25,83,0.14)",
+      gold: "#EC1953",
+      cream: "#F2F2F2",
+      muted: "#999999",
+      mutedDim: "#666666",
+      line: "#232323",
+      alert: "#EC1953",
+      alertSoft: "rgba(236,25,83,0.14)",
+      radius: 10,
+      radiusSm: 8,
+      shadow: "none",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'Archivo Black', sans-serif", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
+  },
   // ---- 4 nouvelles directions : couleurs/police/forme intégrées, les     ----
   // ---- inventions structurelles (grille bento, JSON, BD, blobs) restent  ----
   // ---- propres aux aperçus — non reproduites sur tous les écrans ici.    ----
@@ -1859,6 +1884,85 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {/* puis Derniers ajouts — regroupés ici en un seul bloc pour          */}
       {/* contrôler l'ordre (les 3 zones sont normalement à 3 endroits       */}
       {/* distincts du fichier, partagés avec les autres thèmes).            */}
+      {/* Chaîne Cryptée (CANAL+) : bandeau héros pour la suggestion, rail  */}
+      {/* "Ça part bientôt" avec badge d'urgence coloré (rouge de plus en   */}
+      {/* plus vif à mesure que le délai se réduit) — pas de barre de       */}
+      {/* lecture, ce serait trompeur (aucune notion de progression ici).   */}
+      {CURRENT_THEME === "canalplus" && (
+        <>
+          {suggestion && (
+            <>
+              <div className="relative mx-4 mb-1 overflow-hidden" style={{ height: 220, borderRadius: T.radiusSm }}>
+                <Poster film={suggestion} className="w-full h-full" style={{ objectFit: "cover" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, #0A0A0A 8%, transparent 55%)" }} />
+                <button onClick={() => onOpen(suggestion)} className="absolute left-0 right-0 bottom-0 text-left p-4">
+                  <p style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: T.accent, textTransform: "uppercase" }}>Suggestion du soir</p>
+                  <p style={{ fontFamily: F.marquee, fontSize: 24, color: "#fff", lineHeight: 1.02, marginTop: 4 }}>{suggestion.titre}</p>
+                  <p style={{ fontFamily: F.serif, fontWeight: 600, fontStyle: "italic", fontSize: 10.5, color: "#ddd", marginTop: 5 }}>
+                    {suggestion.plateforme ? `Disponible sur ${suggestion.plateforme}` : ""}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
+                  </p>
+                </button>
+              </div>
+              <div className="flex gap-1 justify-center mb-6">
+                {[0, 1, 2, 3].map((i) => (
+                  <span key={i} style={{ width: i === 0 ? 14 : 5, height: 5, borderRadius: 3, background: i === 0 ? T.accent : T.line }} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {bientot.length > 0 && (
+            <>
+              <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
+              <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+                {bientot.map((f) => {
+                  const days = computeExpiryDays(f);
+                  // Rouge de plus en plus saturé/opaque quand l'échéance approche.
+                  const urgent = days != null && days <= 2;
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 118 }}>
+                      <div className="relative overflow-hidden" style={{ height: 78, borderRadius: 8 }}>
+                        <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                        {days != null && (
+                          <span className="absolute top-1.5 left-1.5" style={{ background: urgent ? T.accent : "rgba(0,0,0,0.6)", border: urgent ? "none" : `1px solid ${T.accent}`, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4 }}>J-{days}</span>
+                        )}
+                      </div>
+                      <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
+                      <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
+                        {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                        {parseRating(f.noteLetterboxd) != null && (
+                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        )}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {derniers.length > 0 && (
+            <>
+              <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
+              <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+                {derniers.map((f) => (
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 118 }}>
+                    <Poster film={f} className="w-full" style={{ height: 78, borderRadius: 8, objectFit: "cover" }} />
+                    <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
+                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                      {parseRating(f.noteLetterboxd) != null && (
+                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                      )}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
       {CURRENT_THEME === "popart" && (
         <>
           {suggestion && (
@@ -3109,8 +3213,38 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         </p>
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
           <PlatformIcon label={film.plateforme} />
-          <TrailerButton url={film.urlBandeAnnonce} />
+          {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
         </div>
+
+        {/* Chaîne Cryptée : gros bouton "BANDE-ANNONCE" façon CTA de        */}
+        {/* lecture, et en dessous un lien Letterboxd + Modifier — pas de    */}
+        {/* favori/alerte/partager, l'appli n'a pas ces fonctions ailleurs.  */}
+        {CURRENT_THEME === "canalplus" && (
+          <>
+            {film.urlBandeAnnonce ? (
+              <a href={film.urlBandeAnnonce} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 mt-4 py-3.5 rounded-lg" style={{ background: T.accent }}>
+                <Play size={15} color="#fff" fill="#fff" strokeWidth={0} />
+                <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff", letterSpacing: 1 }}>BANDE-ANNONCE</span>
+              </a>
+            ) : (
+              <div className="flex items-center justify-center gap-2 mt-4 py-3.5 rounded-lg" style={{ background: T.surfaceRaised, opacity: 0.6 }}>
+                <span style={{ fontFamily: F.mono, fontSize: 11, color: T.muted }}>Aucune bande-annonce disponible</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 mt-2.5">
+              {film.urlLetterboxd && (
+                <a href={film.urlLetterboxd} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+                  <LetterboxdMark size={11} />
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: T.cream, fontWeight: 600 }}>LETTERBOXD</span>
+                </a>
+              )}
+              <button onClick={() => setEditing(true)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+                <Pencil size={12} color={T.cream} />
+                <span style={{ fontFamily: F.mono, fontSize: 10, color: T.cream, fontWeight: 600 }}>MODIFIER</span>
+              </button>
+            </div>
+          </>
+        )}
 
         {archived ? (
           <div className="rounded-xl p-3 mt-4" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
@@ -3167,6 +3301,10 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           ) : CURRENT_THEME === "popart" ? (
             <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.gold, borderRadius: T.radiusSm }}>
               <span style={{ fontFamily: F.mono, fontSize: 12, color: "#000", fontWeight: 700 }}>J-{expiryDays} avant expiration</span>
+            </div>
+          ) : CURRENT_THEME === "canalplus" ? (
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.accent, borderRadius: 6 }}>
+              <span style={{ fontFamily: F.serif, fontWeight: 800, fontSize: 12, color: "#fff" }}>J-{expiryDays} avant retrait</span>
             </div>
           ) : CURRENT_THEME === "bd" ? (
             <div className="relative inline-block mt-5 px-3.5 py-2" style={{ background: T.alert, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 16 }}>
@@ -3416,8 +3554,14 @@ function SearchResultCard({ film, match, onOpen }) {
   );
 }
 
-function RechercheScreen({ films, onOpen, onBack, onMenu }) {
-  const [query, setQuery] = useState("");
+function RechercheScreen({ films, onOpen, onBack, onMenu, initialQuery, onQueryChange }) {
+  const [query, setQuery] = useState(initialQuery || "");
+
+  // Répercute chaque frappe dans les params de l'écran courant, pour que
+  // la recherche survive au passage par une fiche puis au retour.
+  useEffect(() => {
+    if (onQueryChange) onQueryChange(query);
+  }, [query]);
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
@@ -5265,6 +5409,11 @@ export default function App() {
     }
     setScreen({ name: "fiche", params: { film, from: screen } });
   };
+  // Permet à un écran (Recherche notamment) de garder une trace de son
+  // état (texte tapé, filtres…) directement dans les params de l'écran
+  // courant — pour que ce texte survive au passage par une fiche puis au
+  // retour, au lieu d'être perdu à chaque remontage du composant.
+  const updateScreenParams = (patch) => setScreen((s) => ({ ...s, params: { ...s.params, ...patch } }));
   const backFromFiche = () => setScreen(screen.params.from || { name: "accueil", params: {} });
   const openPerson = (nom) => setScreen({ name: "personne", params: { nom, from: screen } });
   const backFromPerson = () => setScreen(screen.params.from || { name: "accueil", params: {} });
@@ -5295,7 +5444,8 @@ export default function App() {
       body = <AccueilScreen films={films} onOpen={openFiche} onSearch={() => navigate({ name: "recherche", params: {} })}
         onMenu={() => setMenuOpen(true)} onAdd={() => navigate({ name: "ajouter", params: {} })} onNavigate={navigate} nbAccueil={nbAccueil} />;
     } else if (name === "recherche") {
-      body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
+      body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)}
+        initialQuery={screen.params.query} onQueryChange={(q) => updateScreenParams({ query: q })} />;
     } else if (name === "fiche") {
       body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onOpenPerson={openPerson} />;
     } else if (name === "personne") {
