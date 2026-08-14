@@ -1888,9 +1888,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
                   const frameColor = frameColors[i % frameColors.length];
                   return (
-                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left overflow-hidden" style={{ width: 100, background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left overflow-hidden" style={{ width: 108, background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
                       <div className="relative">
-                        <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover" }} />
+                        <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
                         {days != null && <span className="absolute" style={{ top: 4, right: 4, background: frameColor, color: "#000", fontFamily: F.mono, fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 2 }}>J-{days}</span>}
                       </div>
                       <div className="p-2">
