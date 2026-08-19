@@ -208,6 +208,31 @@ const THEMES = {
     },
     fonts: { marquee: "'Archivo Black', sans-serif", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
   },
+  springfield: {
+    label: "Springfield",
+    groupe: "Mises en page réinventées",
+    colors: {
+      bg: "#FFD23F",
+      surface: "#FFFFFF",
+      surfaceRaised: "#FFF3B0",
+      accent: "#D62828",
+      accentSoft: "rgba(214,40,40,0.12)",
+      accentSecondary: "#2E5EAA",
+      accentSecondarySoft: "rgba(46,94,170,0.12)",
+      gold: "#FFD23F",
+      cream: "#1A1400",
+      muted: "#7a6a2f",
+      mutedDim: "#a8975c",
+      line: "#1A1400",
+      alert: "#D62828",
+      alertSoft: "rgba(214,40,40,0.12)",
+      radius: 10,
+      radiusSm: 8,
+      shadow: "none",
+      borderWidth: 2,
+    },
+    fonts: { marquee: "'Luckiest Guy', cursive", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
+  },
   // ---- 4 nouvelles directions : couleurs/police/forme intégrées, les     ----
   // ---- inventions structurelles (grille bento, JSON, BD, blobs) restent  ----
   // ---- propres aux aperçus — non reproduites sur tous les écrans ici.    ----
@@ -1073,8 +1098,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
   };
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-4">
-      <div className="sticky top-0 z-20 flex items-center justify-between px-4 pb-4" style={{ background: T.bg, paddingTop: "max(16px, env(safe-area-inset-top))" }}>
+    <div className="flex-1 overflow-y-auto pull-scroll pb-4 relative" style={CURRENT_THEME === "springfield" ? { background: "linear-gradient(180deg, #3F9BDB 0%, #6EC0EA 45%, #A9DCF2 100%)" } : undefined}>
+      <div className="sticky top-0 z-20 flex items-center justify-between px-4 pb-4" style={{ background: CURRENT_THEME === "springfield" ? "transparent" : T.bg, paddingTop: "max(16px, env(safe-area-inset-top))" }}>
         <button onClick={onMenu} className="w-9 h-9 rounded-full flex items-center justify-center"
           style={{ background: T.surface, border: `1px solid ${T.accentSecondary}55` }}>
           <Menu size={16} color={T.accentSecondary} />
@@ -1322,10 +1347,102 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {/* puis Derniers ajouts — regroupés ici en un seul bloc pour          */}
       {/* contrôler l'ordre (les 3 zones sont normalement à 3 endroits       */}
       {/* distincts du fichier, partagés avec les autres thèmes).            */}
-      {/* Chaîne Cryptée (CANAL+) : bandeau héros pour la suggestion, rail  */}
-      {/* "Ça part bientôt" avec badge d'urgence coloré (rouge de plus en   */}
-      {/* plus vif à mesure que le délai se réduit) — pas de barre de       */}
-      {/* lecture, ce serait trompeur (aucune notion de progression ici).   */}
+      {/* Springfield : ciel + nuages en grappes (cercles superposés,       */}
+      {/* comme le générique) uniquement sur l'Accueil — la Fiche reste sur */}
+      {/* le jaune uni (T.bg). Suggestion → Bientôt → Ajouts.               */}
+      {CURRENT_THEME === "springfield" && (
+        <>
+          {[
+            [-30, 55, 0.9], [190, 40, 0.7], [-40, 145, 0.6], [210, 160, 0.85],
+            [60, 230, 0.5], [-20, 520, 0.65], [200, 560, 0.55], [40, 780, 0.6], [-30, 980, 0.5],
+          ].map(([x, y, s], i) => (
+            <div key={i} className="absolute" style={{ left: x, top: y, zIndex: 0 }}>
+              <div className="absolute" style={{ background: "#fff", borderRadius: 50, width: 130 * s, height: 38 * s, left: 0, top: 26 * s }} />
+              <div className="absolute rounded-full" style={{ background: "#fff", width: 55 * s, height: 55 * s, left: 5 * s, top: 0 }} />
+              <div className="absolute rounded-full" style={{ background: "#fff", width: 75 * s, height: 75 * s, left: 35 * s, top: -14 * s }} />
+              <div className="absolute rounded-full" style={{ background: "#fff", width: 58 * s, height: 58 * s, left: 82 * s, top: 2 * s }} />
+              <div className="absolute rounded-full" style={{ background: "#fff", width: 40 * s, height: 40 * s, left: 105 * s, top: 14 * s }} />
+            </div>
+          ))}
+
+          {suggestion && (
+            <>
+              <div className="relative px-4 mb-2">
+                <p style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `1.3px ${T.accentSecondary}` }}>SUGGESTION DU SOIR</p>
+                <button onClick={reshuffleSuggestion} className="absolute flex items-center justify-center" style={{ right: 16, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: "50%", background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
+                  <RefreshCw size={12} color={T.accentSecondary} />
+                </button>
+              </div>
+              <div className="px-4 mb-6">
+                <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-2.5" style={{ background: "#fff", border: `2px solid ${T.accentSecondary}`, borderRadius: T.radius }}>
+                  <Poster film={suggestion} className="flex-shrink-0" style={{ width: 70, height: 96, borderRadius: 6, objectFit: "cover" }} />
+                  <div className="min-w-0 flex flex-col justify-center">
+                    <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 14, color: "#1c3350" }}>{suggestion.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 9, color: "#3f6485", marginTop: 3 }}>
+                      {suggestion.plateforme}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
+                      {parseRating(suggestion.noteLetterboxd) != null && (
+                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
+                      )}
+                    </p>
+                    {suggestion.synopsis && (
+                      <p className="mt-1" style={{ fontFamily: F.serif, fontSize: 9.5, color: "#3f6485", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
+                    )}
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+
+          {bientot.length > 0 && (
+            <>
+              <p className="relative px-4 mb-2.5" style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `1.3px ${T.accentSecondary}` }}>ÇA PART BIENTÔT</p>
+              <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
+                {bientot.map((f) => {
+                  const days = computeExpiryDays(f);
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
+                      <div className="relative overflow-hidden" style={{ height: 132, borderRadius: 8, background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
+                        <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                        {days != null && <span className="absolute top-1.5 left-1.5" style={{ background: T.accent, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4, border: "1.5px solid #1A1400" }}>J-{days}</span>}
+                      </div>
+                      <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
+                      <p style={{ fontFamily: F.mono, fontSize: 8, color: "#3f6485", marginTop: 2 }}>
+                        {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                        {parseRating(f.noteLetterboxd) != null && (
+                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        )}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {derniers.length > 0 && (
+            <>
+              <p className="relative px-4 mb-2.5" style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `1.3px ${T.accentSecondary}` }}>DERNIERS AJOUTS</p>
+              <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
+                {derniers.map((f) => (
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
+                    <div className="overflow-hidden" style={{ height: 132, borderRadius: 8, background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
+                      <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                    </div>
+                    <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 8, color: "#3f6485", marginTop: 2 }}>
+                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                      {parseRating(f.noteLetterboxd) != null && (
+                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                      )}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
       {CURRENT_THEME === "canalplus" && (
         <>
           {suggestion && (
@@ -1536,7 +1653,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && (
+      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -1825,7 +1942,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && (
+      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -2123,7 +2240,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       )}
 
 
-      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "jardin" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && (
+      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "jardin" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && (
         <>
           <div className="relative">
             <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
