@@ -3459,8 +3459,12 @@ function PillGroup({ label, options, value, onChange, renderLabel }) {
       <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>{label.toUpperCase()}</p>
       <div className="flex gap-2 flex-wrap">
         {["Tous", ...options].map((opt) => {
-          const active = value === opt || (opt === "Tous" && !value);
           const key = typeof opt === "object" ? opt.id : opt;
+          // Les options peuvent être des chaînes (Type, Plateforme) ou des
+          // objets {id, label, ...} (Durée) — la comparaison doit gérer les
+          // deux cas, sinon la sélection ne s'affiche jamais en couleur
+          // pour les groupes à options-objets.
+          const active = opt === "Tous" ? !value : (typeof opt === "object" ? opt.id === value : opt === value);
           return (
             <button key={key} onClick={() => onChange(opt === "Tous" ? null : opt)} className="rounded-full px-3.5 py-2"
               style={{ fontFamily: F.serif, fontSize: 12.5, background: active ? T.accentSoft : T.surface, color: active ? T.accent : T.muted, border: `1px solid ${active ? T.accent + "55" : T.line}` }}>
@@ -3549,7 +3553,11 @@ function GenreField({ genreCounts, selected, onChange }) {
 // ouverte (pas localStorage, se réinitialise à la fermeture). ExplorerScreen
 // est démonté puis remonté à chaque navigation (ouvrir une fiche, revenir
 // en arrière), ce qui effacerait ses useState internes sans ce filet.
-let explorerFiltersState_ = { type: null, plateforme: null, duree: null, genresSel: [], noteMin: 0 };
+let explorerFiltersState_ = { type: null, plateforme: null, duree: null, genresSel: [], noteMin: 0, noteMax: 5 };
+// Position de défilement mémorisée en dehors de React, pour la restaurer
+// au retour d'une fiche ouverte depuis Explorer (au lieu de remonter en
+// haut de la liste à chaque fois).
+let explorerScrollTop_ = 0;
 
 function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
   const [type, setType] = useState(explorerFiltersState_.type);
@@ -3559,11 +3567,22 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
     explorerFiltersState_.genresSel.length > 0 ? explorerFiltersState_.genresSel : (initialGenre ? [initialGenre] : [])
   );
   const [noteMin, setNoteMin] = useState(explorerFiltersState_.noteMin);
+  const [noteMax, setNoteMax] = useState(explorerFiltersState_.noteMax ?? 5);
+  const scrollRef = useRef(null);
 
   // Recopie à chaque changement, pour que le prochain montage reparte d'ici.
   useEffect(() => {
-    explorerFiltersState_ = { type, plateforme, duree, genresSel, noteMin };
-  }, [type, plateforme, duree, genresSel, noteMin]);
+    explorerFiltersState_ = { type, plateforme, duree, genresSel, noteMin, noteMax };
+  }, [type, plateforme, duree, genresSel, noteMin, noteMax]);
+
+  // Restaure la position de défilement au montage (retour depuis une      //
+  // fiche), et la mémorise en continu pendant le défilement.               //
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = explorerScrollTop_;
+  }, []);
+  const handleScroll = () => {
+    if (scrollRef.current) explorerScrollTop_ = scrollRef.current.scrollTop;
+  };
 
   const genreCounts = useMemo(() => {
     const m = {};
@@ -3585,12 +3604,13 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
         if (mins == null || mins < dureeBucket.min || mins > dureeBucket.max) return false;
       }
       if (noteMin > 0 && (parseRating(f.noteLetterboxd) ?? -1) < noteMin) return false;
+      if (noteMax < 5 && (parseRating(f.noteLetterboxd) ?? 99) > noteMax) return false;
       return true;
     });
-  }, [films, type, plateforme, genresSel, dureeBucket, noteMin]);
+  }, [films, type, plateforme, genresSel, dureeBucket, noteMin, noteMax]);
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="EXPLORER" onBack={onBack} onMenu={onMenu} />
       <PillGroup label="Type de fiche" options={TYPES_LIST} value={type} onChange={setType} />
       <PillGroup label="Plateforme" options={PLATFORMS_LIST} value={plateforme} onChange={setPlateforme} />
@@ -3603,6 +3623,14 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
           <button onClick={() => setNoteMin((v) => Math.max(0, +(v - 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={14} color={T.muted} /></button>
           <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>{noteMin === 0 ? "TOUTES" : `★ ${noteMin.toFixed(1)}`}</span>
           <button onClick={() => setNoteMin((v) => Math.min(5, +(v + 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={14} color={T.muted} /></button>
+        </div>
+      </div>
+      <div className="mb-5">
+        <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>NOTE MAXIMUM</p>
+        <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <button onClick={() => setNoteMax((v) => Math.max(0, +(v - 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={14} color={T.muted} /></button>
+          <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>{noteMax >= 5 ? "TOUTES" : `★ ${noteMax.toFixed(1)}`}</span>
+          <button onClick={() => setNoteMax((v) => Math.min(5, +(v + 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={14} color={T.muted} /></button>
         </div>
       </div>
       <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>{results.length} RÉSULTAT{results.length > 1 ? "S" : ""}</p>
