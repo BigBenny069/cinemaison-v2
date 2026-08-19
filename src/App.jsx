@@ -231,7 +231,7 @@ const THEMES = {
       shadow: "none",
       borderWidth: 2,
     },
-    fonts: { marquee: "'Luckiest Guy', cursive", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
+    fonts: { marquee: "'Simpsonfont', 'Luckiest Guy', cursive", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
   },
   // ---- 4 nouvelles directions : couleurs/police/forme intégrées, les     ----
   // ---- inventions structurelles (grille bento, JSON, BD, blobs) restent  ----
