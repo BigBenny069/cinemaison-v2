@@ -1111,7 +1111,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         <div style={{ width: 36 }} />
       </div>
 
-      <div className="px-4 mb-5">
+      <div className="px-4 mb-5 relative" style={{ zIndex: 2 }}>
         <button
           onClick={onSearch}
           className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
@@ -1365,6 +1365,14 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             </div>
           ))}
 
+          {/* Tout le vrai contenu est regroupé dans UN SEUL conteneur       */}
+          {/* positionné + z-index élevé, pour être garanti au-dessus des    */}
+          {/* nuages quel que soit l'élément (un simple <div> non positionné */}
+          {/* passe toujours SOUS un élément positionné, même placé avant    */}
+          {/* dans le code — c'était le bug des nuages qui mangeaient les    */}
+          {/* affiches et le texte).                                        */}
+          <div className="relative" style={{ zIndex: 2 }}>
+
           {suggestion && (
             <>
               <div className="relative px-4 mb-2">
@@ -1378,7 +1386,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <Poster film={suggestion} className="flex-shrink-0" style={{ width: 70, height: 96, borderRadius: 6, objectFit: "cover" }} />
                   <div className="min-w-0 flex flex-col justify-center">
                     <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 14, color: "#1c3350" }}>{suggestion.titre}</p>
-                    <p style={{ fontFamily: F.mono, fontSize: 9, color: "#3f6485", marginTop: 3 }}>
+                    <p style={{ fontFamily: F.mono, fontSize: 9.5, color: "#1c3350", fontWeight: 700, marginTop: 3 }}>
                       {suggestion.plateforme}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
                       {parseRating(suggestion.noteLetterboxd) != null && (
                         <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
@@ -1406,7 +1414,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         {days != null && <span className="absolute top-1.5 left-1.5" style={{ background: T.accent, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4, border: "1.5px solid #1A1400" }}>J-{days}</span>}
                       </div>
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
-                      <p style={{ fontFamily: F.mono, fontSize: 8, color: "#3f6485", marginTop: 2 }}>
+                      <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#1c3350", fontWeight: 700, marginTop: 2 }}>
                         {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                         {parseRating(f.noteLetterboxd) != null && (
                           <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
@@ -1429,7 +1437,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
                     </div>
                     <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
-                    <p style={{ fontFamily: F.mono, fontSize: 8, color: "#3f6485", marginTop: 2 }}>
+                    <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#1c3350", fontWeight: 700, marginTop: 2 }}>
                       {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                       {parseRating(f.noteLetterboxd) != null && (
                         <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
@@ -1440,6 +1448,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               </div>
             </>
           )}
+
+          </div>
         </>
       )}
 
