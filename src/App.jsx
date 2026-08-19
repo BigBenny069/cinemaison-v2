@@ -1376,7 +1376,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {suggestion && (
             <>
               <div className="relative px-4 mb-2">
-                <p style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `1.3px ${T.accentSecondary}` }}>SUGGESTION DU SOIR</p>
+                <p style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `2px ${T.accentSecondary}` }}>SUGGESTION DU SOIR</p>
                 <button onClick={reshuffleSuggestion} className="absolute flex items-center justify-center" style={{ right: 16, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: "50%", background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
                   <RefreshCw size={12} color={T.accentSecondary} />
                 </button>
@@ -1403,7 +1403,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
           {bientot.length > 0 && (
             <>
-              <p className="relative px-4 mb-2.5" style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `1.3px ${T.accentSecondary}` }}>ÇA PART BIENTÔT</p>
+              <p className="relative px-4 mb-2.5" style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `2px ${T.accentSecondary}` }}>ÇA PART BIENTÔT</p>
               <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
                 {bientot.map((f) => {
                   const days = computeExpiryDays(f);
@@ -1429,7 +1429,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
           {derniers.length > 0 && (
             <>
-              <p className="relative px-4 mb-2.5" style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `1.3px ${T.accentSecondary}` }}>DERNIERS AJOUTS</p>
+              <p className="relative px-4 mb-2.5" style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `2px ${T.accentSecondary}` }}>DERNIERS AJOUTS</p>
               <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
                   <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
