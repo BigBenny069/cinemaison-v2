@@ -1332,15 +1332,23 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             <>
               <div className="relative mx-4 mb-1 overflow-hidden" style={{ height: 220, borderRadius: T.radiusSm }}>
                 <Poster film={suggestion} className="w-full h-full" style={{ objectFit: "cover" }} />
-                <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, #0A0A0A 8%, transparent 55%)" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.85) 8%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.1) 100%)" }} />
                 <button onClick={() => onOpen(suggestion)} className="absolute left-0 right-0 bottom-0 text-left p-4">
-                  <p style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: T.accent, textTransform: "uppercase" }}>Suggestion du soir</p>
-                  <p style={{ fontFamily: F.marquee, fontSize: 24, color: "#fff", lineHeight: 1.02, marginTop: 4 }}>{suggestion.titre}</p>
-                  <p style={{ fontFamily: F.serif, fontWeight: 600, fontStyle: "italic", fontSize: 10.5, color: "#ddd", marginTop: 5 }}>
-                    {suggestion.plateforme ? `Disponible sur ${suggestion.plateforme}` : ""}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
-                  </p>
+                  <p style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>Suggestion du soir</p>
+                  <p style={{ fontFamily: F.marquee, fontSize: 24, color: "#fff", lineHeight: 1.02, marginTop: 4, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{suggestion.titre}</p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span style={{ fontFamily: F.serif, fontWeight: 600, fontStyle: "italic", fontSize: 10.5, color: "#eee", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+                      {suggestion.plateforme || ""}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
+                    </span>
+                    {parseRating(suggestion.noteLetterboxd) != null && (
+                      <span className="flex items-center gap-1" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+                        <Star size={10} color="#fff" fill="#fff" />
+                        <span style={{ fontFamily: F.mono, fontSize: 10, color: "#fff", fontWeight: 700 }}>{parseRating(suggestion.noteLetterboxd).toFixed(1)}</span>
+                      </span>
+                    )}
+                  </div>
                   {suggestion.synopsis && (
-                    <p style={{ fontFamily: F.serif, fontSize: 10.5, color: "#ddd", lineHeight: 1.4, marginTop: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
+                    <p style={{ fontFamily: F.serif, fontSize: 10.5, color: "#eee", lineHeight: 1.4, marginTop: 6, textShadow: "0 1px 4px rgba(0,0,0,0.8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
                   )}
                 </button>
                 <button onClick={reshuffleSuggestion} className="absolute flex items-center justify-center" style={{ top: 12, right: 12, width: 28, height: 28, borderRadius: "50%", background: "rgba(0,0,0,0.5)" }}>
@@ -1360,8 +1368,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   // Rouge de plus en plus saturé/opaque quand l'échéance approche.
                   const urgent = days != null && days <= 2;
                   return (
-                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 118 }}>
-                      <div className="relative overflow-hidden" style={{ height: 78, borderRadius: 8 }}>
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
+                      <div className="relative overflow-hidden" style={{ height: 152, borderRadius: 8 }}>
                         <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
                         {days != null && (
                           <span className="absolute top-1.5 left-1.5" style={{ background: urgent ? T.accent : "rgba(0,0,0,0.6)", border: urgent ? "none" : `1px solid ${T.accent}`, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4 }}>J-{days}</span>
@@ -1386,8 +1394,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
               <div className="flex gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
-                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 118 }}>
-                    <Poster film={f} className="w-full" style={{ height: 78, borderRadius: 8, objectFit: "cover" }} />
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
+                    <Poster film={f} className="w-full" style={{ height: 152, borderRadius: 8, objectFit: "cover" }} />
                     <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
                       {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
@@ -2446,18 +2454,12 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
                 <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff", letterSpacing: 1 }}>BANDE-ANNONCE</span>
               </a>
             )}
-            <div className="flex items-center gap-2 mt-2.5">
-              {film.urlLetterboxd && (
-                <a href={film.urlLetterboxd} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-                  <LetterboxdMark size={11} />
-                  <span style={{ fontFamily: F.mono, fontSize: 10, color: T.cream, fontWeight: 600 }}>LETTERBOXD</span>
-                </a>
-              )}
-              <button onClick={() => setEditing(true)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-                <Pencil size={12} color={T.cream} />
-                <span style={{ fontFamily: F.mono, fontSize: 10, color: T.cream, fontWeight: 600 }}>MODIFIER</span>
-              </button>
-            </div>
+            {film.urlLetterboxd && (
+              <a href={film.urlLetterboxd} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg mt-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+                <LetterboxdMark size={11} />
+                <span style={{ fontFamily: F.mono, fontSize: 10, color: T.cream, fontWeight: 600 }}>LETTERBOXD</span>
+              </a>
+            )}
           </>
         )}
 
