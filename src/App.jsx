@@ -231,7 +231,7 @@ const THEMES = {
       shadow: "none",
       borderWidth: 2,
     },
-    fonts: { marquee: "'Simpsonfont', 'Luckiest Guy', cursive", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
+    fonts: { marquee: "'Simpsonfont', 'Archivo Black', sans-serif", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
   },
   cacartoon: {
     label: "Ça Cartoon",
