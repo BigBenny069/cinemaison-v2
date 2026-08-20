@@ -1221,7 +1221,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     setSuggestion((current) => pickFromPool_(buildSuggestionPool_(bucketId), current));
   };
 
-  const DUREE_FILTRE_OPTIONS = [{ id: null, label: "Tous" }, ...DUREE_BUCKETS.map((b) => ({ id: b.id, label: b.label }))];
+  const DUREE_FILTRE_OPTIONS = [{ id: null, label: "Tous", hint: null }, ...DUREE_BUCKETS.map((b) => ({ id: b.id, label: b.label, hint: b.hint }))];
+  const [dureeMenuOpen, setDureeMenuOpen] = useState(false);
+  const dureeActiveLabel = DUREE_FILTRE_OPTIONS.find((o) => o.id === dureeFiltre)?.label || "Tous";
 
   return (
     <div className="flex-1 overflow-y-auto pull-scroll pb-4 relative" style={CURRENT_THEME === "springfield" ? { background: "linear-gradient(180deg, #3F9BDB 0%, #6EC0EA 45%, #A9DCF2 100%)" } : undefined}>
@@ -1237,34 +1239,51 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         <div style={{ width: 36 }} />
       </div>
 
-      <div className="px-4 mb-5 relative" style={{ zIndex: 2 }}>
+      <div className="px-4 mb-3 flex items-center gap-2 relative" style={{ zIndex: 2 }}>
         <button
           onClick={onSearch}
-          className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
+          className="flex-1 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
           style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius }}
         >
           <Search size={15} color={T.mutedDim} />
           <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.mutedDim }}>Titre, réalisateur, acteur…</span>
                   </button>
+        {/* "Ce soir on a X minutes" — un seul bouton compact à côté de la   */}
+        {/* recherche (au lieu d'une rangée de chips qui surchargeait        */}
+        {/* l'Accueil) ; il ouvre un petit menu listant les créneaux avec    */}
+        {/* leur durée indiquée. */}
+        <button onClick={() => setDureeMenuOpen(true)} className="flex-shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2.5"
+          style={{ background: dureeFiltre ? T.accentSoft : T.surface, border: `${T.borderWidth}px solid ${dureeFiltre ? T.accent + "66" : T.line}`, borderRadius: T.radius }}>
+          <Clock size={14} color={dureeFiltre ? T.accent : T.mutedDim} />
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: dureeFiltre ? T.accent : T.mutedDim, fontWeight: dureeFiltre ? 700 : 400, whiteSpace: "nowrap" }}>{dureeActiveLabel}</span>
+        </button>
       </div>
 
-      {/* "Ce soir on a X minutes" — filtre de durée pour la Suggestion du   */}
-      {/* soir, placé une seule fois ici (indépendant du thème actif) plutôt */}
-      {/* que dupliqué dans chacun des ~15 rendus spécifiques par thème.     */}
-      <div className="px-4 mb-4 relative" style={{ zIndex: 2 }}>
-        <p className="mb-1.5" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1, color: T.mutedDim }}>CE SOIR, ON A</p>
-        <div className="flex gap-1.5 overflow-x-auto">
-          {DUREE_FILTRE_OPTIONS.map((opt) => {
-            const active = dureeFiltre === opt.id;
-            return (
-              <button key={opt.label} onClick={() => changeDureeFiltre(opt.id)} className="flex-shrink-0 rounded-full px-3 py-1.5"
-                style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}` }}>
-                <span style={{ fontFamily: F.mono, fontSize: 10, color: active ? T.accent : T.mutedDim, fontWeight: active ? 700 : 400 }}>{opt.label}</span>
-              </button>
-            );
-          })}
+      {dureeMenuOpen && (
+        <div onClick={() => setDureeMenuOpen(false)} className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: "rgba(10,8,6,0.75)" }}>
+          <div onClick={(e) => e.stopPropagation()} className="rounded-t-2xl overflow-hidden" style={{ background: T.bg, border: `1px solid ${T.line}`, borderBottom: "none" }}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>CE SOIR, ON A</span>
+              <button onClick={() => setDureeMenuOpen(false)}><X size={18} color={T.muted} /></button>
+            </div>
+            <div className="px-5 pb-6">
+              {DUREE_FILTRE_OPTIONS.map((opt, i) => {
+                const active = dureeFiltre === opt.id;
+                return (
+                  <button key={opt.label} onClick={() => { changeDureeFiltre(opt.id); setDureeMenuOpen(false); }}
+                    className="w-full flex items-center justify-between py-3"
+                    style={{ borderBottom: i < DUREE_FILTRE_OPTIONS.length - 1 ? `1px solid ${T.line}` : "none" }}>
+                    <span style={{ fontFamily: F.serif, fontSize: 14, color: active ? T.accent : T.cream }}>
+                      {opt.label}{opt.hint ? ` (${opt.hint})` : ""}
+                    </span>
+                    {active && <Check size={16} color={T.accent} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Salle Privée : bandeau vedette pleine largeur en haut, façon */}
       {/* Netflix/Apple TV+, à la place du ticket classique en bas de page. */}
@@ -4180,21 +4199,29 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   const [tmdbResults, setTmdbResults] = useState([]);
   const [tmdbLoading, setTmdbLoading] = useState(false);
   const [tmdbOpen, setTmdbOpen] = useState(false);
+  const [tmdbError, setTmdbError] = useState(null);
   const [titreTouchedByUser, setTitreTouchedByUser] = useState(false);
   useEffect(() => {
-    if (!titreTouchedByUser || titre.trim().length < 2) { setTmdbResults([]); return; }
+    if (!titreTouchedByUser || titre.trim().length < 2) { setTmdbResults([]); setTmdbError(null); return; }
     const controller = new AbortController();
     const t = setTimeout(async () => {
       setTmdbLoading(true);
+      setTmdbError(null);
       try {
         const res = await fetch(`/api/search-tmdb?q=${encodeURIComponent(titre.trim())}`, { signal: controller.signal });
-        if (res.ok) {
-          const data = await res.json();
-          setTmdbResults(Array.isArray(data.results) ? data.results.slice(0, 6) : []);
-          setTmdbOpen(true);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          // On affiche le message renvoyé par la route (ex: clé TMDB_API_KEY
+          // manquante côté Vercel) au lieu d'échouer silencieusement — sinon
+          // impossible de savoir pourquoi la recherche ne renvoie rien.
+          setTmdbError(data.error || `Erreur ${res.status}`);
+          setTmdbResults([]);
+          return;
         }
-      } catch {
-        // Route pas encore déployée ou hors-ligne — on se tait, l'ajout manuel reste possible.
+        setTmdbResults(Array.isArray(data.results) ? data.results.slice(0, 6) : []);
+        setTmdbOpen(true);
+      } catch (e) {
+        if (e.name !== "AbortError") setTmdbError("Recherche indisponible (connexion ou route /api/search-tmdb manquante)");
       } finally {
         setTmdbLoading(false);
       }
@@ -4275,6 +4302,12 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
               </button>
             ))}
           </div>
+        )}
+        {tmdbError && (
+          <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.alert }}>{tmdbError}</p>
+        )}
+        {tmdbOpen && !tmdbLoading && !tmdbError && tmdbResults.length === 0 && titre.trim().length >= 2 && (
+          <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, fontStyle: "italic" }}>Aucun résultat TMDb pour « {titre.trim()} ».</p>
         )}
       </label>
       <label className="block mb-4">
