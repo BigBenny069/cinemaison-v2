@@ -817,14 +817,17 @@ function DateStamp({ days }) {
   );
 }
 
-// Springfield : lettrage jaune à contour bleu épais net, technique double
-// calque (span arrière avec -webkit-text-stroke plein pour le contour +
-// span avant sans stroke pour l'aplat jaune) — variante A validée par Ben,
-// remplace l'ancienne technique text-shadow empilé (contour trop fin/flou).
+// Springfield : lettrage jaune à contour bleu net, technique double calque
+// (span arrière avec -webkit-text-stroke plein pour le contour + span avant
+// sans stroke pour l'aplat jaune). Contour à 3px (au lieu de 6px initial) —
+// à 6px, les traits de lettres voisines se touchaient et donnaient un effet
+// "collé"/cursive sur les titres aux lettres plus resserrées (ÇA PART
+// BIENTÔT, DERNIERS AJOUTS), alors que SUGGESTION DU SOIR (plus long,
+// mieux espacé) ne montrait pas le problème.
 function SpringfieldTitle({ children, className }) {
   return (
     <p className={className} style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, position: "relative", margin: 0 }}>
-      <span aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, color: "transparent", WebkitTextStroke: `6px ${T.accentSecondary}` }}>{children}</span>
+      <span aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, color: "transparent", WebkitTextStroke: `3px ${T.accentSecondary}` }}>{children}</span>
       <span style={{ position: "relative", color: T.gold }}>{children}</span>
     </p>
   );
@@ -4887,7 +4890,7 @@ export default function App() {
 
   return (
     <div className="w-full flex items-center justify-center" style={{ background: T.bg, height: "100dvh" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } } @keyframes seanceChase { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } }`}</style>
+      <style>{`@font-face { font-family: 'Simpsonfont'; src: url('/fonts/Simpsonfont.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; } @keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } } @keyframes seanceChase { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } }`}</style>
       <div
         className="flex flex-col w-full relative"
         style={{
