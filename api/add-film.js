@@ -25,6 +25,21 @@ function nextSequentialId(existingIds) {
 }
 
 export default async function handler(req, res) {
+  // --- CORS pour cineradar-nu.vercel.app ---
+  // Posés tout en haut, avant toute autre logique, pour qu'ils soient
+  // présents sur TOUTES les réponses de cette fonction (succès et erreur).
+  res.setHeader("Access-Control-Allow-Origin", "https://cineradar-nu.vercel.app");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Requête de pré-vérification du navigateur (CORS preflight) — doit
+  // recevoir un 200 immédiat, avant la vérification de méthode POST
+  // habituelle, sinon le navigateur bloque la vraie requête qui suit.
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  // --- fin CORS ---
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
