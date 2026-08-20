@@ -233,6 +233,33 @@ const THEMES = {
     },
     fonts: { marquee: "'Simpsonfont', 'Luckiest Guy', cursive", serif: "'Inter', sans-serif", mono: "'IBM Plex Mono', monospace" },
   },
+  cacartoon: {
+    label: "Ça Cartoon",
+    groupe: "Mises en page réinventées",
+    colors: {
+      bg: "#0D0D0D",
+      surface: "#161616",
+      surfaceRaised: "#1E1E1E",
+      accent: "#E13A2E",
+      accentSoft: "rgba(225,58,46,0.14)",
+      accentSecondary: "#1B4F9C",
+      accentSecondarySoft: "rgba(27,79,156,0.14)",
+      accentTertiary: "#4F9A55",
+      accentQuaternary: "#8E4B9E",
+      gold: "#F4B92A",
+      cream: "#F2F2F2",
+      muted: "#999999",
+      mutedDim: "#666666",
+      line: "#262626",
+      alert: "#E13A2E",
+      alertSoft: "rgba(225,58,46,0.14)",
+      radius: 10,
+      radiusSm: 8,
+      shadow: "none",
+      borderWidth: 3,
+    },
+    fonts: { marquee: "'Chewy', cursive", serif: "'Quicksand', sans-serif", mono: "'IBM Plex Mono', monospace" },
+  },
   // ---- 4 nouvelles directions : couleurs/police/forme intégrées, les     ----
   // ---- inventions structurelles (grille bento, JSON, BD, blobs) restent  ----
   // ---- propres aux aperçus — non reproduites sur tous les écrans ici.    ----
@@ -790,6 +817,19 @@ function DateStamp({ days }) {
   );
 }
 
+// Springfield : lettrage jaune à contour bleu épais net, technique double
+// calque (span arrière avec -webkit-text-stroke plein pour le contour +
+// span avant sans stroke pour l'aplat jaune) — variante A validée par Ben,
+// remplace l'ancienne technique text-shadow empilé (contour trop fin/flou).
+function SpringfieldTitle({ children, className }) {
+  return (
+    <p className={className} style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, position: "relative", margin: 0 }}>
+      <span aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, color: "transparent", WebkitTextStroke: `6px ${T.accentSecondary}` }}>{children}</span>
+      <span style={{ position: "relative", color: T.gold }}>{children}</span>
+    </p>
+  );
+}
+
 function SectionTitle({ children, icon: Icon = Film, onMore }) {
   if (CURRENT_THEME === "affiche") {
     // Thème festival : titre encadré en bloc plat turquoise (couleur principale validée)
@@ -824,6 +864,21 @@ function SectionTitle({ children, icon: Icon = Film, onMore }) {
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.accentSecondary, display: "inline-block", marginLeft: -2.5 }} />
         </span>
         <span style={{ fontFamily: F.marquee, fontSize: 12.5, letterSpacing: 0.3, color: T.cream, fontWeight: 700 }}>{children}</span>
+      </div>
+    );
+  }
+  if (CURRENT_THEME === "cacartoon") {
+    // Ça Cartoon : pastille de couleur (rouge/bleu/jaune/vert en rotation
+    // selon le titre) + lettrage bulle "Chewy" — pas de texte multicolore
+    // lettre par lettre ici (réservé au hero/logo), pour rester lisible.
+    const dotColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
+    const hash = String(children || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    const dotColor = dotColors[hash % dotColors.length];
+    return (
+      <div className="flex items-center gap-2.5 px-4 mb-2.5">
+        <span style={{ width: 13, height: 13, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+        <span style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream }}>{children}</span>
+        {onMore && <button onClick={onMore} style={{ marginLeft: "auto", fontFamily: F.mono, fontSize: 9.5, color: T.gold, fontWeight: 700 }}>TOUT VOIR</button>}
       </div>
     );
   }
@@ -1376,7 +1431,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {suggestion && (
             <>
               <div className="relative px-4 mb-2">
-                <p style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `2px ${T.accentSecondary}` }}>SUGGESTION DU SOIR</p>
+                <SpringfieldTitle>SUGGESTION DU SOIR</SpringfieldTitle>
                 <button onClick={reshuffleSuggestion} className="absolute flex items-center justify-center" style={{ right: 16, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: "50%", background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
                   <RefreshCw size={12} color={T.accentSecondary} />
                 </button>
@@ -1403,7 +1458,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
           {bientot.length > 0 && (
             <>
-              <p className="relative px-4 mb-2.5" style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `2px ${T.accentSecondary}` }}>ÇA PART BIENTÔT</p>
+              <SpringfieldTitle className="relative px-4 mb-2.5">ÇA PART BIENTÔT</SpringfieldTitle>
               <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
                 {bientot.map((f) => {
                   const days = computeExpiryDays(f);
@@ -1429,7 +1484,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
           {derniers.length > 0 && (
             <>
-              <p className="relative px-4 mb-2.5" style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, color: T.gold, WebkitTextStroke: `2px ${T.accentSecondary}` }}>DERNIERS AJOUTS</p>
+              <SpringfieldTitle className="relative px-4 mb-2.5">DERNIERS AJOUTS</SpringfieldTitle>
               <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
                   <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
@@ -1450,6 +1505,105 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           )}
 
           </div>
+        </>
+      )}
+
+      {/* Ça Cartoon : bandeau Memphis (blocs de couleur superposés) au-     */}
+      {/* dessus de la suggestion, cartes à bordure cyclique rouge/bleu/    */}
+      {/* jaune/vert pour "Ça part bientôt" et "Derniers ajouts" — pastille */}
+      {/* de couleur dans SectionTitle au lieu du texte multicolore.        */}
+      {CURRENT_THEME === "cacartoon" && (
+        <>
+          {suggestion && (
+            <div className="px-4 mb-6">
+              <div className="relative overflow-hidden mb-2.5" style={{ height: 60, borderRadius: T.radiusSm }}>
+                <div className="absolute" style={{ background: T.accent, width: "55%", height: "70%", top: "-15%", left: "-6%", transform: "rotate(-3deg)", opacity: 0.9 }} />
+                <div className="absolute" style={{ background: T.accentSecondary, width: "45%", height: "65%", top: "-8%", right: "-6%", transform: "rotate(4deg)", opacity: 0.9 }} />
+                <div className="absolute" style={{ background: T.gold, width: "35%", height: "50%", bottom: "-12%", left: "12%", transform: "rotate(-6deg)", opacity: 0.9 }} />
+                <div className="absolute" style={{ background: T.accentTertiary, width: "30%", height: "45%", bottom: "-10%", right: "8%", transform: "rotate(5deg)", opacity: 0.9 }} />
+              </div>
+              <button onClick={() => onOpen(suggestion)} className="relative w-full text-left overflow-hidden" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accent}`, borderRadius: T.radius }}>
+                <div style={{ height: 6, background: `linear-gradient(90deg, ${T.accent}, ${T.gold}, ${T.accentSecondary}, ${T.accentTertiary})` }} />
+                <div className="flex gap-3 p-3">
+                  <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, borderRadius: 6, objectFit: "cover" }} />
+                  <div className="min-w-0 flex flex-col justify-center">
+                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream }}>{suggestion.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, marginTop: 4 }}>
+                      {suggestion.plateforme}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
+                      {parseRating(suggestion.noteLetterboxd) != null && (
+                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
+                      )}
+                    </p>
+                    {suggestion.synopsis && (
+                      <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
+                    )}
+                  </div>
+                </div>
+              </button>
+              <div className="flex justify-end mt-2">
+                <button onClick={reshuffleSuggestion} className="flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised }}>
+                  <RefreshCw size={11} color={T.gold} />
+                  <span style={{ fontFamily: F.mono, fontSize: 9, color: T.gold, fontWeight: 700 }}>REJOUER</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {bientot.length > 0 && (
+            <>
+              <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
+              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+                {bientot.map((f, i) => {
+                  const days = computeExpiryDays(f);
+                  const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
+                  const frameColor = frameColors[i % frameColors.length];
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left overflow-hidden" style={{ width: 108, background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
+                      <div className="relative">
+                        <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
+                        {days != null && <span className="absolute" style={{ top: 4, right: 4, background: frameColor, color: "#fff", fontFamily: F.marquee, fontSize: 11, padding: "1px 6px", borderRadius: 999 }}>J-{days}</span>}
+                      </div>
+                      <div className="p-2">
+                        <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
+                        <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 1 }}>
+                          {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                          {parseRating(f.noteLetterboxd) != null && (
+                            <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                          )}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {derniers.length > 0 && (
+            <>
+              <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
+              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+                {derniers.map((f, i) => {
+                  const frameColors = [T.accentSecondary, T.gold, T.accentTertiary, T.accent];
+                  const frameColor = frameColors[i % frameColors.length];
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left overflow-hidden" style={{ width: 108, background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
+                      <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
+                      <div className="p-2">
+                        <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
+                        <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 1 }}>
+                          {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                          {parseRating(f.noteLetterboxd) != null && (
+                            <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                          )}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -1663,7 +1817,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && (
+      {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && CURRENT_THEME !== "cacartoon" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -1952,7 +2106,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
-      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && (
+      {CURRENT_THEME !== "bento" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && CURRENT_THEME !== "cacartoon" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
@@ -2250,7 +2404,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       )}
 
 
-      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "jardin" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && (
+      {suggestion && CURRENT_THEME !== "salle" && CURRENT_THEME !== "bento" && CURRENT_THEME !== "jardin" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && CURRENT_THEME !== "cacartoon" && (
         <>
           <div className="relative">
             <SectionTitle icon={Shuffle}>SUGGESTION DU SOIR</SectionTitle>
@@ -2550,6 +2704,17 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(22,20,20,0) 55%, rgba(22,20,20,0.65) 100%)" }} />
           </div>
         </div>
+      ) : CURRENT_THEME === "cacartoon" ? (
+        /* Ça Cartoon : liseré arc-en-ciel (rouge/jaune/bleu/vert) en haut  */
+        /* de la couverture — clin d'œil discret au générique multicolore, */
+        /* sans surcharger le reste de la fiche.                           */
+        <div className="relative" style={{ height: 340 }}>
+          <div style={{ height: 7, background: `linear-gradient(90deg, ${T.accent}, ${T.gold}, ${T.accentSecondary}, ${T.accentTertiary})` }} />
+          <div onClick={() => setPosterOpen(true)} className="relative" style={{ height: 333, cursor: "pointer" }}>
+            <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
+            <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(13,13,13,0.1) 40%, ${T.bg} 100%)` }} />
+          </div>
+        </div>
       ) : (
         <div onClick={() => setPosterOpen(true)} className="relative" style={{ height: 340, cursor: "pointer" }}>
           <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
@@ -2622,6 +2787,10 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           ) : CURRENT_THEME === "canalplus" ? (
             <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.accent, borderRadius: 6 }}>
               <span style={{ fontFamily: F.serif, fontWeight: 800, fontSize: 12, color: "#fff" }}>J-{expiryDays} avant retrait</span>
+            </div>
+          ) : CURRENT_THEME === "cacartoon" ? (
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.accent, borderRadius: 20, border: `2px solid ${T.cream}` }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff" }}>J-{expiryDays} avant la dernière séance</span>
             </div>
           ) : CURRENT_THEME === "bd" ? (
             <div className="relative inline-block mt-5 px-3.5 py-2" style={{ background: T.alert, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 16 }}>
@@ -2998,10 +3167,10 @@ function ScreenHeader({ title, onBack, onMenu, right }) {
 }
 
 function ListResultCard({ film, onOpen, right }) {
-  // Pop Art : cadre coloré flashy, stable par film (basé sur son id) pour
-  // qu'il ne change pas de couleur selon l'écran ou le tri utilisé.
+  // Pop Art / Ça Cartoon : cadre coloré flashy, stable par film (basé sur
+  // son id) pour qu'il ne change pas de couleur selon l'écran ou le tri.
   let borderColor = T.line;
-  if (CURRENT_THEME === "popart") {
+  if (CURRENT_THEME === "popart" || CURRENT_THEME === "cacartoon") {
     const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
     const hash = String(film.id || film.titre || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
     borderColor = frameColors[hash % frameColors.length];
@@ -3357,8 +3526,8 @@ function AlertesListe({ films, field, onOpen }) {
 
   // Salle IMAX : cartes techniques, halo bleu.
 
-  // Pop Art : cadres colorés flashy en rotation, texte sobre.
-  if (CURRENT_THEME === "popart") {
+  // Pop Art / Ça Cartoon : cadres colorés flashy en rotation, texte sobre.
+  if (CURRENT_THEME === "popart" || CURRENT_THEME === "cacartoon") {
     const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
@@ -3375,7 +3544,7 @@ function AlertesListe({ films, field, onOpen }) {
                 <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
                 <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
               </div>
-              <span className="flex-shrink-0 px-2 py-1" style={{ background: frameColor, color: "#000", fontFamily: F.mono, fontSize: 10, fontWeight: 700, borderRadius: 2 }}>J-{days}</span>
+              <span className="flex-shrink-0 px-2 py-1" style={{ background: frameColor, color: CURRENT_THEME === "cacartoon" ? "#fff" : "#000", fontFamily: F.mono, fontSize: 10, fontWeight: 700, borderRadius: CURRENT_THEME === "cacartoon" ? 999 : 2 }}>J-{days}</span>
             </button>
           );
         })}
@@ -4196,6 +4365,11 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
             <span style={{ fontFamily: F.serif, fontSize: 18, color: T.cream, fontWeight: 700 }}>Le Guichet</span>
           )      : CURRENT_THEME === "popart" ? (
             <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream }}>LE GUICHET</span>
+          ) : CURRENT_THEME === "cacartoon" ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: T.accent }} />
+              <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.gold }}>Le Guichet</span>
+            </span>
           ) : (
             <span style={{ fontFamily: F.marquee, fontSize: 21, color: T.accent, letterSpacing: 1.5 }}>GUICHET</span>
           )}
