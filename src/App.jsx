@@ -496,6 +496,30 @@ function getStoredNbAccueil_() {
 }
 
 /* ------------------------------------------------------------------ */
+/* NOTIFICATIONS LOCALES — réglage par appareil (localStorage, comme le */
+/* thème ou le compte à rebours). Pas de push serveur : la notification */
+/* se déclenche seulement quand l'appli est ouverte/revient au premier  */
+/* plan, en vérifiant la bibliothèque à ce moment-là. Une vraie push en */
+/* arrière-plan (téléphone fermé) demanderait un backend dédié (clés    */
+/* VAPID + service worker + déclencheur côté serveur) — hors scope ici. */
+/* ------------------------------------------------------------------ */
+function getStoredNotifEnabled_() {
+  try { return localStorage.getItem("cinemaison_notif_enabled") === "1"; } catch { return false; }
+}
+function getStoredNotifSeuil_() {
+  try {
+    const v = parseInt(localStorage.getItem("cinemaison_notif_seuil"), 10);
+    return v === 2 || v === 5 ? v : 5;
+  } catch { return 5; }
+}
+function getLastNotifDate_() {
+  try { return localStorage.getItem("cinemaison_notif_last"); } catch { return null; }
+}
+function setLastNotifDate_(d) {
+  try { localStorage.setItem("cinemaison_notif_last", d); } catch {}
+}
+
+/* ------------------------------------------------------------------ */
 /* ECRITURES PROTÉGÉES — add-film / update-film / delete-film          */
 /* Le mot de passe est demandé une seule fois puis mémorisé sur cet    */
 /* appareil (localStorage) pour ne pas le retaper à chaque action.     */
@@ -558,6 +582,18 @@ function computeExpiryDays(film) {
   const auto = parseDateFR(film.dateAuto);
   const days = daysUntil(manuelle) ?? daysUntil(auto);
   return days;
+}
+
+// Urgence visuelle : rouge vif si ≤2 jours, orange si ≤5 jours, sinon on
+// garde la couleur habituelle du thème (retourne null -> l'appelant garde
+// son T.accent/T.alert d'origine). Couleurs volontairement fixes plutôt
+// que dérivées du thème, pour rester universellement reconnaissables
+// ("rouge = urgent") quel que soit le thème actif.
+function urgencyColor_(days) {
+  if (days == null) return null;
+  if (days <= 2) return "#E8394A";
+  if (days <= 5) return "#F5A623";
+  return null;
 }
 
 // Une fiche est archivée uniquement si dateManuelle est renseignée ET dépassée.
@@ -805,14 +841,16 @@ function RatingStamp({ value, size = 58 }) {
 }
 
 function DateStamp({ days }) {
+  const urgent = urgencyColor_(days);
+  const color = urgent || T.accent;
   return (
     <div className="absolute flex flex-col items-center justify-center"
       style={{
         top: 6, right: 6, width: 40, height: 40, borderRadius: "50%",
-        border: `2px solid ${T.accent}`, background: "rgba(20,16,12,0.72)",
+        border: `2px solid ${color}`, background: "rgba(20,16,12,0.72)",
         boxShadow: `0 0 0 2px ${T.bg}`, transform: "rotate(-10deg)",
       }}>
-      <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.accent, lineHeight: 1 }}>J-{days}</span>
+      <span style={{ fontFamily: F.marquee, fontSize: 15, color, lineHeight: 1 }}>J-{days}</span>
     </div>
   );
 }
@@ -1135,25 +1173,55 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     return [...films].reverse().slice(0, nbAccueil);
   }, [films, nbAccueil]);
 
-  const [suggestion, setSuggestion] = useState(() => {
-    // Ne jamais suggérer une fiche déjà expirée (dateManuelle dépassée) —
-    // évite un badge J-X négatif absurde sur la carte suggestion.
+  // "Ce soir on a X minutes" — filtre optionnel de durée pour la
+  // suggestion, qui priorise en plus les films qui expirent bientôt parmi
+  // ceux qui rentrent dans le créneau choisi (combine les deux forces de
+  // l'appli : bibliothèque + urgence d'expiration).
+  const [dureeFiltre, setDureeFiltre] = useState(null); // null = "Tous", sinon un id de DUREE_BUCKETS
+
+  const buildSuggestionPool_ = (bucketId) => {
     const nonArchives = films.filter((f) => !isArchived(f));
-    const eligibles = nonArchives.filter((f) => f.type === "Film");
-    const pool = eligibles.length > 0 ? eligibles : nonArchives.length > 0 ? nonArchives : films;
-    return pool[Math.floor(Math.random() * pool.length)];
-  });
-  // Bouton "changer la suggestion" — retire un nouveau film au hasard dans
-  // le même pool, en évitant si possible de retomber sur le même.
-  const reshuffleSuggestion = () => {
-    const nonArchives = films.filter((f) => !isArchived(f));
-    const eligibles = nonArchives.filter((f) => f.type === "Film");
-    const pool = eligibles.length > 0 ? eligibles : nonArchives.length > 0 ? nonArchives : films;
-    if (pool.length <= 1) { setSuggestion(pool[0]); return; }
-    let next;
-    do { next = pool[Math.floor(Math.random() * pool.length)]; } while (suggestion && next.id === suggestion.id);
-    setSuggestion(next);
+    let eligibles = nonArchives.filter((f) => f.type === "Film");
+    if (eligibles.length === 0) eligibles = nonArchives.length > 0 ? nonArchives : films;
+    const bucket = DUREE_BUCKETS.find((b) => b.id === bucketId);
+    if (bucket) {
+      const withDuration = eligibles.filter((f) => {
+        const mins = parseDureeMinutes(f.duree);
+        return mins != null && mins >= bucket.min && mins <= bucket.max;
+      });
+      if (withDuration.length > 0) eligibles = withDuration;
+    }
+    return eligibles;
   };
+  // Tire un film dans le pool en favorisant ceux qui expirent le plus tôt
+  // (parmi le tiers le plus urgent du pool, si assez de films) — plutôt
+  // qu'un tirage 100% uniforme, pour que la suggestion serve aussi de
+  // pense-bête sur ce qui part bientôt.
+  const pickFromPool_ = (pool, exclude) => {
+    if (pool.length === 0) return null;
+    const withDays = pool.map((f) => ({ f, days: computeExpiryDays(f) }));
+    const urgent = withDays.filter((x) => x.days != null && x.days >= 0).sort((a, b) => a.days - b.days);
+    const topCount = Math.max(3, Math.ceil(urgent.length / 3));
+    const candidatePool = urgent.length >= 3 ? urgent.slice(0, topCount).map((x) => x.f) : pool;
+    if (candidatePool.length <= 1) return candidatePool[0];
+    let next;
+    do { next = candidatePool[Math.floor(Math.random() * candidatePool.length)]; } while (exclude && next.id === exclude.id && candidatePool.length > 1);
+    return next;
+  };
+
+  const [suggestion, setSuggestion] = useState(() => pickFromPool_(buildSuggestionPool_(null), null));
+  // Bouton "changer la suggestion" — retire un nouveau film dans le pool
+  // courant (respecte le filtre de durée actif), en évitant si possible de
+  // retomber sur le même.
+  const reshuffleSuggestion = () => {
+    setSuggestion((current) => pickFromPool_(buildSuggestionPool_(dureeFiltre), current));
+  };
+  const changeDureeFiltre = (bucketId) => {
+    setDureeFiltre(bucketId);
+    setSuggestion((current) => pickFromPool_(buildSuggestionPool_(bucketId), current));
+  };
+
+  const DUREE_FILTRE_OPTIONS = [{ id: null, label: "Tous" }, ...DUREE_BUCKETS.map((b) => ({ id: b.id, label: b.label }))];
 
   return (
     <div className="flex-1 overflow-y-auto pull-scroll pb-4 relative" style={CURRENT_THEME === "springfield" ? { background: "linear-gradient(180deg, #3F9BDB 0%, #6EC0EA 45%, #A9DCF2 100%)" } : undefined}>
@@ -1178,6 +1246,24 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <Search size={15} color={T.mutedDim} />
           <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.mutedDim }}>Titre, réalisateur, acteur…</span>
                   </button>
+      </div>
+
+      {/* "Ce soir on a X minutes" — filtre de durée pour la Suggestion du   */}
+      {/* soir, placé une seule fois ici (indépendant du thème actif) plutôt */}
+      {/* que dupliqué dans chacun des ~15 rendus spécifiques par thème.     */}
+      <div className="px-4 mb-4 relative" style={{ zIndex: 2 }}>
+        <p className="mb-1.5" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1, color: T.mutedDim }}>CE SOIR, ON A</p>
+        <div className="flex gap-1.5 overflow-x-auto">
+          {DUREE_FILTRE_OPTIONS.map((opt) => {
+            const active = dureeFiltre === opt.id;
+            return (
+              <button key={opt.label} onClick={() => changeDureeFiltre(opt.id)} className="flex-shrink-0 rounded-full px-3 py-1.5"
+                style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}` }}>
+                <span style={{ fontFamily: F.mono, fontSize: 10, color: active ? T.accent : T.mutedDim, fontWeight: active ? 700 : 400 }}>{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Salle Privée : bandeau vedette pleine largeur en haut, façon */}
@@ -2812,94 +2898,98 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
               ARCHIVÉ — DATE DÉPASSÉE DEPUIS {Math.abs(daysUntil(parseDateFR(film.dateManuelle)))} JOURS
             </span>
           </div>
-        ) : expiryDays != null && expiryDays >= 0 && (
-          CURRENT_THEME === "affiche" ? (
-            <div className="inline-flex items-center gap-2 mt-4 px-3 py-2" style={{ background: T.gold, border: `${T.borderWidth}px solid ${T.cream}`, boxShadow: T.shadow, transform: "rotate(-1deg)" }}>
+        ) : expiryDays != null && expiryDays >= 0 && (() => {
+          // Urgence visuelle : au-delà des couleurs habituelles du thème, la
+          // couleur du badge J-x vire au rouge (≤2j) ou orange (≤5j) — même
+          // logique que sur les affiches de l'Accueil.
+          const urg = urgencyColor_(expiryDays);
+          return CURRENT_THEME === "affiche" ? (
+            <div className="inline-flex items-center gap-2 mt-4 px-3 py-2" style={{ background: urg || T.gold, border: `${T.borderWidth}px solid ${T.cream}`, boxShadow: T.shadow, transform: "rotate(-1deg)" }}>
               <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>J−{expiryDays} · DERNIÈRE SÉANCE</span>
             </div>
           )  : CURRENT_THEME === "table" ? (
             <div className="relative inline-block mt-4">
               <span style={{ fontFamily: F.serif, fontSize: 18, fontWeight: 700, color: T.cream }}>Expire dans {expiryDays} jours</span>
-              <div className="absolute" style={{ left: -6, right: -6, bottom: -2, height: 2, background: T.accent, transform: "rotate(-1deg)" }} />
+              <div className="absolute" style={{ left: -6, right: -6, bottom: -2, height: 2, background: urg || T.accent, transform: "rotate(-1deg)" }} />
             </div>
           ) : CURRENT_THEME === "salle" ? (
             <div className="flex items-center gap-2.5 rounded-2xl px-4 py-3 mt-5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.alert, flexShrink: 0 }} />
-              <span style={{ fontFamily: F.mono, fontSize: 11.5, color: T.cream }}>Disponible encore <span style={{ color: T.alert, fontWeight: 600 }}>{expiryDays} jours</span></span>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: urg || T.alert, flexShrink: 0 }} />
+              <span style={{ fontFamily: F.mono, fontSize: 11.5, color: T.cream }}>Disponible encore <span style={{ color: urg || T.alert, fontWeight: 600 }}>{expiryDays} jours</span></span>
             </div>
           ) : CURRENT_THEME === "letterboxd" ? (
-            <span className="inline-flex items-center rounded px-2.5 py-1 mt-4" style={{ background: `${T.alert}1F` }}>
-              <span style={{ fontFamily: F.mono, fontSize: 11, color: T.alert, fontWeight: 700 }}>J-{expiryDays} · dernière séance</span>
+            <span className="inline-flex items-center rounded px-2.5 py-1 mt-4" style={{ background: `${urg || T.alert}1F` }}>
+              <span style={{ fontFamily: F.mono, fontSize: 11, color: urg || T.alert, fontWeight: 700 }}>J-{expiryDays} · dernière séance</span>
             </span>
           )      : CURRENT_THEME === "popart" ? (
-            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.gold, borderRadius: T.radiusSm }}>
-              <span style={{ fontFamily: F.mono, fontSize: 12, color: "#000", fontWeight: 700 }}>J-{expiryDays} avant expiration</span>
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: urg || T.gold, borderRadius: T.radiusSm }}>
+              <span style={{ fontFamily: F.mono, fontSize: 12, color: urg ? "#fff" : "#000", fontWeight: 700 }}>J-{expiryDays} avant expiration</span>
             </div>
           ) : CURRENT_THEME === "canalplus" ? (
-            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.accent, borderRadius: 6 }}>
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: urg || T.accent, borderRadius: 6 }}>
               <span style={{ fontFamily: F.serif, fontWeight: 800, fontSize: 12, color: "#fff" }}>J-{expiryDays} avant retrait</span>
             </div>
           ) : CURRENT_THEME === "cacartoon" ? (
-            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.accent, borderRadius: 20, border: `2px solid ${T.cream}` }}>
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: urg || T.accent, borderRadius: 20, border: `2px solid ${T.cream}` }}>
               <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff" }}>J-{expiryDays} avant la dernière séance</span>
             </div>
           ) : CURRENT_THEME === "bd" ? (
-            <div className="relative inline-block mt-5 px-3.5 py-2" style={{ background: T.alert, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 16 }}>
+            <div className="relative inline-block mt-5 px-3.5 py-2" style={{ background: urg || T.alert, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: 16 }}>
               <span style={{ fontFamily: F.marquee, fontSize: 13, color: "#fff" }}>DISPO ENCORE {expiryDays} JOURS !</span>
               <div className="absolute" style={{ left: 18, bottom: -11, width: 0, height: 0, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: `11px solid ${T.cream}` }} />
-              <div className="absolute" style={{ left: 21.5, bottom: -6.5, width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: `7px solid ${T.alert}` }} />
+              <div className="absolute" style={{ left: 21.5, bottom: -6.5, width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: `7px solid ${urg || T.alert}` }} />
             </div>
           ) : CURRENT_THEME === "jardin" ? (
-            <div className="mt-5 p-4" style={{ background: T.alertSoft, borderRadius: "32px 48px 32px 48px" }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, fontWeight: 700 }}>ENCORE DISPONIBLE</span>
+            <div className="mt-5 p-4" style={{ background: urg ? `${urg}22` : T.alertSoft, borderRadius: "32px 48px 32px 48px" }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.accentSecondary, fontWeight: 700 }}>ENCORE DISPONIBLE</span>
               <p style={{ fontFamily: F.serif, fontSize: 20, color: T.cream, fontStyle: "italic" }}>{expiryDays} jours</p>
             </div>
           ) : CURRENT_THEME === "projectionniste" ? (
-            <div className="inline-block mt-5 px-3.5 py-2" style={{ border: `1px solid ${T.alert}`, borderRadius: 2 }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.5, color: T.alert }}>DISPO ENCORE — J-{expiryDays}</span>
+            <div className="inline-block mt-5 px-3.5 py-2" style={{ border: `1px solid ${urg || T.alert}`, borderRadius: 2 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.5, color: urg || T.alert }}>DISPO ENCORE — J-{expiryDays}</span>
             </div>
           ) : CURRENT_THEME === "kansoHeritage" ? (
-            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: T.accentSoft, borderRadius: 4 }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 1, color: T.accent, fontWeight: 700 }}>DISPO ENCORE</span>
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: urg ? `${urg}22` : T.accentSoft, borderRadius: 4 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 1, color: urg || T.accent, fontWeight: 700 }}>DISPO ENCORE</span>
               <span style={{ fontFamily: F.marquee, fontSize: 13, color: T.cream }}>{expiryDays} jours</span>
             </div>
           )   : CURRENT_THEME === "bento" ? (
-            <div className="inline-flex items-center gap-2 mt-5 px-4 py-2.5" style={{ background: T.accentSoft, borderRadius: 999, boxShadow: T.shadow }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.accent, fontWeight: 800 }}>J-{expiryDays}</span>
+            <div className="inline-flex items-center gap-2 mt-5 px-4 py-2.5" style={{ background: urg ? `${urg}22` : T.accentSoft, borderRadius: 999, boxShadow: T.shadow }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 15, color: urg || T.accent, fontWeight: 800 }}>J-{expiryDays}</span>
               <span style={{ fontFamily: F.mono, fontSize: 9, color: T.cream }}>avant expiration</span>
             </div>
           ) : CURRENT_THEME === "palais" ? (
-            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ border: `1px solid ${T.accent}`, borderRadius: 999 }}>
-              <span style={{ fontFamily: F.serif, fontSize: 15, color: T.accent }}>J-{expiryDays}</span>
+            <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ border: `1px solid ${urg || T.accent}`, borderRadius: 999 }}>
+              <span style={{ fontFamily: F.serif, fontSize: 15, color: urg || T.accent }}>J-{expiryDays}</span>
               <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 9, letterSpacing: 1, color: T.mutedDim }}>DERNIÈRES SÉANCES</span>
             </div>
           ) : CURRENT_THEME === "nvague" ? (
-            <div className="inline-block mt-5 px-3 py-1.5" style={{ background: T.accent, color: T.surface }}>
+            <div className="inline-block mt-5 px-3 py-1.5" style={{ background: urg || T.accent, color: T.surface }}>
               <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700 }}>J-{expiryDays} · QUITTE BIENTÔT LE CATALOGUE</span>
             </div>
           ) : CURRENT_THEME === "popbrutal" ? (
-            <div className="inline-block mt-5 px-4 py-2" style={{ background: T.accent, color: "#fff", border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: "rotate(-1.5deg)" }}>
+            <div className="inline-block mt-5 px-4 py-2" style={{ background: urg || T.accent, color: "#fff", border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: "rotate(-1.5deg)" }}>
               <span style={{ fontFamily: F.marquee, fontSize: 14 }}>J-{expiryDays} AVANT DISPARITION</span>
             </div>
           ) : CURRENT_THEME === "ticket" ? (
-            <div className="relative inline-flex items-center gap-3 mt-4 rounded-xl p-3" style={{ background: T.alertSoft, border: `1px dashed ${T.alert}66` }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 22, color: T.alert }}>J-{expiryDays}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
+            <div className="relative inline-flex items-center gap-3 mt-4 rounded-xl p-3" style={{ background: urg ? `${urg}22` : T.alertSoft, border: `1px dashed ${urg || T.alert}66` }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 22, color: urg || T.alert }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
               <span className="absolute" style={{ left: -6, top: "50%", width: 12, height: 12, borderRadius: "50%", background: T.bg, transform: "translateY(-50%)" }} />
               <span className="absolute" style={{ right: -6, top: "50%", width: 12, height: 12, borderRadius: "50%", background: T.bg, transform: "translateY(-50%)" }} />
             </div>
           ) : CURRENT_THEME === "bleu" ? (
-            <div className="inline-flex items-center gap-3 mt-4 rounded-full px-4 py-2.5" style={{ background: T.alertSoft, boxShadow: `0 0 16px ${T.alert}33` }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 18, color: T.alert }}>J-{expiryDays}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert, letterSpacing: 0.5 }}>DERNIÈRE SÉANCE PRÉVUE</span>
+            <div className="inline-flex items-center gap-3 mt-4 rounded-full px-4 py-2.5" style={{ background: urg ? `${urg}22` : T.alertSoft, boxShadow: `0 0 16px ${urg || T.alert}33` }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 18, color: urg || T.alert }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert, letterSpacing: 0.5 }}>DERNIÈRE SÉANCE PRÉVUE</span>
             </div>
           ) : (
-            <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 22, color: T.alert }}>J-{expiryDays}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
+            <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: urg ? `${urg}22` : T.alertSoft, border: `1px solid ${urg || T.alert}44` }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 22, color: urg || T.alert }}>J-{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
             </div>
-          )
-        )}
+          );
+        })()}
 
         {/* Dates de fin de disponibilité — manuelle et auto — toujours       */}
         {/* affichées ensemble, juste avant le synopsis, quel que soit le     */}
@@ -3338,8 +3428,8 @@ function AlertesListe({ films, field, onOpen }) {
         {flat.map(({ f, days }, i) => (
           <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left py-3"
             style={{ borderBottom: i < flat.length - 1 ? `1px solid ${T.line}` : "none" }}>
-            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: "50%", border: `1px solid ${T.accent}` }}>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600 }}>J-{days}</span>
+            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: "50%", border: `1px solid ${urgencyColor_(days) || T.accent}` }}>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.accent, fontWeight: 600 }}>J-{days}</span>
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
@@ -3363,8 +3453,8 @@ function AlertesListe({ films, field, onOpen }) {
         {flat.map(({ f, days }) => (
           <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-3"
             style={{ background: T.surface, borderRadius: "28px 40px 28px 40px" }}>
-            <span className="flex-shrink-0 px-2.5 py-1" style={{ background: T.accentSecondarySoft, borderRadius: 999 }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, fontWeight: 700 }}>J-{days}</span>
+            <span className="flex-shrink-0 px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSecondarySoft, borderRadius: 999 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urgencyColor_(days) || T.accentSecondary, fontWeight: 700 }}>J-{days}</span>
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
@@ -3387,10 +3477,10 @@ function AlertesListe({ films, field, onOpen }) {
       <div className="relative pl-3" style={{ borderLeft: `2px dashed ${T.line}` }}>
         {flat.map(({ f, days }) => (
           <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left relative mb-4">
-            <span className="absolute flex items-center justify-center" style={{ left: -19, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, borderRadius: "50%", background: T.accent }} />
+            <span className="absolute flex items-center justify-center" style={{ left: -19, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, borderRadius: "50%", background: urgencyColor_(days) || T.accent }} />
             <Poster film={f} className="flex-shrink-0" style={{ width: 38, height: 54, borderRadius: 2, marginLeft: 10 }} />
             <div className="min-w-0 flex-1">
-              <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, fontWeight: 700 }}>J-{days}</p>
+              <p style={{ fontFamily: F.mono, fontSize: 9, color: urgencyColor_(days) || T.accent, fontWeight: 700 }}>J-{days}</p>
               <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
               <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
             </div>
@@ -3416,8 +3506,8 @@ function AlertesListe({ films, field, onOpen }) {
               <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
               <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
             </div>
-            <span className="flex-shrink-0 px-2.5 py-1" style={{ background: T.accentSoft, borderRadius: 999 }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 11, color: T.accent, fontWeight: 800 }}>J-{days}</span>
+            <span className="flex-shrink-0 px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft, borderRadius: 999 }}>
+              <span style={{ fontFamily: F.marquee, fontSize: 11, color: urgencyColor_(days) || T.accent, fontWeight: 800 }}>J-{days}</span>
             </span>
           </button>
         ))}
@@ -3443,7 +3533,7 @@ function AlertesListe({ films, field, onOpen }) {
               <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, fontWeight: 600, color: T.cream }}>{f.titre}</p>
               <p style={{ fontFamily: "'Manrope', sans-serif", fontSize: 9.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
             </div>
-            <span style={{ fontFamily: F.serif, fontSize: 15, color: T.alert, flexShrink: 0 }}>J-{days}</span>
+            <span style={{ fontFamily: F.serif, fontSize: 15, color: urgencyColor_(days) || T.alert, flexShrink: 0 }}>J-{days}</span>
           </button>
         ))}
       </div>
@@ -3464,7 +3554,7 @@ function AlertesListe({ films, field, onOpen }) {
               <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 13, color: T.cream }}>{f.titre}</p>
               <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
             </div>
-            <span style={{ fontFamily: F.mono, fontSize: 12, color: T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 12, color: urgencyColor_(days) || T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
           </button>
         ))}
         {flat.length === 0 && <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>}
@@ -3490,7 +3580,7 @@ function AlertesListe({ films, field, onOpen }) {
                 <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
                 <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8, color: T.muted, marginTop: 1, fontWeight: 700 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
               </div>
-              <span className="flex-shrink-0 px-2 py-1" style={{ background: T.accent, color: "#fff", fontFamily: F.marquee, fontSize: 11 }}>J-{days}</span>
+              <span className="flex-shrink-0 px-2 py-1" style={{ background: urgencyColor_(days) || T.accent, color: "#fff", fontFamily: F.marquee, fontSize: 11 }}>J-{days}</span>
             </button>
           );
         })}
@@ -3512,7 +3602,7 @@ function AlertesListe({ films, field, onOpen }) {
               <p className="truncate" style={{ fontFamily: F.mono, fontSize: 12, color: "#F2F0E8" }}>{f.titre}</p>
               <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#F2F0E880", marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
             </div>
-            <span style={{ fontFamily: F.mono, fontSize: 12, color: T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 12, color: urgencyColor_(days) || T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
           </button>
         ))}
       </div>
@@ -3535,7 +3625,7 @@ function AlertesListe({ films, field, onOpen }) {
               <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
               <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
             </div>
-            <span className="flex-shrink-0 px-2 py-1" style={{ background: T.accentSoft, fontFamily: F.marquee, fontSize: 10, color: T.cream, borderRadius: 999, border: `1px solid ${T.cream}` }}>J-{days}</span>
+            <span className="flex-shrink-0 px-2 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft, fontFamily: F.marquee, fontSize: 10, color: urgencyColor_(days) || T.cream, borderRadius: 999, border: `1px solid ${T.cream}` }}>J-{days}</span>
           </button>
         ))}
       </div>
@@ -3559,7 +3649,7 @@ function AlertesListe({ films, field, onOpen }) {
                 <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
                 {rating != null && <p style={{ color: T.accent, fontSize: 9, marginTop: 2, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>}
               </div>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: T.alert, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.alert, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
             </button>
           );
         })}
@@ -3587,7 +3677,8 @@ function AlertesListe({ films, field, onOpen }) {
     return (
       <div className="flex flex-col gap-3">
         {flat.map(({ f, days }, i) => {
-          const frameColor = frameColors[i % frameColors.length];
+          const urg = urgencyColor_(days);
+          const frameColor = urg || frameColors[i % frameColors.length];
           return (
             <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2" style={{ background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
               <Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} />
@@ -3595,7 +3686,7 @@ function AlertesListe({ films, field, onOpen }) {
                 <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
                 <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
               </div>
-              <span className="flex-shrink-0 px-2 py-1" style={{ background: frameColor, color: CURRENT_THEME === "cacartoon" ? "#fff" : "#000", fontFamily: F.mono, fontSize: 10, fontWeight: 700, borderRadius: CURRENT_THEME === "cacartoon" ? 999 : 2 }}>J-{days}</span>
+              <span className="flex-shrink-0 px-2 py-1" style={{ background: frameColor, color: (urg || CURRENT_THEME === "cacartoon") ? "#fff" : "#000", fontFamily: F.mono, fontSize: 10, fontWeight: 700, borderRadius: CURRENT_THEME === "cacartoon" ? 999 : 2 }}>J-{days}</span>
             </button>
           );
         })}
@@ -3618,7 +3709,7 @@ function AlertesListe({ films, field, onOpen }) {
             <div className="relative flex-shrink-0" style={{ width: 46, height: 64 }}>
               <Poster film={f} className="w-full h-full" style={{ border: `2px solid ${T.cream}`, borderRadius: 3, objectFit: "cover" }} />
               <span className="absolute flex items-center justify-center" style={{
-                top: -12, right: -12, width: 32, height: 32, background: T.accent, color: "#fff",
+                top: -12, right: -12, width: 32, height: 32, background: urgencyColor_(days) || T.accent, color: "#fff",
                 fontFamily: F.marquee, fontSize: 9, transform: "rotate(-10deg)", zIndex: 3,
                 clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
               }}>{`J-${days}`}</span>
@@ -3650,7 +3741,7 @@ function AlertesListe({ films, field, onOpen }) {
           background: `repeating-linear-gradient(0deg, ${T.cream}40 0 4px, transparent 4px 8px)`,
         }} />
         {flat.map(({ f, days }, i) => {
-          const c = colors[Math.min(i, colors.length - 1)];
+          const c = urgencyColor_(days) || colors[Math.min(i, colors.length - 1)];
           return (
             <button key={f.id} onClick={() => onOpen(f)} className="w-full text-left relative flex items-start gap-2.5" style={{ marginBottom: 18 }}>
               <span className="absolute flex items-center justify-center" style={{ left: -34, top: 0, width: 30, height: 30, borderRadius: "50%", background: c, color: "#fff", fontFamily: F.mono, fontSize: 9, fontWeight: 700 }}>J-{days}</span>
@@ -3673,8 +3764,8 @@ function AlertesListe({ films, field, onOpen }) {
           <div className="flex flex-col gap-2">
             {g.items.map(({ f, days }) => (
               <ListResultCard key={f.id} film={f} onOpen={onOpen}
-                right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: T.accentSoft }}>
-                  <span style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 700 }}>J-{days}</span>
+                right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.accent, fontWeight: 700 }}>J-{days}</span>
                 </span></div>} />
             ))}
           </div>
@@ -4080,6 +4171,44 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   const [error, setError] = useState(null);
   const canSubmit = titre.trim() && annee.trim() && plateforme;
 
+  // Recherche TMDb en direct (autocomplete) — évite de taper le titre/année
+  // à l'aveugle et de devoir attendre le prochain passage du script
+  // d'enrichissement pour vérifier qu'on a bien tapé le bon film. Appelle
+  // /api/search-tmdb (nouvelle route à ajouter côté Vercel, voir le fichier
+  // séparé fourni) ; si la route n'existe pas encore, la recherche échoue
+  // silencieusement et l'ajout manuel classique reste disponible.
+  const [tmdbResults, setTmdbResults] = useState([]);
+  const [tmdbLoading, setTmdbLoading] = useState(false);
+  const [tmdbOpen, setTmdbOpen] = useState(false);
+  const [titreTouchedByUser, setTitreTouchedByUser] = useState(false);
+  useEffect(() => {
+    if (!titreTouchedByUser || titre.trim().length < 2) { setTmdbResults([]); return; }
+    const controller = new AbortController();
+    const t = setTimeout(async () => {
+      setTmdbLoading(true);
+      try {
+        const res = await fetch(`/api/search-tmdb?q=${encodeURIComponent(titre.trim())}`, { signal: controller.signal });
+        if (res.ok) {
+          const data = await res.json();
+          setTmdbResults(Array.isArray(data.results) ? data.results.slice(0, 6) : []);
+          setTmdbOpen(true);
+        }
+      } catch {
+        // Route pas encore déployée ou hors-ligne — on se tait, l'ajout manuel reste possible.
+      } finally {
+        setTmdbLoading(false);
+      }
+    }, 400);
+    return () => { clearTimeout(t); controller.abort(); };
+  }, [titre, titreTouchedByUser]);
+
+  const pickTmdbResult = (r) => {
+    setTitre(r.titre);
+    if (r.annee) setAnnee(String(r.annee));
+    setTmdbOpen(false);
+    setTitreTouchedByUser(false);
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSaving(true);
@@ -4113,9 +4242,40 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="NOUVELLE ENTRÉE" onBack={() => setType(null)} onMenu={onMenu} />
       <SectionLabel>IDENTIFICATION</SectionLabel>
-      <label className="block mb-4">
+      <label className="block mb-4 relative">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE *</span>
-        <input value={titre} onChange={(e) => setTitre(e.target.value)} className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }} />
+        <input
+          value={titre}
+          onChange={(e) => { setTitre(e.target.value); setTitreTouchedByUser(true); }}
+          onFocus={() => { if (tmdbResults.length > 0) setTmdbOpen(true); }}
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
+          style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }}
+        />
+        {tmdbLoading && (
+          <span className="absolute" style={{ right: 12, top: 38 }}>
+            <RefreshCw size={14} color={T.mutedDim} style={{ animation: "spin 0.8s linear infinite" }} />
+          </span>
+        )}
+        {tmdbOpen && tmdbResults.length > 0 && (
+          <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg overflow-hidden" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}`, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+            {tmdbResults.map((r, i) => (
+              <button key={i} onClick={() => pickTmdbResult(r)} className="w-full flex items-center gap-2.5 px-3 py-2 text-left"
+                style={{ borderBottom: i < tmdbResults.length - 1 ? `1px solid ${T.line}` : "none" }}>
+                {r.affiche ? (
+                  <img src={r.affiche} alt={r.titre} className="flex-shrink-0 rounded" style={{ width: 30, height: 42, objectFit: "cover" }} />
+                ) : (
+                  <span className="flex-shrink-0 rounded flex items-center justify-center" style={{ width: 30, height: 42, background: T.surface }}>
+                    <Film size={12} color={T.mutedDim} />
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <span className="block truncate" style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>{r.titre}</span>
+                  <span className="block" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{r.annee || "—"}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </label>
       <label className="block mb-4">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>ANNÉE *</span>
@@ -4257,9 +4417,20 @@ function ThemesScreen({ theme, onChangeTheme, onBack, onMenu, leaderEnabled, onT
               const active = theme === key;
               return (
                 <div key={key}>
-                  <button onClick={() => onChangeTheme(key)} className="w-full flex items-center justify-between rounded-xl px-4 py-3"
+                  <button onClick={() => onChangeTheme(key)} className="w-full flex items-center gap-3 rounded-xl px-4 py-3"
                     style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}` }}>
-                    <span style={{ fontFamily: F.serif, fontSize: 13.5, color: active ? T.accent : T.cream }}>{t.label}</span>
+                    {/* Aperçu : 3 pastilles des couleurs clés du thème +     */}
+                    {/* échantillon "Aa" dans la police titre du thème —      */}
+                    {/* permet de reconnaître un thème sans y entrer.         */}
+                    <span className="flex items-center flex-shrink-0" style={{ gap: 3 }}>
+                      {[t.colors.accent, t.colors.accentSecondary, t.colors.gold || t.colors.accentSoft].map((c, i) => (
+                        <span key={i} style={{ width: 12, height: 12, borderRadius: "50%", background: c, border: `1px solid ${t.colors.bg}55`, flexShrink: 0 }} />
+                      ))}
+                    </span>
+                    <span className="flex items-center justify-center flex-shrink-0 rounded-md" style={{ width: 30, height: 30, background: t.colors.bg }}>
+                      <span style={{ fontFamily: t.fonts.marquee, fontSize: 14, color: t.colors.accent }}>Aa</span>
+                    </span>
+                    <span className="flex-1 text-left" style={{ fontFamily: F.serif, fontSize: 13.5, color: active ? T.accent : T.cream }}>{t.label}</span>
                     {active && <Check size={16} color={T.accent} />}
                   </button>
                   {/* Le Projectionniste : bouton dédié pour activer/désactiver le    */}
@@ -4292,6 +4463,31 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = () => { setRefreshing(true); onRefresh(); setTimeout(() => setRefreshing(false), 900); };
 
+  // Notifications locales — réglage propre à cet appareil (localStorage),
+  // comme le thème ou le compte à rebours du Projectionniste. La demande de
+  // permission navigateur doit venir d'un vrai clic utilisateur, donc on ne
+  // l'appelle qu'ici, jamais automatiquement au chargement.
+  const [notifEnabled, setNotifEnabled] = useState(getStoredNotifEnabled_());
+  const [notifSeuil, setNotifSeuil] = useState(getStoredNotifSeuil_());
+  const [notifPermission, setNotifPermission] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
+  );
+  const toggleNotif = async () => {
+    if (typeof Notification === "undefined") { window.alert("Les notifications ne sont pas prises en charge sur ce navigateur."); return; }
+    if (!notifEnabled) {
+      const perm = await Notification.requestPermission();
+      setNotifPermission(perm);
+      if (perm !== "granted") { window.alert("Autorisation refusée — active les notifications dans les réglages de ton iPhone pour ce site si tu changes d'avis."); return; }
+    }
+    const next = !notifEnabled;
+    setNotifEnabled(next);
+    try { localStorage.setItem("cinemaison_notif_enabled", next ? "1" : "0"); } catch {}
+  };
+  const changeNotifSeuil = (v) => {
+    setNotifSeuil(v);
+    try { localStorage.setItem("cinemaison_notif_seuil", String(v)); } catch {}
+  };
+
   return (
     <div className="flex-1 overflow-y-auto pull-scroll pb-8 px-5">
       <ScreenHeader title="RÉGLAGES" onBack={onBack} onMenu={onMenu} />
@@ -4306,6 +4502,33 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
       </button>
       <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
         {Object.keys(THEMES).length} thèmes, groupés par famille. Ton choix est mémorisé sur cet appareil.
+      </p>
+
+      <SectionLabel>NOTIFICATIONS</SectionLabel>
+      <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+        <div className="pr-3">
+          <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Alertes d'expiration</p>
+          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 2 }}>Sur cet appareil uniquement</p>
+        </div>
+        <button onClick={toggleNotif} className="flex-shrink-0 rounded-full px-3 py-1.5" style={{ background: notifEnabled ? T.accentSoft : T.surfaceRaised, border: `1px solid ${notifEnabled ? T.accent + "66" : T.line}` }}>
+          <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: notifEnabled ? T.accent : T.mutedDim }}>{notifEnabled ? "ACTIVÉES" : "DÉSACTIVÉES"}</span>
+        </button>
+      </div>
+      {notifEnabled && (
+        <div className="flex items-center justify-between rounded-xl px-4 py-2.5 mt-2" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <span style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>Me prévenir dès</span>
+          <div className="flex gap-1.5">
+            {[2, 5].map((v) => (
+              <button key={v} onClick={() => changeNotifSeuil(v)} className="rounded-full px-3 py-1.5"
+                style={{ background: notifSeuil === v ? T.accentSoft : T.surfaceRaised, border: `1px solid ${notifSeuil === v ? T.accent + "66" : T.line}` }}>
+                <span style={{ fontFamily: F.mono, fontSize: 10, color: notifSeuil === v ? T.accent : T.mutedDim, fontWeight: 700 }}>J-{v}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+        Notification locale à l'ouverture de l'appli (pas d'alerte si l'appli est fermée en arrière-plan). Réglage propre à cet iPhone — à refaire si tu changes d'appareil.
       </p>
 
       <SectionLabel>NOMBRE DE FILMS SUR L'ACCUEIL</SectionLabel>
@@ -4793,6 +5016,34 @@ export default function App() {
   useEffect(() => {
     setNbAccueilState(getStoredNbAccueil_());
   }, []);
+
+  // Notifications locales : à chaque chargement de la bibliothèque (donc à
+  // l'ouverture de l'appli, ou quand elle revient au premier plan grâce au
+  // listener plus haut), vérifie s'il y a des films sous le seuil choisi et
+  // envoie UNE notification récap par jour (pas une par film, pour ne pas
+  // spammer). "Une fois par jour" = pas de re-déclenchement si l'appli est
+  // rouverte plusieurs fois le même jour.
+  useEffect(() => {
+    if (!films || !getStoredNotifEnabled_()) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (getLastNotifDate_() === todayKey) return;
+    const seuil = getStoredNotifSeuil_();
+    const urgents = films
+      .map((f) => ({ f, days: computeExpiryDays(f) }))
+      .filter((x) => x.days != null && x.days >= 0 && x.days <= seuil);
+    if (urgents.length === 0) { setLastNotifDate_(todayKey); return; }
+    urgents.sort((a, b) => a.days - b.days);
+    const titres = urgents.slice(0, 3).map((x) => x.f.titre).join(", ");
+    const suffix = urgents.length > 3 ? ` (+${urgents.length - 3} autres)` : "";
+    try {
+      new Notification("CinéMaison — ça part bientôt", {
+        body: `${titres}${suffix}`,
+        icon: "/logos/canal.png",
+      });
+    } catch {}
+    setLastNotifDate_(todayKey);
+  }, [films]);
 
   const setNbAccueil = (n) => {
     setNbAccueilState(n);
