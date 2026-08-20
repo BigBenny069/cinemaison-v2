@@ -1555,6 +1555,16 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         <>
           {suggestion && (
             <div className="px-4 mb-6">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="inline-flex items-center gap-2">
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: T.accent, flexShrink: 0 }} />
+                  <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.gold }}>SUGGESTION DU SOIR</span>
+                </span>
+                <button onClick={reshuffleSuggestion} className="flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised }}>
+                  <RefreshCw size={11} color={T.gold} />
+                  <span style={{ fontFamily: F.mono, fontSize: 9, color: T.gold, fontWeight: 700 }}>REJOUER</span>
+                </button>
+              </div>
               <div className="relative overflow-hidden mb-2.5" style={{ height: 60, borderRadius: T.radiusSm }}>
                 <div className="absolute" style={{ background: T.accent, width: "55%", height: "70%", top: "-15%", left: "-6%", transform: "rotate(-3deg)", opacity: 0.9 }} />
                 <div className="absolute" style={{ background: T.accentSecondary, width: "45%", height: "65%", top: "-8%", right: "-6%", transform: "rotate(4deg)", opacity: 0.9 }} />
@@ -1579,12 +1589,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   </div>
                 </div>
               </button>
-              <div className="flex justify-end mt-2">
-                <button onClick={reshuffleSuggestion} className="flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised }}>
-                  <RefreshCw size={11} color={T.gold} />
-                  <span style={{ fontFamily: F.mono, fontSize: 9, color: T.gold, fontWeight: 700 }}>REJOUER</span>
-                </button>
-              </div>
             </div>
           )}
 
