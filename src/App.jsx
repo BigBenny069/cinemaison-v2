@@ -817,17 +817,17 @@ function DateStamp({ days }) {
   );
 }
 
-// Springfield : lettrage jaune à contour bleu net, technique double calque
-// (span arrière avec -webkit-text-stroke plein pour le contour + span avant
-// sans stroke pour l'aplat jaune). Contour à 3px (au lieu de 6px initial) —
-// à 6px, les traits de lettres voisines se touchaient et donnaient un effet
-// "collé"/cursive sur les titres aux lettres plus resserrées (ÇA PART
-// BIENTÔT, DERNIERS AJOUTS), alors que SUGGESTION DU SOIR (plus long,
-// mieux espacé) ne montrait pas le problème.
+// Springfield : lettrage jaune à contour bleu épais net, technique double
+// calque (span arrière avec -webkit-text-stroke plein pour le contour +
+// span avant sans stroke pour l'aplat jaune) — variante A validée par Ben.
+// IMPORTANT : ne jamais mettre de padding (px-*, mx-*) directement sur ce
+// composant — le calque de contour est positionné en absolu par rapport au
+// bord du padding et se désaligne du texte visible. Le padding doit toujours
+// être posé sur un <div> englobant, pas sur SpringfieldTitle lui-même.
 function SpringfieldTitle({ children, className }) {
   return (
     <p className={className} style={{ fontFamily: F.marquee, fontSize: 17, letterSpacing: 1.5, position: "relative", margin: 0 }}>
-      <span aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, color: "transparent", WebkitTextStroke: `3px ${T.accentSecondary}` }}>{children}</span>
+      <span aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, color: "transparent", WebkitTextStroke: `6px ${T.accentSecondary}` }}>{children}</span>
       <span style={{ position: "relative", color: T.gold }}>{children}</span>
     </p>
   );
@@ -1500,7 +1500,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
           {bientot.length > 0 && (
             <>
-              <SpringfieldTitle className="relative px-4 mb-2.5">ÇA PART BIENTÔT</SpringfieldTitle>
+              <div className="relative px-4 mb-2.5">
+                <SpringfieldTitle>ÇA PART BIENTÔT</SpringfieldTitle>
+              </div>
               <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
                 {bientot.map((f) => {
                   const days = computeExpiryDays(f);
@@ -1526,7 +1528,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
           {derniers.length > 0 && (
             <>
-              <SpringfieldTitle className="relative px-4 mb-2.5">DERNIERS AJOUTS</SpringfieldTitle>
+              <div className="relative px-4 mb-2.5">
+                <SpringfieldTitle>DERNIERS AJOUTS</SpringfieldTitle>
+              </div>
               <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
                   <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
