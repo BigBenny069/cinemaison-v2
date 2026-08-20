@@ -1185,11 +1185,27 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     if (eligibles.length === 0) eligibles = nonArchives.length > 0 ? nonArchives : films;
     const bucket = DUREE_BUCKETS.find((b) => b.id === bucketId);
     if (bucket) {
-      const withDuration = eligibles.filter((f) => {
+      const matchesBucket = (f) => {
         const mins = parseDureeMinutes(f.duree);
         return mins != null && mins >= bucket.min && mins <= bucket.max;
-      });
-      if (withDuration.length > 0) eligibles = withDuration;
+      };
+      // Priorité : Film + bonne durée. Si aucun (fréquent pour "Court",
+      // rare chez les longs-métrages), on élargit à TOUS les types plutôt
+      // que d'ignorer complètement le filtre de durée en silence — l'écart
+      // observé (choisir "Court" et voir un film de 1h59) venait d'ici :
+      // le repli précédent abandonnait la durée dès que le type "Film"
+      // n'avait aucun candidat, alors que Séries/Spectacles/etc. pouvaient
+      // très bien correspondre au créneau demandé.
+      const filmsMatch = eligibles.filter(matchesBucket);
+      if (filmsMatch.length > 0) {
+        eligibles = filmsMatch;
+      } else {
+        const anyTypeMatch = nonArchives.filter(matchesBucket);
+        if (anyTypeMatch.length > 0) eligibles = anyTypeMatch;
+        // Sinon (aucune fiche, tous types confondus, ne rentre dans ce
+        // créneau) : on garde le pool précédent sans filtre de durée —
+        // seul cas où le filtre est ignoré, faute d'alternative.
+      }
     }
     return eligibles;
   };
