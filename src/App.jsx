@@ -1195,20 +1195,23 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     }
     return eligibles;
   };
-  // Tire un film dans le pool en favorisant ceux qui expirent le plus tôt
-  // (parmi le tiers le plus urgent du pool, si assez de films) — plutôt
-  // qu'un tirage 100% uniforme, pour que la suggestion serve aussi de
-  // pense-bête sur ce qui part bientôt.
+  // Tire un film dans le pool en favorisant (sans jamais exclure) ceux qui
+  // expirent bientôt — tirage pondéré plutôt que restreint à un sous-groupe
+  // "urgent" : l'ancienne version limitait le tirage aux seuls films ayant
+  // une date d'expiration connue, ce qui donnait l'impression de toujours
+  // revoir les 3 mêmes titres dès que le pool filtré était petit (ex. les
+  // films de moins de 60min, dont peu ont une date renseignée).
   const pickFromPool_ = (pool, exclude) => {
     if (pool.length === 0) return null;
-    const withDays = pool.map((f) => ({ f, days: computeExpiryDays(f) }));
-    const urgent = withDays.filter((x) => x.days != null && x.days >= 0).sort((a, b) => a.days - b.days);
-    const topCount = Math.max(3, Math.ceil(urgent.length / 3));
-    const candidatePool = urgent.length >= 3 ? urgent.slice(0, topCount).map((x) => x.f) : pool;
-    if (candidatePool.length <= 1) return candidatePool[0];
-    let next;
-    do { next = candidatePool[Math.floor(Math.random() * candidatePool.length)]; } while (exclude && next.id === exclude.id && candidatePool.length > 1);
-    return next;
+    const candidates = exclude && pool.length > 1 ? pool.filter((f) => f.id !== exclude.id) : pool;
+    if (candidates.length === 0) return pool[0];
+    const weighted = [];
+    candidates.forEach((f) => {
+      const days = computeExpiryDays(f);
+      const weight = days != null && days >= 0 ? 3 : 1; // urgent = 3x plus de chances, jamais 0
+      for (let i = 0; i < weight; i++) weighted.push(f);
+    });
+    return weighted[Math.floor(Math.random() * weighted.length)];
   };
 
   const [suggestion, setSuggestion] = useState(() => pickFromPool_(buildSuggestionPool_(null), null));
