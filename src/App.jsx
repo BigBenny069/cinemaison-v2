@@ -1573,7 +1573,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               </div>
               <button onClick={() => onOpen(suggestion)} className="relative w-full text-left overflow-hidden" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accent}`, borderRadius: T.radius }}>
                 <div style={{ height: 6, background: `linear-gradient(90deg, ${T.accent}, ${T.gold}, ${T.accentSecondary}, ${T.accentTertiary})` }} />
-                <div className="flex gap-3 p-3">
+                <div className="flex gap-3 p-3" style={{ minHeight: 92 }}>
                   <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, borderRadius: 6, objectFit: "cover" }} />
                   <div className="min-w-0 flex flex-col justify-center">
                     <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream }}>{suggestion.titre}</p>
@@ -1583,9 +1583,11 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
                       )}
                     </p>
-                    {suggestion.synopsis && (
-                      <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
-                    )}
+                    {/* Hauteur fixe (2 lignes réservées, même vides) — sans   */}
+                    {/* ça, un synopsis d'une seule ligne (ou absent) réduit   */}
+                    {/* la hauteur de la carte et fait varier l'écart avec le  */}
+                    {/* menu suivant d'une suggestion à l'autre.               */}
+                    <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.4, height: 28, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis || ""}</p>
                   </div>
                 </div>
               </button>
