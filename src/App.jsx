@@ -1185,27 +1185,13 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     if (eligibles.length === 0) eligibles = nonArchives.length > 0 ? nonArchives : films;
     const bucket = DUREE_BUCKETS.find((b) => b.id === bucketId);
     if (bucket) {
-      const matchesBucket = (f) => {
+      // Filtre strict : si rien ne correspond au créneau choisi, le pool
+      // reste vide (pas de repli sur un autre film) — l'Accueil affiche
+      // alors un message plutôt que de proposer une durée non demandée.
+      eligibles = eligibles.filter((f) => {
         const mins = parseDureeMinutes(f.duree);
         return mins != null && mins >= bucket.min && mins <= bucket.max;
-      };
-      // Priorité : Film + bonne durée. Si aucun (fréquent pour "Court",
-      // rare chez les longs-métrages), on élargit à TOUS les types plutôt
-      // que d'ignorer complètement le filtre de durée en silence — l'écart
-      // observé (choisir "Court" et voir un film de 1h59) venait d'ici :
-      // le repli précédent abandonnait la durée dès que le type "Film"
-      // n'avait aucun candidat, alors que Séries/Spectacles/etc. pouvaient
-      // très bien correspondre au créneau demandé.
-      const filmsMatch = eligibles.filter(matchesBucket);
-      if (filmsMatch.length > 0) {
-        eligibles = filmsMatch;
-      } else {
-        const anyTypeMatch = nonArchives.filter(matchesBucket);
-        if (anyTypeMatch.length > 0) eligibles = anyTypeMatch;
-        // Sinon (aucune fiche, tous types confondus, ne rentre dans ce
-        // créneau) : on garde le pool précédent sans filtre de durée —
-        // seul cas où le filtre est ignoré, faute d'alternative.
-      }
+      });
     }
     return eligibles;
   };
@@ -1297,6 +1283,23 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filtre durée strict : aucun film ne correspond au créneau choisi —  */}
+      {/* affiché une seule fois ici (indépendant du thème actif) plutôt que  */}
+      {/* de laisser chaque rendu par thème deviner un état vide différent.   */}
+      {!suggestion && dureeFiltre && (
+        <div className="px-4 mb-6">
+          <div className="rounded-xl p-4 text-center" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
+            <Clock size={18} color={T.mutedDim} style={{ margin: "0 auto 8px" }} />
+            <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>
+              Pas de film disponible sur le temps choisi
+            </p>
+            <button onClick={() => changeDureeFiltre(null)} className="mt-2" style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 700 }}>
+              VOIR TOUS LES FILMS
+            </button>
           </div>
         </div>
       )}
@@ -3975,9 +3978,15 @@ const DUREE_BUCKETS = [
 ];
 function parseDureeMinutes(d) {
   if (!d) return null;
-  const m = String(d).match(/(\d+)h\s*(\d+)?/);
-  if (!m) return null;
-  return Number(m[1]) * 60 + Number(m[2] || 0);
+  const s = String(d).trim();
+  // Format "1h48" / "2h" — heures (+ minutes optionnelles)
+  const hm = s.match(/(\d+)\s*h\s*(\d+)?/i);
+  if (hm) return Number(hm[1]) * 60 + Number(hm[2] || 0);
+  // Format "23min" / "18 min" — courts-métrages sans heure, ignorés avant
+  // ce correctif (donc invisibles dans tous les filtres de durée).
+  const m = s.match(/(\d+)\s*min/i);
+  if (m) return Number(m[1]);
+  return null;
 }
 
 function PillGroup({ label, options, value, onChange, renderLabel }) {
