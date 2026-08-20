@@ -1153,6 +1153,13 @@ function LeaderCountdown({ onDone }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN ACCUEIL                                                       */
 /* ------------------------------------------------------------------ */
+// Accueil est démonté/remonté à chaque navigation (ouvrir une fiche, revenir
+// en arrière), ce qui effacerait le filtre de durée et la suggestion tirée
+// à chaque fois sans ce filet — même mécanisme que explorerFiltersState_
+// pour l'écran Explorer.
+let accueilDureeFiltre_ = null;
+let accueilSuggestionId_ = null;
+
 function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbAccueil }) {
   if (CURRENT_THEME === "nvague") NVAGUE_SECTION_COUNTER.n = 0; // repart à 01 à chaque passage sur l'Accueil
   const bientot = useMemo(() => {
@@ -1176,8 +1183,10 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
   // "Ce soir on a X minutes" — filtre optionnel de durée pour la
   // suggestion, qui priorise en plus les films qui expirent bientôt parmi
   // ceux qui rentrent dans le créneau choisi (combine les deux forces de
-  // l'appli : bibliothèque + urgence d'expiration).
-  const [dureeFiltre, setDureeFiltre] = useState(null); // null = "Tous", sinon un id de DUREE_BUCKETS
+  // l'appli : bibliothèque + urgence d'expiration). Initialisé depuis la
+  // variable module-level pour survivre à l'aller-retour vers une fiche.
+  const [dureeFiltre, setDureeFiltreState] = useState(accueilDureeFiltre_);
+  const setDureeFiltre = (v) => { accueilDureeFiltre_ = v; setDureeFiltreState(v); };
 
   const buildSuggestionPool_ = (bucketId) => {
     const nonArchives = films.filter((f) => !isArchived(f));
@@ -1214,7 +1223,21 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     return weighted[Math.floor(Math.random() * weighted.length)];
   };
 
-  const [suggestion, setSuggestion] = useState(() => pickFromPool_(buildSuggestionPool_(null), null));
+  // Suggestion elle-même mémorisée par id — évite qu'ouvrir une fiche puis
+  // revenir en arrière retire un nouveau film au hasard (perturbant si on
+  // voulait justement revenir à cette suggestion après avoir juste consulté
+  // le détail d'un autre film depuis "Ça part bientôt" par exemple).
+  const [suggestion, setSuggestionState] = useState(() => {
+    const remembered = accueilSuggestionId_ ? films.find((f) => f.id === accueilSuggestionId_) : null;
+    return remembered || pickFromPool_(buildSuggestionPool_(accueilDureeFiltre_), null);
+  });
+  const setSuggestion = (updater) => {
+    setSuggestionState((current) => {
+      const next = typeof updater === "function" ? updater(current) : updater;
+      accueilSuggestionId_ = next ? next.id : null;
+      return next;
+    });
+  };
   // Bouton "changer la suggestion" — retire un nouveau film dans le pool
   // courant (respecte le filtre de durée actif), en évitant si possible de
   // retomber sur le même.
