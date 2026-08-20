@@ -694,26 +694,102 @@ function FilmSprockets({ count = 7 }) {
   );
 }
 
-// Bouton "Bande-annonce" — n'apparaît que si film.urlBandeAnnonce est
-// renseigné (rempli par le script d'enrichissement via TMDb). Ouvre le
-// lien YouTube dans un nouvel onglet.
-function TrailerButton({ url }) {
+// Extrait l'ID d'une vidéo YouTube à partir des formats d'URL courants
+// (watch?v=, youtu.be/, embed/). Renvoie null si le format n'est pas
+// reconnu — le trailer inline (Chaîne Cryptée) se rabat alors sur le
+// bouton "TRAILER" classique qui ouvre le lien externe.
+function extractYoutubeId_(url) {
   if (!url) return null;
+  const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+// Chaîne Cryptée : lecture automatique de la bande-annonce à la place de
+// l'affiche, comme sur myCanal — vidéo intégrée en iframe (jamais un lien
+// vers l'appli/le site YouTube), démarrée en muet après quelques secondes
+// sur la fiche, avec un bouton pour couper/remettre le son. YouTube reste
+// l'hébergeur de la vidéo (impossible de retirer une éventuelle pub sans
+// contourner leur système, ce qu'on ne fait pas), mais rien ne sort jamais
+// de l'appli : pas de logo cliquable vers YouTube, pas de suggestions.
+function InlineTrailer({ youtubeId, muted, onToggleMute }) {
+  const params = new URLSearchParams({
+    autoplay: "1",
+    mute: muted ? "1" : "0",
+    controls: "0",
+    modestbranding: "1",
+    rel: "0",
+    showinfo: "0",
+    iv_load_policy: "3",
+    playsinline: "1",
+    loop: "1",
+    playlist: youtubeId,
+  });
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className="relative inline-flex flex-col rounded-lg overflow-hidden flex-shrink-0"
-      style={{ border: `1.5px solid ${T.accent}` }}
-    >
-      <div className="px-1 pt-1" style={{ background: `${T.accent}22` }}><FilmSprockets /></div>
-      <div className="flex items-center gap-2 px-3 py-1.5">
-        <Play size={13} color={T.accent} fill={T.accent} strokeWidth={0} />
-        <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 0.5, color: T.accent, fontWeight: 600 }}>TRAILER</span>
-      </div>
-      <div className="px-1 pb-1" style={{ background: `${T.accent}22` }}><FilmSprockets /></div>
-    </a>
+    <div className="absolute inset-0" style={{ overflow: "hidden", pointerEvents: "none" }}>
+      <iframe
+        src={`https://www.youtube-nocookie.com/embed/${youtubeId}?${params.toString()}`}
+        title="Bande-annonce"
+        allow="autoplay; encrypted-media"
+        style={{
+          position: "absolute", top: "50%", left: "50%", width: "100%", height: "100%",
+          // Légèrement surdimensionnée puis recentrée pour masquer la barre
+          // de titre YouTube qui dépasse en haut/bas malgré modestbranding.
+          minWidth: "177.77vh", minHeight: "56.25vw",
+          transform: "translate(-50%, -50%) scale(1.15)",
+          border: "none", pointerEvents: "none",
+        }}
+      />
+      <button
+        onClick={onToggleMute}
+        className="absolute flex items-center justify-center"
+        style={{ bottom: 14, right: 14, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.55)", pointerEvents: "auto" }}
+      >
+        {muted ? <span style={{ color: "#fff", fontSize: 13 }}>🔇</span> : <span style={{ color: "#fff", fontSize: 13 }}>🔊</span>}
+      </button>
+    </div>
+  );
+}
+
+// Bouton "Bande-annonce" — n'apparaît que si film.urlBandeAnnonce est
+// renseigné (rempli par le script d'enrichissement via TMDb). Ouvre la
+// vidéo dans un lecteur plein écran intégré à l'appli (jamais un onglet
+// YouTube externe) — même logique que la loupe sur l'affiche plus bas.
+function TrailerButton({ url }) {
+  const [open, setOpen] = useState(false);
+  const youtubeId = extractYoutubeId_(url);
+  if (!url || !youtubeId) return null;
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="relative inline-flex flex-col rounded-lg overflow-hidden flex-shrink-0"
+        style={{ border: `1.5px solid ${T.accent}` }}
+      >
+        <div className="px-1 pt-1" style={{ background: `${T.accent}22` }}><FilmSprockets /></div>
+        <div className="flex items-center gap-2 px-3 py-1.5">
+          <Play size={13} color={T.accent} fill={T.accent} strokeWidth={0} />
+          <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 0.5, color: T.accent, fontWeight: 600 }}>TRAILER</span>
+        </div>
+        <div className="px-1 pb-1" style={{ background: `${T.accent}22` }}><FilmSprockets /></div>
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "#000" }}>
+          <button onClick={() => setOpen(false)} className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(255,255,255,0.12)", zIndex: 2 }}>
+            <X size={18} color="#fff" />
+          </button>
+          <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&playsinline=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`}
+              title="Bande-annonce"
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -2871,6 +2947,20 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
   };
   const [posterOpen, setPosterOpen] = useState(false);
 
+  // Chaîne Cryptée : lance la bande-annonce en muet ~3.5s après l'arrivée
+  // sur la fiche, façon myCanal — seulement si un lien YouTube exploitable
+  // est disponible. Réinitialisé à chaque changement de fiche (film.id).
+  const [showTrailer, setShowTrailer] = useState(false);
+  const [trailerMuted, setTrailerMuted] = useState(true);
+  const youtubeId = extractYoutubeId_(film.urlBandeAnnonce);
+  useEffect(() => {
+    setShowTrailer(false);
+    setTrailerMuted(true);
+    if (CURRENT_THEME !== "canalplus" || !youtubeId) return;
+    const t = setTimeout(() => setShowTrailer(true), 3500);
+    return () => clearTimeout(t);
+  }, [film.id, youtubeId]);
+
   if (editing) {
     return (
       <EditFilmScreen
@@ -2923,6 +3013,18 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(13,13,13,0.1) 40%, ${T.bg} 100%)` }} />
           </div>
         </div>
+      ) : CURRENT_THEME === "canalplus" ? (
+        /* Chaîne Cryptée : bande-annonce en lecture automatique après       */
+        /* quelques secondes, à la place de l'affiche — comme sur myCanal.   */
+        <div className="relative" style={{ height: 340 }}>
+          <div onClick={() => !showTrailer && setPosterOpen(true)} className="relative w-full h-full" style={{ cursor: showTrailer ? "default" : "pointer" }}>
+            <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
+            {showTrailer && youtubeId && (
+              <InlineTrailer youtubeId={youtubeId} muted={trailerMuted} onToggleMute={() => setTrailerMuted((v) => !v)} />
+            )}
+            <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,16,12,0.1) 40%, ${T.bg} 100%)`, pointerEvents: "none" }} />
+          </div>
+        </div>
       ) : (
         <div onClick={() => setPosterOpen(true)} className="relative" style={{ height: 340, cursor: "pointer" }}>
           {/* Table lumineuse : sprockets masqués ici — le titre remonte    */}
@@ -2943,17 +3045,17 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         </p>
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
           <PlatformIcon label={film.plateforme} />
-          {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
+          <TrailerButton url={film.urlBandeAnnonce} />
         </div>
 
-        {/* Chaîne Cryptée : gros bouton "BANDE-ANNONCE" façon CTA de        */}
-        {/* lecture, et en dessous un lien Letterboxd + Modifier — pas de    */}
-        {/* favori/alerte/partager, l'appli n'a pas ces fonctions ailleurs.  */}
-        {CURRENT_THEME === "canalplus" && film.urlBandeAnnonce && (
-          <a href={film.urlBandeAnnonce} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 mt-4 py-3.5 rounded-lg" style={{ background: T.accent }}>
+        {/* Chaîne Cryptée : en plus du bouton "TRAILER" ci-dessus (présent   */}
+        {/* sur tous les thèmes), la lecture s'enchaîne aussi automatiquement */}
+        {/* à l'arrivée sur la fiche — spécificité propre à ce thème.         */}
+        {CURRENT_THEME === "canalplus" && youtubeId && (
+          <button onClick={() => setShowTrailer(true)} className="flex items-center justify-center gap-2 mt-4 py-3.5 rounded-lg w-full" style={{ background: T.accent }}>
             <Play size={15} color="#fff" fill="#fff" strokeWidth={0} />
-            <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff", letterSpacing: 1 }}>BANDE-ANNONCE</span>
-          </a>
+            <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff", letterSpacing: 1 }}>{showTrailer ? "REVOIR LA BANDE-ANNONCE" : "VOIR LA BANDE-ANNONCE"}</span>
+          </button>
         )}
 
         {archived ? (
