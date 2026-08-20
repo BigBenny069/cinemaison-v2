@@ -3144,6 +3144,20 @@ function normalizeSearch(s) {
   return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+// Devine l'URL Letterboxd la plus probable à partir du titre — Letterboxd
+// n'a pas d'API de recherche publique (contrairement à TMDb), donc pas de
+// vraie autocomplete possible ici. Le format d'URL Letterboxd suit presque
+// toujours ce schéma (titre en minuscules, sans accents, espaces -> tirets),
+// donc cette estimation tombe juste la plupart du temps, mais reste une
+// estimation — d'où le bouton "Vérifier sur Letterboxd" à côté pour corriger
+// en un clic si besoin.
+function slugifyLetterboxd_(titre) {
+  return normalizeSearch(titre)
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+}
+
 function matchFilm(film, query) {
   const q = normalizeSearch(query);
   if (!q) return null;
@@ -4232,6 +4246,11 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   const pickTmdbResult = (r) => {
     setTitre(r.titre);
     if (r.annee) setAnnee(String(r.annee));
+    // Pré-remplit une estimation du lien Letterboxd — seulement si le champ
+    // est encore vide, pour ne jamais écraser une saisie manuelle existante.
+    if (!urlLetterboxd.trim() && r.titre) {
+      setUrlLetterboxd(`https://letterboxd.com/film/${slugifyLetterboxd_(r.titre)}/`);
+    }
     setTmdbOpen(false);
     setTitreTouchedByUser(false);
   };
@@ -4333,6 +4352,17 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
         <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/…"
           className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+        {/* Letterboxd n'a pas d'API de recherche publique — le lien ci-dessus */}
+        {/* n'est qu'une estimation basée sur le titre quand rempli via TMDb.  */}
+        {/* Ce lien ouvre la recherche officielle Letterboxd pour vérifier/    */}
+        {/* corriger en un clic plutôt que de deviner à l'aveugle. */}
+        {titre.trim() && (
+          <a href={`https://letterboxd.com/search/films/${encodeURIComponent(titre.trim())}/`} target="_blank" rel="noreferrer"
+            className="inline-flex items-center gap-1.5 mt-2">
+            <ExternalLink size={11} color={T.accentSecondary} />
+            <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary }}>Vérifier sur Letterboxd</span>
+          </a>
+        )}
       </label>
       {error && (
         <div className="rounded-lg p-3 mb-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
