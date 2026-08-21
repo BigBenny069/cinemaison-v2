@@ -4704,6 +4704,25 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
     try { localStorage.setItem("cinemaison_notif_seuil", String(v)); } catch {}
   };
 
+  // Relance en masse l'enrichissement des fiches sans bande-annonce — vide
+  // EtatEnrichissement + StatutEnrichissement pour toutes les fiches
+  // concernées en un seul appel (api/bulk-retry-trailers.js), au lieu de
+  // le faire fiche par fiche via "Redemander une vérification".
+  const [retryingTrailers, setRetryingTrailers] = useState(false);
+  const [retryTrailersResult, setRetryTrailersResult] = useState(null);
+  const handleRetryTrailers = async () => {
+    if (!window.confirm("Relancer l'enrichissement de toutes les fiches sans bande-annonce ? Le script d'enrichissement les reprendra à son prochain cycle.")) return;
+    setRetryingTrailers(true);
+    setRetryTrailersResult(null);
+    const result = await apiWrite("/api/bulk-retry-trailers", {});
+    setRetryingTrailers(false);
+    if (!result.ok) {
+      window.alert(result.error || "Impossible de relancer les fiches");
+      return;
+    }
+    setRetryTrailersResult(result.data.concerned);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto pull-scroll pb-8 px-5">
       <ScreenHeader title="RÉGLAGES" onBack={onBack} onMenu={onMenu} />
@@ -4770,6 +4789,21 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
           <RefreshCw size={14} color={T.accent} style={{ animation: refreshing ? "spin 0.8s linear infinite" : "none" }} />
         </button>
       </div>
+
+      <div className="flex items-center justify-between rounded-xl px-4 py-3 mt-2" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+        <div className="pr-3">
+          <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Bandes-annonces manquantes</p>
+          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 2 }}>
+            {retryTrailersResult != null ? `${retryTrailersResult} fiche${retryTrailersResult > 1 ? "s" : ""} relancée${retryTrailersResult > 1 ? "s" : ""}` : "Redemander en masse"}
+          </p>
+        </div>
+        <button onClick={handleRetryTrailers} disabled={retryingTrailers} className="flex-shrink-0 rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}`, opacity: retryingTrailers ? 0.6 : 1 }}>
+          <RefreshCw size={13} color={T.accentSecondary} style={{ animation: retryingTrailers ? "spin 0.8s linear infinite" : "none" }} />
+        </button>
+      </div>
+      <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+        Vide l'état d'enrichissement des fiches sans bande-annonce pour que le script les reprenne au prochain cycle — n'affecte ni l'affiche, ni le synopsis, ni les autres infos déjà récupérées.
+      </p>
 
       <SectionLabel>À PROPOS</SectionLabel>
       <div className="rounded-xl overflow-hidden" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
