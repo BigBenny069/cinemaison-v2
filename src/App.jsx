@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, FileText } from "lucide-react";
+import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, FileText, Maximize2, Volume2, VolumeX } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* THÈMES — deux palettes disponibles, sélectionnables dans Réglages.  */
@@ -707,11 +707,12 @@ function extractYoutubeId_(url) {
 // Chaîne Cryptée : lecture automatique de la bande-annonce à la place de
 // l'affiche, comme sur myCanal — vidéo intégrée en iframe (jamais un lien
 // vers l'appli/le site YouTube), démarrée en muet après quelques secondes
-// sur la fiche, avec un bouton pour couper/remettre le son. YouTube reste
-// l'hébergeur de la vidéo (impossible de retirer une éventuelle pub sans
-// contourner leur système, ce qu'on ne fait pas), mais rien ne sort jamais
-// de l'appli : pas de logo cliquable vers YouTube, pas de suggestions.
-function InlineTrailer({ youtubeId, muted, onToggleMute }) {
+// sur la fiche. Boutons son + plein écran superposés, et taper n'importe où
+// sur la vidéo l'ouvre en plein écran (comme sur l'appli Canal+). YouTube
+// reste l'hébergeur de la vidéo (impossible de retirer une éventuelle pub
+// sans contourner leur système, ce qu'on ne fait pas), mais rien ne sort
+// jamais de l'appli : pas de logo cliquable vers YouTube, pas de suggestions.
+function InlineTrailer({ youtubeId, muted, onToggleMute, onExpand }) {
   const params = new URLSearchParams({
     autoplay: "1",
     mute: muted ? "1" : "0",
@@ -725,7 +726,7 @@ function InlineTrailer({ youtubeId, muted, onToggleMute }) {
     playlist: youtubeId,
   });
   return (
-    <div className="absolute inset-0" style={{ overflow: "hidden", pointerEvents: "none" }}>
+    <div className="absolute inset-0" style={{ overflow: "hidden" }} onClick={onExpand}>
       <iframe
         src={`https://www.youtube-nocookie.com/embed/${youtubeId}?${params.toString()}`}
         title="Bande-annonce"
@@ -740,11 +741,18 @@ function InlineTrailer({ youtubeId, muted, onToggleMute }) {
         }}
       />
       <button
-        onClick={onToggleMute}
+        onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
         className="absolute flex items-center justify-center"
-        style={{ bottom: 14, right: 14, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.55)", pointerEvents: "auto" }}
+        style={{ bottom: 14, right: 56, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.55)" }}
       >
-        {muted ? <span style={{ color: "#fff", fontSize: 13 }}>🔇</span> : <span style={{ color: "#fff", fontSize: 13 }}>🔊</span>}
+        {muted ? <VolumeX size={15} color="#fff" /> : <Volume2 size={15} color="#fff" />}
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onExpand(); }}
+        className="absolute flex items-center justify-center"
+        style={{ bottom: 14, right: 14, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.55)" }}
+      >
+        <Maximize2 size={14} color="#fff" />
       </button>
     </div>
   );
@@ -2952,10 +2960,12 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
   // est disponible. Réinitialisé à chaque changement de fiche (film.id).
   const [showTrailer, setShowTrailer] = useState(false);
   const [trailerMuted, setTrailerMuted] = useState(true);
+  const [trailerFullscreen, setTrailerFullscreen] = useState(false);
   const youtubeId = extractYoutubeId_(film.urlBandeAnnonce);
   useEffect(() => {
     setShowTrailer(false);
     setTrailerMuted(true);
+    setTrailerFullscreen(false);
     if (CURRENT_THEME !== "canalplus" || !youtubeId) return;
     const t = setTimeout(() => setShowTrailer(true), 3500);
     return () => clearTimeout(t);
@@ -3016,11 +3026,12 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
       ) : CURRENT_THEME === "canalplus" ? (
         /* Chaîne Cryptée : bande-annonce en lecture automatique après       */
         /* quelques secondes, à la place de l'affiche — comme sur myCanal.   */
+        /* Taper sur la vidéo l'ouvre en plein écran (voir onExpand).        */
         <div className="relative" style={{ height: 340 }}>
           <div onClick={() => !showTrailer && setPosterOpen(true)} className="relative w-full h-full" style={{ cursor: showTrailer ? "default" : "pointer" }}>
             <Poster film={film} className="w-full h-full" style={archived ? { filter: "grayscale(45%)" } : undefined} />
-            {showTrailer && youtubeId && (
-              <InlineTrailer youtubeId={youtubeId} muted={trailerMuted} onToggleMute={() => setTrailerMuted((v) => !v)} />
+            {showTrailer && youtubeId && !trailerFullscreen && (
+              <InlineTrailer youtubeId={youtubeId} muted={trailerMuted} onToggleMute={() => setTrailerMuted((v) => !v)} onExpand={() => setTrailerFullscreen(true)} />
             )}
             <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,16,12,0.1) 40%, ${T.bg} 100%)`, pointerEvents: "none" }} />
           </div>
@@ -3045,7 +3056,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         </p>
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
           <PlatformIcon label={film.plateforme} />
-          <TrailerButton url={film.urlBandeAnnonce} />
+          {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
         </div>
 
         {/* Chaîne Cryptée : en plus du bouton "TRAILER" ci-dessus (présent   */}
@@ -3260,6 +3271,27 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           ) : (
             <span style={{ fontFamily: F.marquee, fontSize: 16, color: T.accent, textAlign: "center" }}>{film.titre}</span>
           )}
+        </div>
+      )}
+
+      {/* Chaîne Cryptée : plein écran de la bande-annonce (taper sur la     */}
+      {/* vidéo intégrée en haut de fiche l'ouvre ici) — son réactivé par    */}
+      {/* défaut, comme le fait myCanal en plein écran. */}
+      {trailerFullscreen && youtubeId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "#000" }}>
+          <button onClick={() => setTrailerFullscreen(false)} className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(255,255,255,0.12)", zIndex: 2 }}>
+            <X size={18} color="#fff" />
+          </button>
+          <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=0&playsinline=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`}
+              title="Bande-annonce"
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+            />
+          </div>
         </div>
       )}
 
