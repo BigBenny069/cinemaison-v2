@@ -3462,6 +3462,27 @@ function SectionLabel({ children }) {
   );
 }
 
+// Section repliable — utilisée dans Réglages pour alléger l'écran (tout
+// n'est plus affiché en permanence). Fermée par défaut sauf indication
+// contraire ; l'état de chaque section n'est volontairement pas mémorisé
+// d'une ouverture d'écran à l'autre (on repart replié à chaque fois).
+function CollapsibleSection({ title, subtitle, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="mb-1">
+      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between py-3 mt-2"
+        style={{ borderBottom: `1px solid ${T.line}` }}>
+        <span className="text-left">
+          <span className="block" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{title}</span>
+          {subtitle && !open && <span className="block mt-0.5" style={{ fontFamily: F.serif, fontSize: 12, color: T.cream }}>{subtitle}</span>}
+        </span>
+        <ChevronRight size={15} color={T.mutedDim} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }} />
+      </button>
+      {open && <div className="pt-3 pb-1">{children}</div>}
+    </div>
+  );
+}
+
 // Sticky : reste visible en haut de l'écran pendant le défilement de la
 // liste (via -mx-5 px-5, le fond couvre toute la largeur malgré le padding
 // horizontal du conteneur parent). Le bouton menu (GUICHET) est optionnel :
@@ -4727,101 +4748,106 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
     <div className="flex-1 overflow-y-auto pull-scroll pb-8 px-5">
       <ScreenHeader title="RÉGLAGES" onBack={onBack} onMenu={onMenu} />
 
-      <SectionLabel>STYLE VISUEL</SectionLabel>
-      <button onClick={onOpenThemes} className="w-full flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-        <div className="text-left">
-          <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Thèmes</p>
-          <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, marginTop: 2 }}>{THEMES[theme]?.label || theme}</p>
-        </div>
-        <ChevronRight size={16} color={T.mutedDim} />
-      </button>
-      <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
-        {Object.keys(THEMES).length} thèmes, groupés par famille. Ton choix est mémorisé sur cet appareil.
-      </p>
-
-      <SectionLabel>NOTIFICATIONS</SectionLabel>
-      <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-        <div className="pr-3">
-          <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Alertes d'expiration</p>
-          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 2 }}>Sur cet appareil uniquement</p>
-        </div>
-        <button onClick={toggleNotif} className="flex-shrink-0 rounded-full px-3 py-1.5" style={{ background: notifEnabled ? T.accentSoft : T.surfaceRaised, border: `1px solid ${notifEnabled ? T.accent + "66" : T.line}` }}>
-          <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: notifEnabled ? T.accent : T.mutedDim }}>{notifEnabled ? "ACTIVÉES" : "DÉSACTIVÉES"}</span>
+      <CollapsibleSection title="STYLE VISUEL" subtitle={THEMES[theme]?.label || theme}>
+        <button onClick={onOpenThemes} className="w-full flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <div className="text-left">
+            <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Thèmes</p>
+            <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, marginTop: 2 }}>{THEMES[theme]?.label || theme}</p>
+          </div>
+          <ChevronRight size={16} color={T.mutedDim} />
         </button>
-      </div>
-      {notifEnabled && (
-        <div className="flex items-center justify-between rounded-xl px-4 py-2.5 mt-2" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-          <span style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>Me prévenir dès</span>
-          <div className="flex gap-1.5">
-            {[2, 5].map((v) => (
-              <button key={v} onClick={() => changeNotifSeuil(v)} className="rounded-full px-3 py-1.5"
-                style={{ background: notifSeuil === v ? T.accentSoft : T.surfaceRaised, border: `1px solid ${notifSeuil === v ? T.accent + "66" : T.line}` }}>
-                <span style={{ fontFamily: F.mono, fontSize: 10, color: notifSeuil === v ? T.accent : T.mutedDim, fontWeight: 700 }}>J-{v}</span>
-              </button>
-            ))}
+        <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          {Object.keys(THEMES).length} thèmes, groupés par famille. Ton choix est mémorisé sur cet appareil.
+        </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="NOTIFICATIONS" subtitle={notifEnabled ? `Activées · J-${notifSeuil}` : "Désactivées"}>
+        <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <div className="pr-3">
+            <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Alertes d'expiration</p>
+            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 2 }}>Sur cet appareil uniquement</p>
+          </div>
+          <button onClick={toggleNotif} className="flex-shrink-0 rounded-full px-3 py-1.5" style={{ background: notifEnabled ? T.accentSoft : T.surfaceRaised, border: `1px solid ${notifEnabled ? T.accent + "66" : T.line}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: notifEnabled ? T.accent : T.mutedDim }}>{notifEnabled ? "ACTIVÉES" : "DÉSACTIVÉES"}</span>
+          </button>
+        </div>
+        {notifEnabled && (
+          <div className="flex items-center justify-between rounded-xl px-4 py-2.5 mt-2" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+            <span style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>Me prévenir dès</span>
+            <div className="flex gap-1.5">
+              {[2, 5].map((v) => (
+                <button key={v} onClick={() => changeNotifSeuil(v)} className="rounded-full px-3 py-1.5"
+                  style={{ background: notifSeuil === v ? T.accentSoft : T.surfaceRaised, border: `1px solid ${notifSeuil === v ? T.accent + "66" : T.line}` }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: notifSeuil === v ? T.accent : T.mutedDim, fontWeight: 700 }}>J-{v}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Notification locale à l'ouverture de l'appli (pas d'alerte si l'appli est fermée en arrière-plan). Réglage propre à cet iPhone — à refaire si tu changes d'appareil.
+        </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="NOMBRE DE FILMS SUR L'ACCUEIL" subtitle={`${nbAccueil} films`}>
+        <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>"Ça part bientôt" affiche</span>
+          <div className="flex items-center gap-3">
+            <button onClick={() => onChangeNbAccueil(Math.max(3, nbAccueil - 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={12} color={T.muted} /></button>
+            <span style={{ fontFamily: F.marquee, fontSize: 18, color: T.accent, minWidth: 30, textAlign: "center" }}>{nbAccueil}</span>
+            <button onClick={() => onChangeNbAccueil(Math.min(15, nbAccueil + 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={12} color={T.muted} /></button>
           </div>
         </div>
-      )}
-      <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
-        Notification locale à l'ouverture de l'appli (pas d'alerte si l'appli est fermée en arrière-plan). Réglage propre à cet iPhone — à refaire si tu changes d'appareil.
-      </p>
+        <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Les {nbAccueil} prochains films qui disparaissent, classés par date la plus proche. "Derniers ajouts" garde le même réglage.
+        </p>
+      </CollapsibleSection>
 
-      <SectionLabel>NOMBRE DE FILMS SUR L'ACCUEIL</SectionLabel>
-      <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-        <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>"Ça part bientôt" affiche</span>
-        <div className="flex items-center gap-3">
-          <button onClick={() => onChangeNbAccueil(Math.max(3, nbAccueil - 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={12} color={T.muted} /></button>
-          <span style={{ fontFamily: F.marquee, fontSize: 18, color: T.accent, minWidth: 30, textAlign: "center" }}>{nbAccueil}</span>
-          <button onClick={() => onChangeNbAccueil(Math.min(15, nbAccueil + 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={12} color={T.muted} /></button>
+      <CollapsibleSection title="DONNÉES" subtitle={`${filmCount} fiches`}>
+        <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <div>
+            <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Bibliothèque</p>
+            <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{filmCount} fiches</p>
+          </div>
+          <button onClick={handleRefresh} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.accentSoft }}>
+            <RefreshCw size={14} color={T.accent} style={{ animation: refreshing ? "spin 0.8s linear infinite" : "none" }} />
+          </button>
         </div>
-      </div>
-      <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
-        Les {nbAccueil} prochains films qui disparaissent, classés par date la plus proche. "Derniers ajouts" garde le même réglage.
-      </p>
 
-      <SectionLabel>DONNÉES</SectionLabel>
-      <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-        <div>
-          <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Bibliothèque</p>
-          <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{filmCount} fiches</p>
+        <div className="flex items-center justify-between rounded-xl px-4 py-3 mt-2" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <div className="pr-3">
+            <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Bandes-annonces manquantes</p>
+            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 2 }}>
+              {retryTrailersResult != null ? `${retryTrailersResult} fiche${retryTrailersResult > 1 ? "s" : ""} relancée${retryTrailersResult > 1 ? "s" : ""}` : "Redemander en masse"}
+            </p>
+          </div>
+          <button onClick={handleRetryTrailers} disabled={retryingTrailers} className="flex-shrink-0 rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}`, opacity: retryingTrailers ? 0.6 : 1 }}>
+            <RefreshCw size={13} color={T.accentSecondary} style={{ animation: retryingTrailers ? "spin 0.8s linear infinite" : "none" }} />
+          </button>
         </div>
-        <button onClick={handleRefresh} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.accentSoft }}>
-          <RefreshCw size={14} color={T.accent} style={{ animation: refreshing ? "spin 0.8s linear infinite" : "none" }} />
-        </button>
-      </div>
+        <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Vide l'état d'enrichissement des fiches sans bande-annonce pour que le script les reprenne au prochain cycle — n'affecte ni l'affiche, ni le synopsis, ni les autres infos déjà récupérées.
+        </p>
+      </CollapsibleSection>
 
-      <div className="flex items-center justify-between rounded-xl px-4 py-3 mt-2" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-        <div className="pr-3">
-          <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Bandes-annonces manquantes</p>
-          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 2 }}>
-            {retryTrailersResult != null ? `${retryTrailersResult} fiche${retryTrailersResult > 1 ? "s" : ""} relancée${retryTrailersResult > 1 ? "s" : ""}` : "Redemander en masse"}
+      <CollapsibleSection title="À PROPOS" subtitle="V2.0">
+        <div className="rounded-xl overflow-hidden" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${T.line}` }}>
+            <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Version</span>
+            <span style={{ fontFamily: F.mono, fontSize: 11, color: T.mutedDim }}>V2.0</span>
+          </div>
+          <a href="https://cineradar-nu.vercel.app" target="_blank" rel="noreferrer" className="w-full flex items-center justify-between px-4 py-3">
+            <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>CinéRadar</span>
+            <ExternalLink size={13} color={T.accentSecondary} />
+          </a>
+        </div>
+        <div className="flex items-start gap-2 mt-3 px-1">
+          <Info size={12} color={T.mutedDim} style={{ marginTop: 2, flexShrink: 0 }} />
+          <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, lineHeight: 1.6 }}>
+            MÉTADONNÉES ET AFFICHES : THE MOVIE DATABASE (TMDB). NOTES ET VOTES : LETTERBOXD. CINÉMAISON N'EST APPROUVÉ NI PAR L'UN NI PAR L'AUTRE.
           </p>
         </div>
-        <button onClick={handleRetryTrailers} disabled={retryingTrailers} className="flex-shrink-0 rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}`, opacity: retryingTrailers ? 0.6 : 1 }}>
-          <RefreshCw size={13} color={T.accentSecondary} style={{ animation: retryingTrailers ? "spin 0.8s linear infinite" : "none" }} />
-        </button>
-      </div>
-      <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
-        Vide l'état d'enrichissement des fiches sans bande-annonce pour que le script les reprenne au prochain cycle — n'affecte ni l'affiche, ni le synopsis, ni les autres infos déjà récupérées.
-      </p>
-
-      <SectionLabel>À PROPOS</SectionLabel>
-      <div className="rounded-xl overflow-hidden" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${T.line}` }}>
-          <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Version</span>
-          <span style={{ fontFamily: F.mono, fontSize: 11, color: T.mutedDim }}>V2.0</span>
-        </div>
-        <a href="https://cineradar-nu.vercel.app" target="_blank" rel="noreferrer" className="w-full flex items-center justify-between px-4 py-3">
-          <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>CinéRadar</span>
-          <ExternalLink size={13} color={T.accentSecondary} />
-        </a>
-      </div>
-      <div className="flex items-start gap-2 mt-3 px-1">
-        <Info size={12} color={T.mutedDim} style={{ marginTop: 2, flexShrink: 0 }} />
-        <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, lineHeight: 1.6 }}>
-          MÉTADONNÉES ET AFFICHES : THE MOVIE DATABASE (TMDB). NOTES ET VOTES : LETTERBOXD. CINÉMAISON N'EST APPROUVÉ NI PAR L'UN NI PAR L'AUTRE.
-        </p>
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }
