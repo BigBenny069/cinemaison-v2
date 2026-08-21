@@ -743,14 +743,14 @@ function InlineTrailer({ youtubeId, muted, onToggleMute, onExpand }) {
       <button
         onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
         className="absolute flex items-center justify-center"
-        style={{ top: 64, left: 14, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "1.5px solid rgba(255,255,255,0.5)", boxShadow: "0 0 8px rgba(255,255,255,0.25)" }}
+        style={{ bottom: 50, left: 14, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "1.5px solid rgba(255,255,255,0.5)", boxShadow: "0 0 8px rgba(255,255,255,0.25)" }}
       >
         {muted ? <VolumeX size={15} color="#fff" /> : <Volume2 size={15} color="#fff" />}
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); onExpand(); }}
         className="absolute flex items-center justify-center"
-        style={{ top: 106, left: 14, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "1.5px solid rgba(255,255,255,0.5)", boxShadow: "0 0 8px rgba(255,255,255,0.25)" }}
+        style={{ bottom: 50, left: 56, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "1.5px solid rgba(255,255,255,0.5)", boxShadow: "0 0 8px rgba(255,255,255,0.25)" }}
       >
         <Maximize2 size={14} color="#fff" />
       </button>
