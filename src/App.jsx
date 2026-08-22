@@ -4405,9 +4405,9 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   const [plateforme, setPlateforme] = useState("");
   const [dateManuelle, setDateManuelle] = useState("");
   const [urlLetterboxd, setUrlLetterboxd] = useState("");
-  const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [justAdded, setJustAdded] = useState(null); // titre du film ajouté, pour le toast — null = pas de toast affiché
   const canSubmit = titre.trim() && annee.trim() && plateforme;
 
   // Recherche TMDb en direct (autocomplete) — évite de taper le titre/année
@@ -4471,8 +4471,13 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
       setError(result.error || "Impossible d'ajouter ce film");
       return;
     }
-    setSubmitted(true);
     if (onAdded) onAdded();
+    // Toast de confirmation ~2,5s puis retour automatique à l'Accueil —
+    // remplace l'ancien écran "TICKET ÉMIS" + bouton manuel, qui obligeait
+    // à taper pour revenir. Fonctionne sur tous les thèmes (couleurs T/F
+    // génériques, pas de variante par thème nécessaire).
+    setJustAdded(titre.trim());
+    setTimeout(() => { onBack(); }, 2500);
   };
 
   if (!type) {
@@ -4575,21 +4580,29 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
           <p style={{ fontFamily: F.mono, fontSize: 10.5, color: T.alert }}>{error}</p>
         </div>
       )}
-      {submitted ? (
-        <div className="mt-2">
-          <div className="rounded-lg py-3.5 text-center" style={{ background: T.accentSoft, fontFamily: F.mono, fontSize: 11, color: T.accent, letterSpacing: 0.5 }}>✓ TICKET ÉMIS — « {titre} » AJOUTÉ AU SHEET</div>
-          <button onClick={onBack} className="w-full rounded-lg py-3.5 mt-2.5" style={{ background: T.accent, fontFamily: F.mono, fontSize: 12, letterSpacing: 1.2, color: T.bg, fontWeight: 700 }}>
-            RETOUR À L'ACCUEIL
-          </button>
-        </div>
-      ) : (
-        <button onClick={handleSubmit} disabled={!canSubmit || saving} className="w-full rounded-lg py-3.5" style={{ background: canSubmit ? T.accent : T.surfaceRaised, fontFamily: F.mono, fontSize: 12, letterSpacing: 1.2, color: canSubmit ? T.bg : T.mutedDim, fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
-          {saving ? "ENVOI…" : "ÉMETTRE LE TICKET"}
-        </button>
-      )}
+      <button onClick={handleSubmit} disabled={!canSubmit || saving || !!justAdded} className="w-full rounded-lg py-3.5" style={{ background: canSubmit ? T.accent : T.surfaceRaised, fontFamily: F.mono, fontSize: 12, letterSpacing: 1.2, color: canSubmit ? T.bg : T.mutedDim, fontWeight: 700, opacity: (saving || justAdded) ? 0.7 : 1 }}>
+        {saving ? "ENVOI…" : "ÉMETTRE LE TICKET"}
+      </button>
       <p className="mt-3 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
         L'enrichissement (affiche, synopsis, note...) ne se fera automatiquement qu'une fois le script Apps Script rattaché à ce Sheet.
       </p>
+
+      {/* Toast de confirmation — glisse depuis le haut, reste ~2,5s puis     */}
+      {/* laisse place au retour automatique (déclenché dans handleSubmit).  */}
+      {/* Générique T/F : s'adapte tout seul à n'importe quel thème actif.   */}
+      {justAdded && (
+        <div className="fixed left-0 right-0 z-50 flex justify-center px-4" style={{ top: "max(16px, env(safe-area-inset-top))" }}>
+          <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 w-full" style={{ maxWidth: 460, background: T.surfaceRaised, border: `1px solid ${T.accent}55`, boxShadow: "0 8px 24px rgba(0,0,0,0.45)", animation: "toastSlideIn 0.3s ease" }}>
+            <span className="flex items-center justify-center flex-shrink-0 rounded-full" style={{ width: 26, height: 26, background: T.accentSoft }}>
+              <Check size={14} color={T.accent} />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, fontWeight: 600 }}>« {justAdded} » ajouté</span>
+              <span className="block" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>Retour à l'accueil…</span>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5453,7 +5466,7 @@ export default function App() {
 
   return (
     <div className="w-full flex items-center justify-center" style={{ background: T.bg, height: "100dvh" }}>
-      <style>{`@font-face { font-family: 'Simpsonfont'; src: url('/fonts/Simpsonfont.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; } @keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } } @keyframes seanceChase { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } }`}</style>
+      <style>{`@font-face { font-family: 'Simpsonfont'; src: url('/fonts/Simpsonfont.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; } @keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } } @keyframes seanceChase { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } } @keyframes toastSlideIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
       <div
         className="flex flex-col w-full relative"
         style={{
