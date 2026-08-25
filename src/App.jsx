@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Menu, Shuffle, ChevronLeft, ChevronRight, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, FileText, Maximize2, Volume2, VolumeX } from "lucide-react";
+import { Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, FileText, Maximize2, Volume2, VolumeX } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* THÈMES — deux palettes disponibles, sélectionnables dans Réglages.  */
@@ -491,7 +491,9 @@ function getStoredTheme_() {
 function getStoredNbAccueil_() {
   try {
     const v = parseInt(localStorage.getItem("cinemaison_nbAccueil"), 10);
-    return Number.isFinite(v) && v >= 3 && v <= 15 ? v : 8;
+    // Plus de plafond à 15 — seul un minimum de 1 reste imposé (0 n'aurait
+    // aucun sens pour "Ça part bientôt"/"Derniers ajouts").
+    return Number.isFinite(v) && v >= 1 ? v : 8;
   } catch { return 8; }
 }
 
@@ -3549,6 +3551,24 @@ function ListResultCard({ film, onOpen, right }) {
     const hash = String(film.id || film.titre || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
     borderColor = frameColors[hash % frameColors.length];
   }
+  // Pastille J-x — uniquement quand l'appelant n'a pas déjà fourni son
+  // propre slot "right" (Alertes/Archives ont leur propre badge dédié),
+  // pour ne jamais en afficher deux à la fois. Utilisée dans les écrans
+  // Bibliothèque (Film/Série/Documentaire/...), Recherche, Explorer, etc.
+  let expiryBadge = right;
+  if (!right && !isArchived(film)) {
+    const days = computeExpiryDays(film);
+    if (days != null && days >= 0) {
+      const color = urgencyColor_(days) || T.accent;
+      expiryBadge = (
+        <div className="flex items-center pr-3">
+          <span className="rounded-full px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${color}22` : T.accentSoft }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10, color, fontWeight: 700 }}>J-{days}</span>
+          </span>
+        </div>
+      );
+    }
+  }
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${borderColor}`, borderRadius: T.radius, boxShadow: T.shadow }}>
       <Poster film={film} className="w-20 h-28 flex-shrink-0" style={isArchived(film) ? { filter: "grayscale(55%)", opacity: 0.75 } : undefined} />
@@ -3559,7 +3579,7 @@ function ListResultCard({ film, onOpen, right }) {
           {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
         </p>
       </div>
-      {right}
+      {expiryBadge}
     </button>
   );
 }
@@ -3574,8 +3594,31 @@ const SORTS = [
   { id: "note_asc", label: "Note ↑" },
 ];
 
+// Bibliothèque (Film/Série/Documentaire/...) est démonté/remonté à chaque
+// navigation vers une fiche puis retour — même mécanisme que Explorer et
+// Accueil : position de scroll + tri mémorisés par type en dehors du
+// composant pour survivre à l'aller-retour.
+let bibliothequeState_ = {}; // { [type]: { scrollTop, sort } }
+
 function BibliothequeScreen({ films, type, onOpen, onBack, onMenu }) {
-  const [sort, setSort] = useState("az");
+  const remembered = bibliothequeState_[type] || {};
+  const [sort, setSortState] = useState(remembered.sort || "az");
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = remembered.scrollTop || 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      bibliothequeState_[type] = { ...(bibliothequeState_[type] || {}), scrollTop: scrollRef.current.scrollTop };
+    }
+  };
+  const changeSort = (s) => {
+    setSortState(s);
+    bibliothequeState_[type] = { ...(bibliothequeState_[type] || {}), sort: s };
+  };
 
   const list = useMemo(() => {
     const arr = films.filter((f) => f.type === type && !isArchived(f));
@@ -3587,13 +3630,13 @@ function BibliothequeScreen({ films, type, onOpen, onBack, onMenu }) {
   }, [films, type, sort]);
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title={(type || "").toUpperCase()} onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-1.5 mb-4">
         {SORTS.map((s) => {
           const active = sort === s.id;
           return (
-            <button key={s.id} onClick={() => setSort(s.id)} className="flex-1 rounded-lg py-2"
+            <button key={s.id} onClick={() => changeSort(s.id)} className="flex-1 rounded-lg py-2"
               style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "55" : T.line}` }}>
               <span style={{ fontFamily: F.mono, fontSize: 9.5, color: active ? T.accent : T.mutedDim, letterSpacing: 0.3 }}>{s.label}</span>
             </button>
@@ -3652,24 +3695,30 @@ function AlertesListe({ films, field, onOpen }) {
   // Salle Privée : programme de soirée élégant, filet doré, typographie
   // raffinée — esprit affichage de salle de projection.
   if (CURRENT_THEME === "salle") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="flex flex-col">
-        {flat.map(({ f, days }, i) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left py-3"
-            style={{ borderBottom: i < flat.length - 1 ? `1px solid ${T.line}` : "none" }}>
-            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: "50%", border: `1px solid ${urgencyColor_(days) || T.accent}` }}>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.accent, fontWeight: 600 }}>J-{days}</span>
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
-              <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left py-3"
+                style={{ borderBottom: i < flat.length - 1 ? `1px solid ${T.line}` : "none" }}>
+                <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: "50%", border: `1px solid ${urgencyColor_(days) || T.accent}` }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.accent, fontWeight: 600 }}>J-{days}</span>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+              </button>
             </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -3677,24 +3726,30 @@ function AlertesListe({ films, field, onOpen }) {
   // Jardin d'Hiver : cartes organiques, arrondis très généreux, esprit
   // galet — pas de ligne dure, tout en douceur.
   if (CURRENT_THEME === "jardin") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="flex flex-col gap-2.5">
-        {flat.map(({ f, days }) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-3"
-            style={{ background: T.surface, borderRadius: "28px 40px 28px 40px" }}>
-            <span className="flex-shrink-0 px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSecondarySoft, borderRadius: 999 }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urgencyColor_(days) || T.accentSecondary, fontWeight: 700 }}>J-{days}</span>
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
-              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-3"
+                style={{ background: T.surface, borderRadius: "28px 40px 28px 40px" }}>
+                <span className="flex-shrink-0 px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSecondarySoft, borderRadius: 999 }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urgencyColor_(days) || T.accentSecondary, fontWeight: 700 }}>J-{days}</span>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+              </button>
             </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -3702,94 +3757,118 @@ function AlertesListe({ films, field, onOpen }) {
   // Le Projectionniste : bande de pellicule verticale perforée, même
   // langage visuel que le rail "Ça part bientôt" de l'Accueil.
   if (CURRENT_THEME === "projectionniste") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="relative pl-3" style={{ borderLeft: `2px dashed ${T.line}` }}>
-        {flat.map(({ f, days }) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left relative mb-4">
-            <span className="absolute flex items-center justify-center" style={{ left: -19, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, borderRadius: "50%", background: urgencyColor_(days) || T.accent }} />
-            <Poster film={f} className="flex-shrink-0" style={{ width: 38, height: 54, borderRadius: 2, marginLeft: 10 }} />
-            <div className="min-w-0 flex-1">
-              <p style={{ fontFamily: F.mono, fontSize: 9, color: urgencyColor_(days) || T.accent, fontWeight: 700 }}>J-{days}</p>
-              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
-              <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-2 pl-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left relative mb-4">
+                <span className="absolute flex items-center justify-center" style={{ left: -19, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, borderRadius: "50%", background: urgencyColor_(days) || T.accent }} />
+                <Poster film={f} className="flex-shrink-0" style={{ width: 38, height: 54, borderRadius: 2, marginLeft: 10 }} />
+                <div className="min-w-0 flex-1">
+                  <p style={{ fontFamily: F.mono, fontSize: 9, color: urgencyColor_(days) || T.accent, fontWeight: 700 }}>J-{days}</p>
+                  <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+              </button>
             </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
 
   // Bento Moderne : cartes vitrées, mêmes codes visuels que l'Accueil.
   if (CURRENT_THEME === "bento") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="flex flex-col gap-2.5">
-        {flat.map(({ f, days }) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
-            style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
-            <Poster film={f} className="flex-shrink-0" style={{ width: 44, height: 62, borderRadius: 10, objectFit: "cover" }} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
-              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
+                style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
+                <Poster film={f} className="flex-shrink-0" style={{ width: 44, height: 62, borderRadius: 10, objectFit: "cover" }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+                <span className="flex-shrink-0 px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft, borderRadius: 999 }}>
+                  <span style={{ fontFamily: F.marquee, fontSize: 11, color: urgencyColor_(days) || T.accent, fontWeight: 800 }}>J-{days}</span>
+                </span>
+              </button>
             </div>
-            <span className="flex-shrink-0 px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft, borderRadius: 999 }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 11, color: urgencyColor_(days) || T.accent, fontWeight: 800 }}>J-{days}</span>
-            </span>
-          </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
 
   // Palais 1932 : rail vertical à médaillons, même langage que l'Accueil.
   if (CURRENT_THEME === "palais") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div>
-        {flat.map(({ f, days }, i) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 py-2.5 text-left"
-            style={{ borderBottom: i < flat.length - 1 ? `1px solid ${T.accent}22` : "none" }}>
-            <div className="flex-shrink-0 overflow-hidden" style={{ width: 42, height: 42, borderRadius: "50%", border: `2px solid ${T.accent}` }}>
-              <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 py-2.5 text-left"
+                style={{ borderBottom: i < flat.length - 1 ? `1px solid ${T.accent}22` : "none" }}>
+                <div className="flex-shrink-0 overflow-hidden" style={{ width: 42, height: 42, borderRadius: "50%", border: `2px solid ${T.accent}` }}>
+                  <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, fontWeight: 600, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: "'Manrope', sans-serif", fontSize: 9.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+                <span style={{ fontFamily: F.serif, fontSize: 15, color: urgencyColor_(days) || T.alert, flexShrink: 0 }}>J-{days}</span>
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, fontWeight: 600, color: T.cream }}>{f.titre}</p>
-              <p style={{ fontFamily: "'Manrope', sans-serif", fontSize: 9.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
-            </div>
-            <span style={{ fontFamily: F.serif, fontSize: 15, color: urgencyColor_(days) || T.alert, flexShrink: 0 }}>J-{days}</span>
-          </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
 
   // Nouvelle Vague 74 : bandeau rouge + liste encadrée filet noir.
   if (CURRENT_THEME === "nvague") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     return (
       <div>
         <div className="mb-3 px-3 py-2" style={{ background: T.accent, color: T.surface }}>
           <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700 }}>{flat.length} titre{flat.length > 1 ? "s" : ""} à surveiller</span>
         </div>
-        {flat.map(({ f, days }, i) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center justify-between py-2.5 text-left" style={{ borderBottom: `1px solid ${T.cream}` }}>
-            <div className="min-w-0">
-              <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 13, color: T.cream }}>{f.titre}</p>
-              <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-3 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center justify-between py-2.5 text-left" style={{ borderBottom: `1px solid ${T.cream}` }}>
+                <div className="min-w-0">
+                  <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 13, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+                <span style={{ fontFamily: F.mono, fontSize: 12, color: urgencyColor_(days) || T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+              </button>
             </div>
-            <span style={{ fontFamily: F.mono, fontSize: 12, color: urgencyColor_(days) || T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
-          </button>
-        ))}
+          );
+        })}
         {flat.length === 0 && <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>}
       </div>
     );
@@ -3797,24 +3876,28 @@ function AlertesListe({ films, field, onOpen }) {
 
   // Studio Pop Brutal : cartes sticker pivotées, ombre dure.
   if (CURRENT_THEME === "popbrutal") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="flex flex-col gap-3">
-        {flat.map(({ f, days }, i) => {
+        {flat.map(({ f, days, _label }, i) => {
           const rot = i % 2 === 0 ? -1 : 1;
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
           return (
-            <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
-              style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: `rotate(${rot}deg)` }}>
-              <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, border: `2px solid ${T.line}` }} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
-                <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8, color: T.muted, marginTop: 1, fontWeight: 700 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
-              </div>
-              <span className="flex-shrink-0 px-2 py-1" style={{ background: urgencyColor_(days) || T.accent, color: "#fff", fontFamily: F.marquee, fontSize: 11 }}>J-{days}</span>
-            </button>
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
+                style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: `rotate(${rot}deg)` }}>
+                <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, border: `2px solid ${T.line}` }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8, color: T.muted, marginTop: 1, fontWeight: 700 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+                <span className="flex-shrink-0 px-2 py-1" style={{ background: urgencyColor_(days) || T.accent, color: "#fff", fontFamily: F.marquee, fontSize: 11 }}>J-{days}</span>
+              </button>
+            </div>
           );
         })}
       </div>
@@ -3823,67 +3906,83 @@ function AlertesListe({ films, field, onOpen }) {
 
   // Table lumineuse : liste sur fond noir façon visionneuse, filet rouge.
   if (CURRENT_THEME === "table") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="flex flex-col gap-2 -mx-5 px-5 py-3" style={{ background: "#0D0D0D" }}>
-        {flat.map(({ f, days }) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center justify-between py-2 text-left" style={{ borderBottom: `1px solid #F2F0E822` }}>
-            <div className="min-w-0">
-              <p className="truncate" style={{ fontFamily: F.mono, fontSize: 12, color: "#F2F0E8" }}>{f.titre}</p>
-              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#F2F0E880", marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-3 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: "#F2F0E880", textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center justify-between py-2 text-left" style={{ borderBottom: `1px solid #F2F0E822` }}>
+                <div className="min-w-0">
+                  <p className="truncate" style={{ fontFamily: F.mono, fontSize: 12, color: "#F2F0E8" }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#F2F0E880", marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+                <span style={{ fontFamily: F.mono, fontSize: 12, color: urgencyColor_(days) || T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+              </button>
             </div>
-            <span style={{ fontFamily: F.mono, fontSize: 12, color: urgencyColor_(days) || T.accent, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
-          </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
 
   // Affiche de festival : cartes ticket, ombre dure, bordure noire.
   if (CURRENT_THEME === "affiche") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="flex flex-col gap-3">
-        {flat.map(({ f, days }) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
-            style={{ background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
-            <Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
-              <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.marquee, fontSize: 12, letterSpacing: 0.5, color: T.cream }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
+                style={{ background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
+                <Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+                <span className="flex-shrink-0 px-2 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft, fontFamily: F.marquee, fontSize: 10, color: urgencyColor_(days) || T.cream, borderRadius: 999, border: `1px solid ${T.cream}` }}>J-{days}</span>
+              </button>
             </div>
-            <span className="flex-shrink-0 px-2 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft, fontFamily: F.marquee, fontSize: 10, color: urgencyColor_(days) || T.cream, borderRadius: 999, border: `1px solid ${T.cream}` }}>J-{days}</span>
-          </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
 
   // Letterboxd : liste sombre, note en étoiles vertes.
   if (CURRENT_THEME === "letterboxd") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="flex flex-col gap-2.5">
-        {flat.map(({ f, days }) => {
+        {flat.map(({ f, days, _label }, i) => {
           const rating = parseRating(f.noteLetterboxd);
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
           return (
-            <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2" style={{ background: T.surface, borderRadius: T.radiusSm }}>
-              <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, borderRadius: 4 }} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
-                {rating != null && <p style={{ color: T.accent, fontSize: 9, marginTop: 2, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>}
-              </div>
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.alert, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
-            </button>
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2" style={{ background: T.surface, borderRadius: T.radiusSm }}>
+                <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, borderRadius: 4 }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+                  {rating != null && <p style={{ color: T.accent, fontSize: 9, marginTop: 2, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>}
+                </div>
+                <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.alert, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+              </button>
+            </div>
           );
         })}
       </div>
@@ -3902,25 +4001,29 @@ function AlertesListe({ films, field, onOpen }) {
 
   // Pop Art / Ça Cartoon : cadres colorés flashy en rotation, texte sobre.
   if (CURRENT_THEME === "popart" || CURRENT_THEME === "cacartoon") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
     return (
       <div className="flex flex-col gap-3">
-        {flat.map(({ f, days }, i) => {
+        {flat.map(({ f, days, _label }, i) => {
           const urg = urgencyColor_(days);
           const frameColor = urg || frameColors[i % frameColors.length];
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
           return (
-            <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2" style={{ background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
-              <Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
-                <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
-              </div>
-              <span className="flex-shrink-0 px-2 py-1" style={{ background: frameColor, color: (urg || CURRENT_THEME === "cacartoon") ? "#fff" : "#000", fontFamily: F.mono, fontSize: 10, fontWeight: 700, borderRadius: CURRENT_THEME === "cacartoon" ? 999 : 2 }}>J-{days}</span>
-            </button>
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.marquee, fontSize: 12, letterSpacing: 0.5, color: T.cream }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2" style={{ background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
+                <Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+                <span className="flex-shrink-0 px-2 py-1" style={{ background: frameColor, color: (urg || CURRENT_THEME === "cacartoon") ? "#fff" : "#000", fontFamily: F.mono, fontSize: 10, fontWeight: 700, borderRadius: CURRENT_THEME === "cacartoon" ? 999 : 2 }}>J-{days}</span>
+              </button>
+            </div>
           );
         })}
       </div>
@@ -3930,29 +4033,35 @@ function AlertesListe({ films, field, onOpen }) {
   // Bulle BD : liste en cases avec ombre dure décalée, éclat onomatopée
   // pour l'échéance — même esprit que l'Accueil, pas de rail générique.
   if (CURRENT_THEME === "bd") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     if (flat.length === 0) {
       return <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Rien à venir pour l'instant.</p>;
     }
     return (
       <div className="flex flex-col gap-4">
-        {flat.map(({ f, days }) => (
-          <button key={f.id} onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left relative p-2.5"
-            style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
-            <div className="relative flex-shrink-0" style={{ width: 46, height: 64 }}>
-              <Poster film={f} className="w-full h-full" style={{ border: `2px solid ${T.cream}`, borderRadius: 3, objectFit: "cover" }} />
-              <span className="absolute flex items-center justify-center" style={{
-                top: -12, right: -12, width: 32, height: 32, background: urgencyColor_(days) || T.accent, color: "#fff",
-                fontFamily: F.marquee, fontSize: 9, transform: "rotate(-10deg)", zIndex: 3,
-                clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
-              }}>{`J-${days}`}</span>
+        {flat.map(({ f, days, _label }, i) => {
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
+          return (
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.marquee, fontSize: 12, letterSpacing: 0.5, color: T.cream }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left relative p-2.5"
+                style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
+                <div className="relative flex-shrink-0" style={{ width: 46, height: 64 }}>
+                  <Poster film={f} className="w-full h-full" style={{ border: `2px solid ${T.cream}`, borderRadius: 3, objectFit: "cover" }} />
+                  <span className="absolute flex items-center justify-center" style={{
+                    top: -12, right: -12, width: 32, height: 32, background: urgencyColor_(days) || T.accent, color: "#fff",
+                    fontFamily: F.marquee, fontSize: 9, transform: "rotate(-10deg)", zIndex: 3,
+                    clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
+                  }}>{`J-${days}`}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
-              <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
-            </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -3961,7 +4070,7 @@ function AlertesListe({ films, field, onOpen }) {
   // reliées), au lieu de la liste groupée par date classique — bien plus
   // proche de la maquette validée pour ces deux thèmes.
   if (CURRENT_THEME === "kansoHeritage") {
-    const flat = groups.flatMap((g) => g.items).sort((a, b) => a.days - b.days);
+    const flat = groups.flatMap((g) => g.items.map((it) => ({ ...it, _label: g.label }))).sort((a, b) => a.days - b.days);
     const heritageColors = ["#C85A32", "#C85A32", "#B08050", "#98895A", "#78805A", "#68705A"];
     const colors = heritageColors;
     if (flat.length === 0) {
@@ -3973,16 +4082,20 @@ function AlertesListe({ films, field, onOpen }) {
           left: 16, top: 8, bottom: 8, width: 1,
           background: `repeating-linear-gradient(0deg, ${T.cream}40 0 4px, transparent 4px 8px)`,
         }} />
-        {flat.map(({ f, days }, i) => {
+        {flat.map(({ f, days, _label }, i) => {
           const c = urgencyColor_(days) || colors[Math.min(i, colors.length - 1)];
+          const showHeader = i === 0 || flat[i - 1]._label !== _label;
           return (
-            <button key={f.id} onClick={() => onOpen(f)} className="w-full text-left relative flex items-start gap-2.5" style={{ marginBottom: 18 }}>
-              <span className="absolute flex items-center justify-center" style={{ left: -34, top: 0, width: 30, height: 30, borderRadius: "50%", background: c, color: "#fff", fontFamily: F.mono, fontSize: 9, fontWeight: 700 }}>J-{days}</span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
-                <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
-              </div>
-            </button>
+            <div key={f.id} className="contents">
+              {showHeader && <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
+              <button onClick={() => onOpen(f)} className="w-full text-left relative flex items-start gap-2.5" style={{ marginBottom: 18 }}>
+                <span className="absolute flex items-center justify-center" style={{ left: -34, top: 0, width: 30, height: 30, borderRadius: "50%", background: c, color: "#fff", fontFamily: F.mono, fontSize: 9, fontWeight: 700 }}>J-{days}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
+                </div>
+              </button>
+            </div>
           );
         })}
       </div>
@@ -4113,8 +4226,21 @@ function AlertesCalendrier({ films, onOpen }) {
   );
 }
 
+// Alertes ("Ça part bientôt" / "Théorique" / "Calendrier") — même souci que
+// Bibliothèque : remonté à chaque retour depuis une fiche, donc scroll
+// mémorisé par onglet en dehors du composant.
+let alertesScrollState_ = {}; // { [tab]: scrollTop }
+
 function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
   const [tab, setTab] = useState(initialMode || "manuel"); // "manuel" | "auto" | "calendrier"
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = alertesScrollState_[tab] || 0;
+  }, [tab]);
+  const handleScroll = () => {
+    if (scrollRef.current) alertesScrollState_[tab] = scrollRef.current.scrollTop;
+  };
 
   const TABS = [
     { id: "manuel", label: "BIENTÔT", icon: Clock },
@@ -4123,7 +4249,7 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="ALERTES" onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-1.5 mb-5">
         {TABS.map((t) => {
@@ -4452,11 +4578,11 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   const pickTmdbResult = (r) => {
     setTitre(r.titre);
     if (r.annee) setAnnee(String(r.annee));
-    // Pré-remplit une estimation du lien Letterboxd — seulement si le champ
-    // est encore vide, pour ne jamais écraser une saisie manuelle existante.
-    if (!urlLetterboxd.trim() && r.titre) {
-      setUrlLetterboxd(`https://letterboxd.com/film/${slugifyLetterboxd_(r.titre)}/`);
-    }
+    // Le lien Letterboxd n'est plus deviné automatiquement — trop souvent
+    // faux (titres avec ponctuation, remakes, suites...) et le risque
+    // qu'un lien erroné parte sans être remarqué l'emportait sur le gain
+    // de temps. Le lien "Vérifier sur Letterboxd" ci-dessous reste le
+    // moyen rapide de copier-coller le bon.
     setTmdbOpen(false);
     setTitreTouchedByUser(false);
   };
@@ -4745,6 +4871,20 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = () => { setRefreshing(true); onRefresh(); setTimeout(() => setRefreshing(false), 900); };
 
+  // Champ libre pour "Ça part bientôt" — état texte local séparé de la
+  // valeur validée, pour pouvoir effacer/retaper un nombre à plusieurs
+  // chiffres sans que chaque frappe soit immédiatement re-normalisée par
+  // le parent (ce qui empêchait de taper "20" en repartant de "8").
+  // Validé à la perte de focus ou sur Entrée ; plus de plafond à 15.
+  const [nbAccueilInput, setNbAccueilInput] = useState(String(nbAccueil));
+  useEffect(() => { setNbAccueilInput(String(nbAccueil)); }, [nbAccueil]);
+  const commitNbAccueil = () => {
+    const v = parseInt(nbAccueilInput, 10);
+    const clamped = Number.isFinite(v) && v >= 1 ? v : nbAccueil;
+    setNbAccueilInput(String(clamped));
+    onChangeNbAccueil(clamped);
+  };
+
   // Notifications locales — réglage propre à cet appareil (localStorage),
   // comme le thème ou le compte à rebours du Projectionniste. La demande de
   // permission navigateur doit venir d'un vrai clic utilisateur, donc on ne
@@ -4837,14 +4977,20 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
       <CollapsibleSection title="NOMBRE DE FILMS SUR L'ACCUEIL" subtitle={`${nbAccueil} films`}>
         <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
           <span style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>"Ça part bientôt" affiche</span>
-          <div className="flex items-center gap-3">
-            <button onClick={() => onChangeNbAccueil(Math.max(3, nbAccueil - 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={12} color={T.muted} /></button>
-            <span style={{ fontFamily: F.marquee, fontSize: 18, color: T.accent, minWidth: 30, textAlign: "center" }}>{nbAccueil}</span>
-            <button onClick={() => onChangeNbAccueil(Math.min(15, nbAccueil + 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={12} color={T.muted} /></button>
-          </div>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={nbAccueilInput}
+            onChange={(e) => setNbAccueilInput(e.target.value)}
+            onBlur={commitNbAccueil}
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            className="rounded-lg text-center outline-none"
+            style={{ width: 64, padding: "6px 4px", background: T.surfaceRaised, border: `1px solid ${T.line}`, fontFamily: F.marquee, fontSize: 18, color: T.accent }}
+          />
         </div>
         <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
-          Les {nbAccueil} prochains films qui disparaissent, classés par date la plus proche. "Derniers ajouts" garde le même réglage.
+          Les {nbAccueil} prochains films qui disparaissent, classés par date la plus proche. "Derniers ajouts" garde le même réglage. Sans limite haute — tape le nombre que tu veux.
         </p>
       </CollapsibleSection>
 
@@ -5007,6 +5153,37 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
 /* ------------------------------------------------------------------ */
 const PULL_THRESHOLD = 64; // px à tirer avant que le relâchement déclenche le refresh
 const PULL_MAX = 92;
+
+// Bouton "remonter en haut" — universel, tous thèmes, toutes listes. Écoute
+// les événements de scroll en phase de capture (les scroll ne remontent pas
+// naturellement/"bubble" en DOM) pour détecter n'importe quel conteneur
+// ".pull-scroll" actif, quel que soit l'écran affiché, sans avoir à câbler
+// un ref dans chaque écran individuellement.
+function ScrollToTopButton() {
+  const [visible, setVisible] = useState(false);
+  const targetRef = useRef(null);
+  useEffect(() => {
+    const handler = (e) => {
+      const el = e.target;
+      if (el && el.classList && el.classList.contains("pull-scroll")) {
+        targetRef.current = el;
+        setVisible(el.scrollTop > 400);
+      }
+    };
+    document.addEventListener("scroll", handler, true);
+    return () => document.removeEventListener("scroll", handler, true);
+  }, []);
+  if (!visible) return null;
+  return (
+    <button
+      onClick={() => targetRef.current && targetRef.current.scrollTo({ top: 0, behavior: "smooth" })}
+      className="fixed flex items-center justify-center"
+      style={{ right: 16, bottom: 84, width: 42, height: 42, borderRadius: "50%", background: T.accent, boxShadow: "0 4px 14px rgba(0,0,0,0.4)", zIndex: 40 }}
+    >
+      <ChevronUp size={20} color={T.bg} />
+    </button>
+  );
+}
 
 function PullToRefresh({ onRefresh, children }) {
   const [pullDistance, setPullDistance] = useState(0);
@@ -5540,6 +5717,7 @@ export default function App() {
         )}
 
         <PullToRefresh onRefresh={loadFilms}>{body}</PullToRefresh>
+        {films && <ScrollToTopButton />}
 
         {films && <BottomNav active={activeTab} onNavigate={navigate} />}
         {films && <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} films={films} onNavigate={navigate} />}
