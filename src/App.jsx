@@ -1245,9 +1245,31 @@ function LeaderCountdown({ onDone }) {
 // pour l'écran Explorer.
 let accueilDureeFiltre_ = null;
 let accueilSuggestionId_ = null;
+// Position de défilement horizontal du rail "Ça part bientôt" — quel que
+// soit le thème actif (un seul rail ".bientot-rail" existe à la fois dans
+// le DOM, celui du thème en cours). Sans ça, ouvrir une fiche en fin de
+// rail puis revenir en arrière remontait tout en haut de la liste, ce qui
+// devient très pénible maintenant que ce rail peut contenir 60 fiches.
+let accueilBientotScrollLeft_ = 0;
 
 function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbAccueil }) {
   if (CURRENT_THEME === "nvague") NVAGUE_SECTION_COUNTER.n = 0; // repart à 01 à chaque passage sur l'Accueil
+
+  // Restaure la position horizontale du rail "Ça part bientôt" au montage,
+  // et la mémorise en continu pendant le défilement (écoute en phase de
+  // capture car l'événement "scroll" ne remonte pas naturellement en DOM).
+  useEffect(() => {
+    const rail = document.querySelector(".bientot-rail");
+    if (rail) rail.scrollLeft = accueilBientotScrollLeft_;
+    const handler = (e) => {
+      if (e.target && e.target.classList && e.target.classList.contains("bientot-rail")) {
+        accueilBientotScrollLeft_ = e.target.scrollLeft;
+      }
+    };
+    document.addEventListener("scroll", handler, true);
+    return () => document.removeEventListener("scroll", handler, true);
+  }, []);
+
   const bientot = useMemo(() => {
     return films
       .map((f) => ({ f, days: computeExpiryDays(f) }))
@@ -1520,7 +1542,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "bd" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT !</SectionTitle>
-          <div className="mx-4 mb-6 overflow-x-auto" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: T.radiusSm, boxShadow: T.shadow, padding: 12 }}>
+          <div className="mx-4 mb-6 overflow-x-auto bientot-rail" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.cream}`, borderRadius: T.radiusSm, boxShadow: T.shadow, padding: 12 }}>
             <div className="flex gap-3.5">
               {bientot.map((f) => {
                 const days = computeExpiryDays(f);
@@ -1588,7 +1610,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "table" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-5" style={{ paddingTop: 6, paddingBottom: 6 }}>
+          <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5" style={{ paddingTop: 6, paddingBottom: 6 }}>
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
                 sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
@@ -1629,7 +1651,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "letterboxd" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+          <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
             {bientot.map((f) => {
               const days = computeExpiryDays(f);
               const rating = parseRating(f.noteLetterboxd);
@@ -1739,7 +1761,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="relative px-4 mb-2.5">
                 <SpringfieldTitle>ÇA PART BIENTÔT</SpringfieldTitle>
               </div>
-              <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
+              <div className="relative flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
                 {bientot.map((f) => {
                   const days = computeExpiryDays(f);
                   return (
@@ -1840,7 +1862,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientot.length > 0 && (
             <>
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+              <div className="flex gap-3.5 px-4 overflow-x-auto bientot-rail mb-6">
                 {bientot.map((f, i) => {
                   const days = computeExpiryDays(f);
                   const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
@@ -1931,7 +1953,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientot.length > 0 && (
             <>
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+              <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
                 {bientot.map((f) => {
                   const days = computeExpiryDays(f);
                   // Rouge de plus en plus saturé/opaque quand l'échéance approche.
@@ -2011,7 +2033,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientot.length > 0 && (
             <>
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+              <div className="flex gap-3.5 px-4 overflow-x-auto bientot-rail mb-6">
                 {bientot.map((f, i) => {
                   const days = computeExpiryDays(f);
                   const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
@@ -2086,7 +2108,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientot.length > 0 && (
             <>
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="flex gap-3 px-4 overflow-x-auto mb-5">
+              <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5">
                 {bientot.map((f) => (
                   <MiniCard key={f.id} film={f} onOpen={onOpen}
                     sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
@@ -2111,7 +2133,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME !== "bento" && CURRENT_THEME !== "palais" && CURRENT_THEME !== "nvague" && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && CURRENT_THEME !== "cacartoon" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-5">
+          <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5">
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
                 sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
@@ -2163,7 +2185,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "nvague" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-0 px-4 overflow-x-auto mb-5" style={{ borderTop: `1px solid ${T.cream}`, borderLeft: `1px solid ${T.cream}` }}>
+          <div className="flex gap-0 px-4 overflow-x-auto bientot-rail mb-5" style={{ borderTop: `1px solid ${T.cream}`, borderLeft: `1px solid ${T.cream}` }}>
             {bientot.map((f) => {
               const days = computeExpiryDays(f);
               return (
@@ -2343,7 +2365,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "projectionniste" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="mx-4 mb-6 overflow-x-auto" style={{ background: "#000", borderRadius: 3, padding: "10px 4px" }}>
+          <div className="mx-4 mb-6 overflow-x-auto bientot-rail" style={{ background: "#000", borderRadius: 3, padding: "10px 4px" }}>
             <div className="flex gap-0.5">
               {bientot.map((f) => {
                 const days = computeExpiryDays(f);
@@ -2471,7 +2493,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientot.length > 0 && (
             <>
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+              <div className="flex gap-3.5 px-4 overflow-x-auto bientot-rail mb-6">
                 {bientot.map((f) => {
                   const days = computeExpiryDays(f);
                   return (
@@ -2564,7 +2586,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "bento" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+          <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
             {bientot.map((f) => {
               const days = computeExpiryDays(f);
               return (
@@ -2647,7 +2669,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "affiche" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-4 px-4 overflow-x-auto mb-6 pb-1">
+          <div className="flex gap-4 px-4 overflow-x-auto bientot-rail mb-6 pb-1">
             {bientot.map((f) => {
               const days = computeExpiryDays(f);
               return (
@@ -2882,8 +2904,7 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       <SectionLabel>FACULTATIF</SectionLabel>
       <label className="block mb-4">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>DATE DE DISPONIBILITÉ (JJ/MM/AAAA)</span>
-        <input value={dateManuelle} onChange={(e) => setDateManuelle(e.target.value)} placeholder="14/08/2026"
-          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+        <DateFieldWithCalendar value={dateManuelle} onChange={setDateManuelle} />
       </label>
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
@@ -3238,7 +3259,16 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
 
         {film.urlLetterboxd && (
           <div className="mt-4">
-            <a href={film.urlLetterboxd} target="_blank" rel="noreferrer"><LetterboxdMark /></a>
+            {/* Zone cliquable élargie : avant, seule la taille exacte du   */}
+            {/* texte "via Letterboxd" (police 9.5px) était tapable, bien   */}
+            {/* en dessous des ~44px recommandés au doigt — d'où les ratés  */}
+            {/* signalés. Le padding généreux + min-height rendent tout le  */}
+            {/* bloc tapable, pas seulement le texte lui-même. */}
+            <a href={film.urlLetterboxd} target="_blank" rel="noreferrer"
+              className="inline-flex items-center rounded-lg"
+              style={{ padding: "10px 14px", marginLeft: -14, minHeight: 44 }}>
+              <LetterboxdMark size={12} />
+            </a>
           </div>
         )}
 
@@ -3480,6 +3510,52 @@ function PersonScreen({ films, nom, onOpen, onBack, onMenu }) {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* CHAMP DATE AVEC CALENDRIER — saisie manuelle JJ/MM/AAAA (comme avant)  */
+/* + bouton calendrier qui ouvre le sélecteur natif du téléphone, au     */
+/* choix. Le picker natif <input type="date"> reste cliquable mais       */
+/* invisible (opacity 0, 1x1px) ; seul le bouton calendrier le déclenche */
+/* via showPicker()/click(), pour ne jamais imposer son format d'affichage*/
+/* par-dessus le champ texte existant.                                   */
+/* ------------------------------------------------------------------ */
+function DateFieldWithCalendar({ value, onChange }) {
+  const dateInputRef = useRef(null);
+  const openCalendar = () => {
+    const el = dateInputRef.current;
+    if (!el) return;
+    if (typeof el.showPicker === "function") { try { el.showPicker(); return; } catch {} }
+    el.click();
+  };
+  // JJ/MM/AAAA -> AAAA-MM-JJ, pour que le picker natif s'ouvre déjà sur la
+  // date en cours si le champ texte en contient une valide.
+  const isoValue = (() => {
+    const m = String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+  })();
+  return (
+    <div className="relative mt-1.5">
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="14/08/2026"
+        className="w-full rounded-lg pl-3 pr-11 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+      <button type="button" onClick={openCalendar} className="absolute flex items-center justify-center" style={{ right: 7, top: "50%", transform: "translateY(-50%)", width: 30, height: 30, borderRadius: 8, background: T.surfaceRaised }}>
+        <CalendarDays size={15} color={T.mutedDim} />
+      </button>
+      <input
+        ref={dateInputRef}
+        type="date"
+        value={isoValue}
+        onChange={(e) => {
+          if (!e.target.value) return;
+          const [y, m, d] = e.target.value.split("-");
+          onChange(`${d}/${m}/${y}`);
+        }}
+        className="absolute opacity-0"
+        style={{ width: 1, height: 1, pointerEvents: "none", left: 0, top: 0 }}
+        tabIndex={-1}
+      />
     </div>
   );
 }
@@ -4682,8 +4758,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
       <SectionLabel>FACULTATIF</SectionLabel>
       <label className="block mb-4">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>DATE DE DISPONIBILITÉ (JJ/MM/AAAA)</span>
-        <input value={dateManuelle} onChange={(e) => setDateManuelle(e.target.value)} placeholder="14/08/2026"
-          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+        <DateFieldWithCalendar value={dateManuelle} onChange={setDateManuelle} />
       </label>
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
