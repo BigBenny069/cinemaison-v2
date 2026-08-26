@@ -28,6 +28,17 @@ const CAMEL_TO_HEADER = {
 // front oublie de le faire.
 const TAG_FIELDS = ["benoit", "romy", "aDeux", "enFamille"];
 
+// Modifier l'un de ces champs (ou vider EtatEnrichissement/
+// StatutEnrichissement via "Redemander une vérification") doit relancer
+// l'enrichissement IMMÉDIATEMENT plutôt que d'attendre le prochain cycle
+// programmé toutes les 5 minutes — sinon une modification faite depuis
+// l'app à 22h ne se voit reprise que si un cycle tourne effectivement,
+// sans garantie de délai, et jamais si le Sheet n'a par ailleurs aucune
+// autre activité. Voir 08_WEBHOOK.gs côté Apps Script.
+const CHAMPS_DECLENCHANT_REENRICHISSEMENT = [
+  "titre", "annee", "urlLetterboxd", "etatEnrichissement", "statutEnrichissement",
+];
+
 async function getSheetsClient() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
   const auth = new google.auth.GoogleAuth({
@@ -47,6 +58,34 @@ function columnLetter(index) {
     n = Math.floor((n - 1) / 26);
   }
   return s;
+}
+
+// Prévient le webhook Apps Script (08_WEBHOOK.gs) pour un ré-enrichissement
+// immédiat. Ne bloque JAMAIS la réponse à l'app en cas d'échec/lenteur :
+// si la variable d'environnement n'est pas configurée, ou si l'appel
+// échoue/timeout, on continue normalement — l'écriture Sheet a déjà
+// réussi, seule la relance immédiate est manquée (le cycle programmé
+// prendra quand même le relais plus tard).
+async function notifierWebhookReenrichissement(id) {
+  const url = process.env.ENRICH_WEBHOOK_URL;
+  const secret = process.env.ENRICH_WEBHOOK_SECRET;
+  if (!url || !secret) return { notified: false, reason: "ENRICH_WEBHOOK_URL/SECRET non configurés" };
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret, id }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const data = await res.json().catch(() => ({}));
+    return { notified: true, ok: !!data.ok, detail: data };
+  } catch (e) {
+    return { notified: false, reason: e.message };
+  }
 }
 
 export default async function handler(req, res) {
@@ -103,7 +142,13 @@ export default async function handler(req, res) {
       requestBody: { valueInputOption: "USER_ENTERED", data },
     });
 
-    return res.status(200).json({ id, updated: Object.keys(finalFields) });
+    // Ré-enrichissement immédiat si un champ pertinent a changé — voir
+    // notifierWebhookReenrichissement ci-dessus pour le comportement en
+    // cas d'échec (n'affecte jamais la réponse renvoyée à l'app).
+    const doitReenrichir = Object.keys(fields).some((k) => CHAMPS_DECLENCHANT_REENRICHISSEMENT.includes(k));
+    const webhook = doitReenrichir ? await notifierWebhookReenrichissement(id) : { notified: false, reason: "aucun champ déclencheur modifié" };
+
+    return res.status(200).json({ id, updated: Object.keys(finalFields), webhook });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: "Impossible de modifier la fiche", details: e.message });
