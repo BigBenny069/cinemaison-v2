@@ -4651,14 +4651,21 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     return () => { clearTimeout(t); controller.abort(); };
   }, [titre, titreTouchedByUser]);
 
+  // ID TMDb retenu au moment du choix — sert à construire un lien
+  // Letterboxd fiable via https://letterboxd.com/tmdb/{ID}, la redirection
+  // officielle documentée par Letterboxd (letterboxd.com/about/film-data/).
+  // Contrairement à l'ancienne estimation de slug à partir du titre, celle-
+  // ci s'appuie sur l'ID exact déjà récupéré côté TMDb : fiable à 100%, pas
+  // une supposition — donc le pré-remplissage automatique redevient sûr.
+  const [tmdbIdPicked, setTmdbIdPicked] = useState(null);
+
   const pickTmdbResult = (r) => {
     setTitre(r.titre);
     if (r.annee) setAnnee(String(r.annee));
-    // Le lien Letterboxd n'est plus deviné automatiquement — trop souvent
-    // faux (titres avec ponctuation, remakes, suites...) et le risque
-    // qu'un lien erroné parte sans être remarqué l'emportait sur le gain
-    // de temps. Le lien "Vérifier sur Letterboxd" ci-dessous reste le
-    // moyen rapide de copier-coller le bon.
+    setTmdbIdPicked(r.tmdbId || null);
+    if (!urlLetterboxd.trim() && r.tmdbId) {
+      setUrlLetterboxd(`https://letterboxd.com/tmdb/${r.tmdbId}${type === "Série" ? "/tv" : ""}`);
+    }
     setTmdbOpen(false);
     setTitreTouchedByUser(false);
   };
@@ -4705,7 +4712,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE *</span>
         <input
           value={titre}
-          onChange={(e) => { setTitre(e.target.value); setTitreTouchedByUser(true); }}
+          onChange={(e) => { setTitre(e.target.value); setTitreTouchedByUser(true); setTmdbIdPicked(null); }}
           onFocus={() => { if (tmdbResults.length > 0) setTmdbOpen(true); }}
           className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
           style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }}
@@ -4764,12 +4771,17 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
         <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/…"
           className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
-        {/* Letterboxd n'a pas d'API de recherche publique — le lien ci-dessus */}
-        {/* n'est qu'une estimation basée sur le titre quand rempli via TMDb.  */}
-        {/* Ce lien ouvre la recherche officielle Letterboxd pour vérifier/    */}
-        {/* corriger en un clic plutôt que de deviner à l'aveugle. */}
-        {titre.trim() && (
-          <a href={`https://letterboxd.com/search/films/${encodeURIComponent(titre.trim())}/`} target="_blank" rel="noreferrer"
+        {/* Redirection officielle Letterboxd basée sur l'ID TMDb (voir      */}
+        {/* letterboxd.com/about/film-data/) : letterboxd.com/tmdb/{id}       */}
+        {/* renvoie systématiquement vers la bonne fiche — fiable, pas une    */}
+        {/* estimation de slug comme avant. Repli sur une recherche par titre */}
+        {/* si aucun film TMDb n'a été sélectionné (saisie 100% manuelle). */}
+        {(tmdbIdPicked || titre.trim()) && (
+          <a
+            href={tmdbIdPicked
+              ? `https://letterboxd.com/tmdb/${tmdbIdPicked}${type === "Série" ? "/tv" : ""}`
+              : `https://letterboxd.com/search/films/${encodeURIComponent(titre.trim())}/`}
+            target="_blank" rel="noreferrer"
             className="inline-flex items-center gap-1.5 mt-2">
             <ExternalLink size={11} color={T.accentSecondary} />
             <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary }}>Vérifier sur Letterboxd</span>
