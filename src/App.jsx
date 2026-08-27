@@ -4664,7 +4664,15 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     if (r.annee) setAnnee(String(r.annee));
     setTmdbIdPicked(r.tmdbId || null);
     if (!urlLetterboxd.trim() && r.tmdbId) {
-      setUrlLetterboxd(`https://letterboxd.com/tmdb/${r.tmdbId}${type === "Série" ? "/tv" : ""}`);
+    // Correctif : la redirection letterboxd.com/tmdb/{id} ne fonctionne
+    // officiellement QUE pour les films — Letterboxd confirme que les
+    // séries ne sont jamais auto-importées ainsi (ajout manuel par leur
+    // équipe), et /tmdb/{id}/tv/ ne redirige vers rien de fiable (testé).
+    // Pour une série, on ne pré-remplit donc rien : seul le lien "Vérifier
+    // sur Letterboxd" (recherche par titre) reste proposé plus bas.
+    if (type !== "Série") {
+      setUrlLetterboxd(`https://letterboxd.com/tmdb/${r.tmdbId}`);
+    }
     }
     setTmdbOpen(false);
     setTitreTouchedByUser(false);
@@ -4773,13 +4781,14 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
           className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
         {/* Redirection officielle Letterboxd basée sur l'ID TMDb (voir      */}
         {/* letterboxd.com/about/film-data/) : letterboxd.com/tmdb/{id}       */}
-        {/* renvoie systématiquement vers la bonne fiche — fiable, pas une    */}
-        {/* estimation de slug comme avant. Repli sur une recherche par titre */}
-        {/* si aucun film TMDb n'a été sélectionné (saisie 100% manuelle). */}
+        {/* renvoie systématiquement vers la bonne fiche — mais UNIQUEMENT    */}
+        {/* pour les films (Letterboxd confirme que les séries ne sont pas    */}
+        {/* auto-importées ainsi). Repli sur une recherche par titre pour     */}
+        {/* les séries, ou si aucun film TMDb n'a été sélectionné. */}
         {(tmdbIdPicked || titre.trim()) && (
           <a
-            href={tmdbIdPicked
-              ? `https://letterboxd.com/tmdb/${tmdbIdPicked}${type === "Série" ? "/tv" : ""}`
+            href={(tmdbIdPicked && type !== "Série")
+              ? `https://letterboxd.com/tmdb/${tmdbIdPicked}`
               : `https://letterboxd.com/search/films/${encodeURIComponent(titre.trim())}/`}
             target="_blank" rel="noreferrer"
             className="inline-flex items-center gap-1.5 mt-2">
