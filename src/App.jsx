@@ -522,6 +522,31 @@ function setLastNotifDate_(d) {
 }
 
 /* ------------------------------------------------------------------ */
+/* RÉSUMÉ QUOTIDIEN PAR EMAIL — stocké localement pour l'affichage/     */
+/* édition dans Réglages ; la valeur qui compte vraiment pour l'envoi   */
+/* réel vit côté Sheet CONFIG (écrite via le webhook, voir              */
+/* 09_WEBHOOK.gs). Contrairement aux notifications locales, ce réglage  */
+/* n'est pas propre à cet appareil — mais on n'a pas de route de LECTURE */
+/* du Sheet CONFIG, donc l'affichage reflète "ce qui a été envoyé en     */
+/* dernier depuis cet appareil", pas une vérité absolue multi-appareils. */
+/* ------------------------------------------------------------------ */
+function getStoredDigestSettings_() {
+  try {
+    const raw = localStorage.getItem("cinemaison_digest_settings");
+    if (!raw) return { actif: false, seuilJours: 7, destinataires: "" };
+    const parsed = JSON.parse(raw);
+    return {
+      actif: !!parsed.actif,
+      seuilJours: Number(parsed.seuilJours) > 0 ? Number(parsed.seuilJours) : 7,
+      destinataires: String(parsed.destinataires || ""),
+    };
+  } catch { return { actif: false, seuilJours: 7, destinataires: "" }; }
+}
+function setStoredDigestSettings_(v) {
+  try { localStorage.setItem("cinemaison_digest_settings", JSON.stringify(v)); } catch {}
+}
+
+/* ------------------------------------------------------------------ */
 /* ECRITURES PROTÉGÉES — add-film / update-film / delete-film          */
 /* Le mot de passe est demandé une seule fois puis mémorisé sur cet    */
 /* appareil (localStorage) pour ne pas le retaper à chaque action.     */
@@ -5006,6 +5031,37 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
     try { localStorage.setItem("cinemaison_notif_seuil", String(v)); } catch {}
   };
 
+  // Résumé quotidien par email — édité ici, envoyé au Sheet CONFIG via le
+  // webhook (voir api/update-settings.js + 09_WEBHOOK.gs). "digestSaving"
+  // et "digestSaved" pilotent le bouton Enregistrer (feedback bref).
+  const storedDigest = getStoredDigestSettings_();
+  const [digestActif, setDigestActif] = useState(storedDigest.actif);
+  const [digestSeuil, setDigestSeuil] = useState(String(storedDigest.seuilJours));
+  const [digestDestinataires, setDigestDestinataires] = useState(storedDigest.destinataires);
+  const [digestSaving, setDigestSaving] = useState(false);
+  const [digestSaved, setDigestSaved] = useState(false);
+  const [digestError, setDigestError] = useState(null);
+
+  const enregistrerDigest = async () => {
+    setDigestSaving(true);
+    setDigestError(null);
+    setDigestSaved(false);
+    const seuilNombre = parseInt(digestSeuil, 10);
+    const result = await apiWrite("/api/update-settings", {
+      actif: digestActif,
+      seuilJours: Number.isFinite(seuilNombre) && seuilNombre > 0 ? seuilNombre : 7,
+      destinataires: digestDestinataires.trim(),
+    });
+    setDigestSaving(false);
+    if (!result.ok) {
+      setDigestError(result.error || "Impossible d'enregistrer");
+      return;
+    }
+    setStoredDigestSettings_({ actif: digestActif, seuilJours: seuilNombre || 7, destinataires: digestDestinataires.trim() });
+    setDigestSaved(true);
+    setTimeout(() => setDigestSaved(false), 2000);
+  };
+
   // Relance en masse l'enrichissement des fiches sans bande-annonce — vide
   // EtatEnrichissement + StatutEnrichissement pour toutes les fiches
   // concernées en un seul appel (api/bulk-retry-trailers.js), au lieu de
@@ -5067,6 +5123,58 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
         )}
         <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
           Notification locale à l'ouverture de l'appli (pas d'alerte si l'appli est fermée en arrière-plan). Réglage propre à cet iPhone — à refaire si tu changes d'appareil.
+        </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="RÉSUMÉ QUOTIDIEN PAR EMAIL" subtitle={digestActif ? `Activé · J-${digestSeuil}` : "Désactivé"}>
+        <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <div className="pr-3">
+            <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>Email quotidien</p>
+            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 2 }}>Films qui partent bientôt, façon CinéRadar</p>
+          </div>
+          <button onClick={() => setDigestActif((v) => !v)} className="flex-shrink-0 rounded-full px-3 py-1.5" style={{ background: digestActif ? T.accentSoft : T.surfaceRaised, border: `1px solid ${digestActif ? T.accent + "66" : T.line}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: digestActif ? T.accent : T.mutedDim }}>{digestActif ? "ACTIVÉ" : "DÉSACTIVÉ"}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl px-4 py-2.5 mt-2" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+          <span style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>Prévenir si ça part dans</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number" inputMode="numeric" min={1}
+              value={digestSeuil}
+              onChange={(e) => setDigestSeuil(e.target.value)}
+              className="rounded-lg text-center outline-none"
+              style={{ width: 56, padding: "6px 4px", background: T.surfaceRaised, border: `1px solid ${T.line}`, fontFamily: F.marquee, fontSize: 15, color: T.accent }}
+            />
+            <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim }}>JOURS</span>
+          </div>
+        </div>
+
+        <label className="block mt-2">
+          <span style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, letterSpacing: 0.5 }}>DESTINATAIRES (séparés par une virgule)</span>
+          <textarea
+            value={digestDestinataires}
+            onChange={(e) => setDigestDestinataires(e.target.value)}
+            placeholder="toi@exemple.com, romy@exemple.com"
+            rows={2}
+            className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
+            style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 13, color: T.cream, resize: "none" }}
+          />
+        </label>
+
+        {digestError && (
+          <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>{digestError}</p>
+        )}
+
+        <button onClick={enregistrerDigest} disabled={digestSaving} className="w-full rounded-lg py-2.5 mt-3" style={{ background: digestSaved ? T.accentSoft : T.accent, opacity: digestSaving ? 0.7 : 1 }}>
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: digestSaved ? T.accent : T.bg }}>
+            {digestSaving ? "ENREGISTREMENT…" : digestSaved ? "✓ ENREGISTRÉ" : "ENREGISTRER"}
+          </span>
+        </button>
+
+        <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Sépare la liste générale des films tagués Romy et Benoît, chacun dans sa propre section. Envoyé une fois par jour par le script d'enrichissement — indépendant de cet appareil, contrairement aux notifications ci-dessus.
         </p>
       </CollapsibleSection>
 
