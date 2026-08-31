@@ -49,6 +49,7 @@ export default async function handler(req, res) {
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
   }
+
   if (!titre || !annee || !plateforme || !type) {
     return res.status(400).json({ error: "Titre, année, plateforme et type sont obligatoires" });
   }
@@ -62,6 +63,7 @@ export default async function handler(req, res) {
     const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: SHEET_RANGE });
     const rows = response.data.values || [];
     const headers = rows[0] || [];
+
     const idCol = headers.indexOf("ID");
     const existingIds = rows.slice(1).map((r) => r[idCol]);
     const newId = nextSequentialId(existingIds);
@@ -71,10 +73,22 @@ export default async function handler(req, res) {
     // synopsis, casting, notes...) reste vide pour l'enrichissement
     // automatique ultérieur.
     const newRow = new Array(headers.length).fill("");
+    const champsIgnores = [];
+
     const setField = (headerName, value) => {
       const idx = headers.indexOf(headerName);
-      if (idx >= 0) newRow[idx] = value;
+      if (idx >= 0) {
+        newRow[idx] = value;
+      } else {
+        // NOUVEAU : au lieu d'échouer silencieusement, on note le nom de
+        // colonne recherché pour le voir dans les journaux Vercel — ça
+        // permet de détecter immédiatement un écart entre le nom de champ
+        // envoyé côté client (CinéMaison ou CinéRadar) et le nom exact de
+        // la colonne dans la ligne d'en-tête du Sheet.
+        champsIgnores.push(headerName);
+      }
     };
+
     setField("ID", newId);
     setField("Titre", titre);
     setField("Annee", annee);
@@ -82,6 +96,17 @@ export default async function handler(req, res) {
     setField("Type", type);
     if (dateManuelle) setField("DateDisponibilite", dateManuelle);
     if (urlLetterboxd) setField("URLLetterboxd", urlLetterboxd);
+
+    if (champsIgnores.length > 0) {
+      // console.error (pas .warn) pour que ça remonte bien dans l'onglet
+      // "Logs" de Vercel même si le niveau de verbosité est filtré.
+      console.error(
+        "[add-film] Colonne(s) introuvable(s) dans l'en-tête du Sheet, champ(s) ignoré(s) :",
+        champsIgnores.join(", "),
+        "— en-têtes disponibles :",
+        headers.join(", ")
+      );
+    }
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
@@ -91,7 +116,17 @@ export default async function handler(req, res) {
       requestBody: { values: [newRow] },
     });
 
-    return res.status(200).json({ id: newId, titre, annee, plateforme, type });
+    return res.status(200).json({
+      id: newId,
+      titre,
+      annee,
+      plateforme,
+      type,
+      // Remonté dans la réponse aussi, pas seulement les logs — utile pour
+      // que CinéRadar (ou tout autre appelant) voie immédiatement si un de
+      // ses champs n'a pas pu être écrit, sans avoir à consulter les logs.
+      champsIgnores: champsIgnores.length > 0 ? champsIgnores : undefined,
+    });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: "Impossible d'ajouter le film au Google Sheet", details: e.message });
