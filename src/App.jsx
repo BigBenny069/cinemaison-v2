@@ -1739,7 +1739,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {CURRENT_THEME === "cacartoon" && (
         <>
           {suggestion && (
-            <div className="px-4 mb-6">
+            <div className="px-4 mb-4">
               <div className="flex items-center justify-between mb-2.5">
                 <span className="inline-flex items-center gap-2">
                   <span style={{ width: 10, height: 10, borderRadius: "50%", background: T.accent, flexShrink: 0 }} />
@@ -4696,7 +4696,7 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
           <div className="flex items-center justify-between rounded-xl px-4 py-2.5 mt-2" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
             <span style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>Me prévenir dès</span>
             <div className="flex gap-1.5">
-              {[2, 5].map((v) => (
+              {[2, 5, 10, 15].map((v) => (
                 <button key={v} onClick={() => changeNotifSeuil(v)} className="rounded-full px-3 py-1.5"
                   style={{ background: notifSeuil === v ? T.accentSoft : T.surfaceRaised, border: `1px solid ${notifSeuil === v ? T.accent + "66" : T.line}` }}>
                   <span style={{ fontFamily: F.mono, fontSize: 10, color: notifSeuil === v ? T.accent : T.mutedDim, fontWeight: 700 }}>J-{v}</span>
