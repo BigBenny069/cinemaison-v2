@@ -1772,7 +1772,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {/* ça, un synopsis d'une seule ligne (ou absent) réduit   */}
                     {/* la hauteur de la carte et fait varier l'écart avec le  */}
                     {/* menu suivant d'une suggestion à l'autre.               */}
-                    <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.4, height: 28, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis || ""}</p>
+                    <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis || ""}</p>
                   </div>
                 </div>
               </button>
