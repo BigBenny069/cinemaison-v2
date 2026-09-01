@@ -3218,13 +3218,6 @@ function PersonScreen({ films, nom, onOpen, onBack, onMenu }) {
 /* par-dessus le champ texte existant.                                   */
 /* ------------------------------------------------------------------ */
 function DateFieldWithCalendar({ value, onChange }) {
-  const dateInputRef = useRef(null);
-  const openCalendar = () => {
-    const el = dateInputRef.current;
-    if (!el) return;
-    if (typeof el.showPicker === "function") { try { el.showPicker(); return; } catch {} }
-    el.click();
-  };
   // JJ/MM/AAAA -> AAAA-MM-JJ, pour que le picker natif s'ouvre déjà sur la
   // date en cours si le champ texte en contient une valide.
   const isoValue = (() => {
@@ -3235,22 +3228,28 @@ function DateFieldWithCalendar({ value, onChange }) {
     <div className="relative mt-1.5">
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="14/08/2026"
         className="w-full rounded-lg pl-3 pr-11 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
-      <button type="button" onClick={openCalendar} className="absolute flex items-center justify-center" style={{ right: 7, top: "50%", transform: "translateY(-50%)", width: 30, height: 30, borderRadius: 8, background: T.surfaceRaised }}>
-        <CalendarDays size={15} color={T.mutedDim} />
-      </button>
-      <input
-        ref={dateInputRef}
-        type="date"
-        value={isoValue}
-        onChange={(e) => {
-          if (!e.target.value) return;
-          const [y, m, d] = e.target.value.split("-");
-          onChange(`${d}/${m}/${y}`);
-        }}
-        className="absolute opacity-0"
-        style={{ width: 1, height: 1, pointerEvents: "none", left: 0, top: 0 }}
-        tabIndex={-1}
-      />
+      {/* Correctif : Safari iOS ne supporte pas showPicker() (contrairement
+          à Safari desktop) -- l'ancienne version comptait dessus, avec un
+          repli sur click() qui n'ouvrait pas fiablement le picker natif sur
+          iPhone. Ici le vrai <input type="date"> est superposé EXACTEMENT
+          sur le bouton calendrier visible, pointer-events actif -- le doigt
+          tape directement sur le vrai champ natif, sans JS intermédiaire. */}
+      <div className="absolute" style={{ right: 7, top: "50%", transform: "translateY(-50%)", width: 30, height: 30 }}>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ borderRadius: 8, background: T.surfaceRaised }}>
+          <CalendarDays size={15} color={T.mutedDim} />
+        </div>
+        <input
+          type="date"
+          value={isoValue}
+          onChange={(e) => {
+            if (!e.target.value) return;
+            const [y, m, d] = e.target.value.split("-");
+            onChange(`${d}/${m}/${y}`);
+          }}
+          className="absolute inset-0 opacity-0"
+          style={{ width: "100%", height: "100%", fontSize: 16 }}
+        />
+      </div>
     </div>
   );
 }
