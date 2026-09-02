@@ -434,7 +434,7 @@ function getStoredNotifEnabled_() {
 function getStoredNotifSeuil_() {
   try {
     const v = parseInt(localStorage.getItem("cinemaison_notif_seuil"), 10);
-    return v === 2 || v === 5 ? v : 5;
+    return [2, 5, 10, 15].includes(v) ? v : 5;
   } catch { return 5; }
 }
 function getLastNotifDate_() {
@@ -1756,7 +1756,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <div className="absolute" style={{ background: T.gold, width: "35%", height: "50%", bottom: "-12%", left: "12%", transform: "rotate(-6deg)", opacity: 0.9 }} />
                 <div className="absolute" style={{ background: T.accentTertiary, width: "30%", height: "45%", bottom: "-10%", right: "8%", transform: "rotate(5deg)", opacity: 0.9 }} />
               </div>
-              <button onClick={() => onOpen(suggestion)} className="relative w-full text-left overflow-hidden" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accent}`, borderRadius: T.radius, height: 124 }}>
+              <button key={suggestion.id} onClick={() => onOpen(suggestion)} className="relative w-full text-left overflow-hidden" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accent}`, borderRadius: T.radius, height: 124 }}>
                 <div style={{ height: 6, background: `linear-gradient(90deg, ${T.accent}, ${T.gold}, ${T.accentSecondary}, ${T.accentTertiary})` }} />
                 <div className="flex gap-3 p-3" style={{ height: 118, overflow: "hidden" }}>
                   <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, borderRadius: 6, objectFit: "cover" }} />
