@@ -4730,7 +4730,7 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
               value={digestSeuil}
               onChange={(e) => setDigestSeuil(e.target.value)}
               className="rounded-lg text-center outline-none"
-              style={{ width: 56, padding: "6px 4px", background: T.surfaceRaised, border: `1px solid ${T.line}`, fontFamily: F.marquee, fontSize: 15, color: T.accent }}
+              style={{ width: 56, padding: "6px 4px", background: T.surfaceRaised, border: `1px solid ${T.line}`, fontFamily: F.marquee, fontSize: 16, color: T.accent }}
             />
             <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim }}>JOURS</span>
           </div>
@@ -4744,7 +4744,7 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
             placeholder="toi@exemple.com, romy@exemple.com"
             rows={2}
             className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
-            style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 13, color: T.cream, resize: "none" }}
+            style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream, resize: "none" }}
           />
         </label>
 
@@ -5504,3 +5504,4 @@ export default function App() {
     </div>
   );
 }
+
