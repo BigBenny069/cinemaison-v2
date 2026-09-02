@@ -1756,29 +1756,30 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <div className="absolute" style={{ background: T.gold, width: "35%", height: "50%", bottom: "-12%", left: "12%", transform: "rotate(-6deg)", opacity: 0.9 }} />
                 <div className="absolute" style={{ background: T.accentTertiary, width: "30%", height: "45%", bottom: "-10%", right: "8%", transform: "rotate(5deg)", opacity: 0.9 }} />
               </div>
-              <button key={suggestion.id} onClick={() => onOpen(suggestion)} className="relative w-full text-left overflow-hidden" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accent}`, borderRadius: T.radius, height: 124 }}>
-                <div style={{ height: 6, background: `linear-gradient(90deg, ${T.accent}, ${T.gold}, ${T.accentSecondary}, ${T.accentTertiary})` }} />
-                <div className="flex gap-3 p-3" style={{ height: 118, overflow: "hidden" }}>
-                  <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, borderRadius: 6, objectFit: "cover" }} />
-                  <div className="min-w-0 flex-1 flex flex-col justify-center" style={{ overflow: "hidden" }}>
-                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream }}>{suggestion.titre}</p>
-                    <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, marginTop: 4 }}>
-                      {suggestion.plateforme}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
-                      {parseRating(suggestion.noteLetterboxd) != null && (
-                        <> · ★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</>
-                      )}
-                    </p>
-                    {/* Correctif : hauteur totale de la carte maintenant     */}
-                    {/* verrouillée en dur (124px) avec overflow:hidden à    */}
-                    {/* chaque niveau -- plus aucune dépendance à            */}
-                    {/* WebkitLineClamp pour garantir la hauteur, qui         */}
-                    {/* pouvait échouer silencieusement sur iOS Safari et    */}
-                    {/* laisser le synopsis s'étirer sur toute sa hauteur    */}
-                    {/* naturelle selon les appareils.                       */}
-                    <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.35, maxHeight: 27, overflow: "hidden" }}>{suggestion.synopsis || ""}</p>
+              {/* Correctif ultime : la hauteur fixe est maintenant portée
+                  par un <div> englobant (pas le <button> lui-même, dont le
+                  rendu intrinsèque diffère parfois d'un <div> selon les
+                  moteurs) — le bouton se contente de remplir ce cadre à
+                  100%, box-sizing explicite pour éviter tout écart de
+                  quelques pixels entre bordure et contenu. */}
+              <div style={{ height: 124, overflow: "hidden", borderRadius: T.radius, boxSizing: "border-box" }}>
+                <button key={suggestion.id} onClick={() => onOpen(suggestion)} className="relative w-full h-full text-left block" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accent}`, borderRadius: T.radius, boxSizing: "border-box", overflow: "hidden" }}>
+                  <div style={{ height: 6, background: `linear-gradient(90deg, ${T.accent}, ${T.gold}, ${T.accentSecondary}, ${T.accentTertiary})` }} />
+                  <div className="flex gap-3 p-3" style={{ overflow: "hidden" }}>
+                    <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, borderRadius: 6, objectFit: "cover" }} />
+                    <div className="min-w-0 flex-1" style={{ overflow: "hidden" }}>
+                      <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream }}>{suggestion.titre}</p>
+                      <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, marginTop: 4 }}>
+                        {suggestion.plateforme}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
+                        {parseRating(suggestion.noteLetterboxd) != null && (
+                          <> · ★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</>
+                        )}
+                      </p>
+                      <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.35, maxHeight: 27, overflow: "hidden" }}>{suggestion.synopsis || ""}</p>
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </div>
             </div>
           )}
 
