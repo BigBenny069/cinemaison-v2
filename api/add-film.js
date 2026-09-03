@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { lireLetterboxd } from "./_letterboxd.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -54,6 +55,33 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Titre, année, plateforme et type sont obligatoires" });
   }
 
+  // NOUVEAU (03/09/2026) : si une URL Letterboxd est fournie à la
+  // création (typiquement /tmdb/{id}, pré-remplie côté app), on essaie
+  // de la résoudre et d'en extraire note/votes tout de suite, ici, sur
+  // Vercel — plutôt que de compter sur Apps Script qui, exécuté via un
+  // déclencheur, s'est révélé bloqué de façon reproductible sur ce
+  // type de requête (voir _letterboxd.js pour le contexte complet).
+  // En cas d'échec, on ne bloque JAMAIS la création du film : on garde
+  // l'URL telle que fournie, et le cycle d'enrichissement Apps Script
+  // habituel prendra le relais comme avant (aucune régression).
+  let letterboxdUrlFinale = urlLetterboxd || "";
+  let letterboxdNote = "";
+  let letterboxdVotes = "";
+  if (urlLetterboxd) {
+    try {
+      const resultat = await lireLetterboxd(urlLetterboxd);
+      if (resultat.ok) {
+        letterboxdUrlFinale = resultat.url;
+        letterboxdNote = resultat.note;
+        letterboxdVotes = resultat.votes;
+      } else {
+        console.error("[add-film] Letterboxd non résolu à la création :", resultat.reason);
+      }
+    } catch (e) {
+      console.error("[add-film] Erreur inattendue lors de la lecture Letterboxd :", e.message);
+    }
+  }
+
   try {
     const sheets = await getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
@@ -95,7 +123,9 @@ export default async function handler(req, res) {
     setField("Plateforme", plateforme);
     setField("Type", type);
     if (dateManuelle) setField("DateDisponibilite", dateManuelle);
-    if (urlLetterboxd) setField("URLLetterboxd", urlLetterboxd);
+    if (letterboxdUrlFinale) setField("URLLetterboxd", letterboxdUrlFinale);
+    if (letterboxdNote) setField("NoteLetterboxd", letterboxdNote);
+    if (letterboxdVotes) setField("VotesLetterboxd", letterboxdVotes);
 
     if (champsIgnores.length > 0) {
       // console.error (pas .warn) pour que ça remonte bien dans l'onglet
@@ -122,6 +152,7 @@ export default async function handler(req, res) {
       annee,
       plateforme,
       type,
+      letterboxdResolu: !!letterboxdNote,
       // Remonté dans la réponse aussi, pas seulement les logs — utile pour
       // que CinéRadar (ou tout autre appelant) voie immédiatement si un de
       // ses champs n'a pas pu être écrit, sans avoir à consulter les logs.
