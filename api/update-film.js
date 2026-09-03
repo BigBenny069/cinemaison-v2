@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { lireLetterboxd, estUrlLetterboxdExploitable } from "./_letterboxd.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -61,11 +62,12 @@ function columnLetter(index) {
 }
 
 // Prévient le webhook Apps Script (08_WEBHOOK.gs) pour un ré-enrichissement
-// immédiat. Ne bloque JAMAIS la réponse à l'app en cas d'échec/lenteur :
-// si la variable d'environnement n'est pas configurée, ou si l'appel
-// échoue/timeout, on continue normalement — l'écriture Sheet a déjà
-// réussi, seule la relance immédiate est manquée (le cycle programmé
-// prendra quand même le relais plus tard).
+// immédiat (TMDb, etc. — tout ce qui n'est pas Letterboxd, désormais géré
+// directement ci-dessous). Ne bloque JAMAIS la réponse à l'app en cas
+// d'échec/lenteur : si la variable d'environnement n'est pas configurée,
+// ou si l'appel échoue/timeout, on continue normalement — l'écriture
+// Sheet a déjà réussi, seule la relance immédiate est manquée (le cycle
+// programmé prendra quand même le relais plus tard).
 async function notifierWebhookReenrichissement(id) {
   const url = process.env.ENRICH_WEBHOOK_URL;
   const secret = process.env.ENRICH_WEBHOOK_SECRET;
@@ -124,6 +126,48 @@ export default async function handler(req, res) {
       TAG_FIELDS.forEach((t) => { if (t !== activatedTag) finalFields[t] = false; });
     }
 
+    // NOUVEAU (03/09/2026) : résolution Letterboxd directement ici, sur
+    // Vercel, plutôt que de compter uniquement sur Apps Script — voir
+    // _letterboxd.js pour le contexte complet (déclencheurs Apps Script
+    // bloqués de façon reproductible sur les requêtes Letterboxd).
+    //
+    // Déclenché quand :
+    //   - une nouvelle URLLetterboxd est envoyée (édition manuelle), ou
+    //   - "Redemander une vérification" est cliqué (EtatEnrichissement/
+    //     StatutEnrichissement vidés) ET la fiche a déjà une URL
+    //     Letterboxd exploitable en base.
+    // Si la lecture échoue, on ne bloque jamais l'écriture des autres
+    // champs : le webhook Apps Script (ci-dessous) prend le relais comme
+    // avant, aucune régression.
+    const urlLetterboxdEnvoyee = typeof finalFields.urlLetterboxd === "string" ? finalFields.urlLetterboxd : null;
+    const demandeRelance = Object.prototype.hasOwnProperty.call(finalFields, "etatEnrichissement")
+      || Object.prototype.hasOwnProperty.call(finalFields, "statutEnrichissement");
+
+    let urlLetterboxdCandidate = urlLetterboxdEnvoyee;
+    if (!urlLetterboxdCandidate && demandeRelance) {
+      const urlCol = headers.indexOf("URLLetterboxd");
+      if (urlCol >= 0) urlLetterboxdCandidate = rows[rowIndex][urlCol] || "";
+    }
+
+    if (urlLetterboxdCandidate && estUrlLetterboxdExploitable(urlLetterboxdCandidate)) {
+      try {
+        const resultat = await lireLetterboxd(urlLetterboxdCandidate);
+        if (resultat.ok) {
+          finalFields.urlLetterboxd = resultat.url;
+          finalFields.noteLetterboxd = resultat.note;
+          finalFields.votesLetterboxd = resultat.votes;
+          // Si la lecture réussit ici, plus besoin de rester en attente
+          // côté Apps Script pour la partie Letterboxd — on le marque
+          // résolu pour ne pas repartir en A_VERIFIER_LETTERBOXD au
+          // prochain cycle si le reste (TMDb) était déjà bon.
+        } else {
+          console.error("[update-film] Letterboxd non résolu :", resultat.reason, "| id=", id);
+        }
+      } catch (e) {
+        console.error("[update-film] Erreur inattendue lors de la lecture Letterboxd :", e.message, "| id=", id);
+      }
+    }
+
     const data = Object.entries(finalFields).map(([camelKey, value]) => {
       const header = CAMEL_TO_HEADER[camelKey];
       if (!header) return null;
@@ -144,7 +188,9 @@ export default async function handler(req, res) {
 
     // Ré-enrichissement immédiat si un champ pertinent a changé — voir
     // notifierWebhookReenrichissement ci-dessus pour le comportement en
-    // cas d'échec (n'affecte jamais la réponse renvoyée à l'app).
+    // cas d'échec (n'affecte jamais la réponse renvoyée à l'app). Reste
+    // utile même quand Letterboxd vient d'être résolu ci-dessus : c'est
+    // ce chemin qui gère TMDb et le reste de l'enrichissement.
     const doitReenrichir = Object.keys(fields).some((k) => CHAMPS_DECLENCHANT_REENRICHISSEMENT.includes(k));
     const webhook = doitReenrichir ? await notifierWebhookReenrichissement(id) : { notified: false, reason: "aucun champ déclencheur modifié" };
 
