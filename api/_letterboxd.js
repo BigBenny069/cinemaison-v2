@@ -24,12 +24,31 @@ const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
   "(KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
+// Contexte (05/09/2026) : après quelques semaines de fonctionnement,
+// Letterboxd a commencé à renvoyer HTTP 403 aussi depuis Vercel (FILM1142,
+// constaté par Ben) -- probablement la même protection anti-robot qui
+// bloquait déjà Apps Script, désormais étendue à cette infrastructure
+// aussi. En-têtes complétés ci-dessous (sec-ch-ua, sec-fetch-*, referer
+// Google) pour ressembler davantage à un clic réel depuis une recherche,
+// plutôt qu'une requête directe sur l'URL -- amélioration incrémentale,
+// pas une garantie : si Letterboxd bloque au niveau de l'infrastructure
+// réseau (IP Vercel elle-même mise sur liste noire, comme pour le pool
+// de déclencheurs Apps Script), aucun réglage d'en-têtes ne suffira.
 function headersLetterboxd() {
   return {
     "User-Agent": USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9,fr-FR;q=0.8,fr;q=0.7",
     "Cache-Control": "no-cache",
+    "Upgrade-Insecure-Requests": "1",
+    "Referer": "https://www.google.com/",
+    "sec-ch-ua": "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "cross-site",
+    "Sec-Fetch-User": "?1",
   };
 }
 
@@ -146,13 +165,19 @@ export async function lireLetterboxd(urlDepart) {
   }
 
   let urlAUtiliser = urlDepart;
+  let redirectionEchouee = false;
   if (/letterboxd\.com\/(tmdb|imdb)\//i.test(urlDepart)) {
     try {
       const resolue = await resoudreRedirection(urlDepart);
-      if (resolue) urlAUtiliser = resolue;
+      if (resolue) {
+        urlAUtiliser = resolue;
+      } else {
+        redirectionEchouee = true;
+      }
     } catch {
       // Pas grave : on retente juste avec l'URL de départ ci-dessous
       // (fetch() suit les redirections par défaut).
+      redirectionEchouee = true;
     }
   }
 
@@ -168,7 +193,10 @@ export async function lireLetterboxd(urlDepart) {
   }
 
   if (!reponse.ok) {
-    return { ok: false, reason: "HTTP " + reponse.status };
+    const etape = redirectionEchouee
+      ? "résolution /tmdb/ non concluante, repli sur l'URL de départ"
+      : "page finale";
+    return { ok: false, reason: "HTTP " + reponse.status + " (" + etape + ")" };
   }
 
   const html = await reponse.text();
