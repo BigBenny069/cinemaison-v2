@@ -151,19 +151,10 @@ function extraireUrlCanonique(html, urlDemandee) {
 }
 
 /**
- * Point d'entrée principal. Retourne toujours un objet — jamais
- * d'exception non attrapée — pour que l'appelant puisse continuer
- * normalement (sans note/votes) en cas d'échec, exactement comme le
- * ferait le chemin Apps Script existant.
- *
- * Succès : { ok: true, url, note, votes }
- * Échec  : { ok: false, reason }
+ * Une seule tentative de résolution — logique inchangée, juste extraite
+ * pour être appelable plusieurs fois par lireLetterboxd() ci-dessous.
  */
-export async function lireLetterboxd(urlDepart) {
-  if (!estUrlLetterboxdExploitable(urlDepart)) {
-    return { ok: false, reason: "URL non reconnue comme une fiche Letterboxd" };
-  }
-
+async function lireLetterboxdUneFois_(urlDepart) {
   let urlAUtiliser = urlDepart;
   let redirectionEchouee = false;
   if (/letterboxd\.com\/(tmdb|imdb)\//i.test(urlDepart)) {
@@ -215,4 +206,47 @@ export async function lireLetterboxd(urlDepart) {
     note: note != null ? note : "PAS DE NOTE",
     votes: votes != null ? votes : "PAS DE VOTE",
   };
+}
+
+function attendre_(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Point d'entrée principal. Retourne toujours un objet — jamais
+ * d'exception non attrapée — pour que l'appelant puisse continuer
+ * normalement (sans note/votes) en cas d'échec, exactement comme le
+ * ferait le chemin Apps Script existant.
+ *
+ * V2 (05/09/2026) : jusqu'à 2 tentatives supplémentaires (pauses 1s puis
+ * 2s) si Letterboxd renvoie un blocage anti-robot apparent (HTTP 403 ou
+ * 429) -- même principe que V4.5.5 côté Apps Script, adapté à un budget
+ * de temps plus court (fonction Vercel appelée de façon synchrone
+ * pendant que l'app attend la réponse). Ne retente PAS sur "URL non
+ * reconnue" ni "Page reçue mais non reconnue" -- ce sont des échecs
+ * déterministes, retenter ne changerait rien.
+ *
+ * Succès : { ok: true, url, note, votes }
+ * Échec  : { ok: false, reason }
+ */
+export async function lireLetterboxd(urlDepart) {
+  if (!estUrlLetterboxdExploitable(urlDepart)) {
+    return { ok: false, reason: "URL non reconnue comme une fiche Letterboxd" };
+  }
+
+  const pausesMs = [1000, 2000];
+  let dernierResultat;
+
+  for (let tentative = 0; tentative <= pausesMs.length; tentative++) {
+    dernierResultat = await lireLetterboxdUneFois_(urlDepart);
+
+    if (dernierResultat.ok) return dernierResultat;
+
+    const blocageApparent = /^HTTP (403|429)/.test(dernierResultat.reason || "");
+    if (!blocageApparent) return dernierResultat; // échec déterministe, inutile de retenter
+
+    if (tentative < pausesMs.length) await attendre_(pausesMs[tentative]);
+  }
+
+  return dernierResultat;
 }
