@@ -10,6 +10,14 @@ const EXPOSED_COLUMNS = [
   "URLBandeAnnonce",
 ];
 
+// V1.1 (08/09/2026) : mode léger (?leger=1) utilisé par prime.js, qui
+// n'a besoin que de ces 5 champs pour faire correspondre un titre Prime
+// à un ID CinéMaison. Renvoyer Synopsis/Casting/Affiche pour chacune des
+// 1000+ fiches à chaque scraping Prime alourdissait beaucoup la réponse
+// pour rien -- probable facteur aggravant des coupures réseau (ECONNRESET)
+// rencontrées le 08/09/2026 sur une connexion moins stable.
+const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree"];
+
 async function getSheetsClient() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
   const auth = new google.auth.GoogleAuth({
@@ -37,12 +45,15 @@ export default async function handler(req, res) {
     const rows = response.data.values || [];
     if (rows.length < 2) return res.status(200).json([]);
 
+    const modeLeger = req.query.leger === "1";
+    const colonnes = modeLeger ? EXPOSED_COLUMNS_LEGER : EXPOSED_COLUMNS;
+
     const headers = rows[0];
-    const columnIndexes = EXPOSED_COLUMNS.map((col) => headers.indexOf(col));
+    const columnIndexes = colonnes.map((col) => headers.indexOf(col));
 
     const films = rows.slice(1).map((row) => {
       const film = {};
-      EXPOSED_COLUMNS.forEach((col, i) => {
+      colonnes.forEach((col, i) => {
         const idx = columnIndexes[i];
         film[toCamelCase(col)] = idx >= 0 ? row[idx] || null : null;
       });
