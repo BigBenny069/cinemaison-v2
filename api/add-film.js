@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { lireLetterboxd } from "./_letterboxd.js";
+import { lireLetterboxd } from "../lib/letterboxd.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
   // de la résoudre et d'en extraire note/votes tout de suite, ici, sur
   // Vercel — plutôt que de compter sur Apps Script qui, exécuté via un
   // déclencheur, s'est révélé bloqué de façon reproductible sur ce
-  // type de requête (voir _letterboxd.js pour le contexte complet).
+  // type de requête (voir lib/letterboxd.js pour le contexte complet).
   // En cas d'échec, on ne bloque JAMAIS la création du film : on garde
   // l'URL telle que fournie, et le cycle d'enrichissement Apps Script
   // habituel prendra le relais comme avant (aucune régression).
