@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { lireLetterboxd, estUrlLetterboxdExploitable } from "./_letterboxd.js";
+import { lireLetterboxd, estUrlLetterboxdExploitable } from "../lib/letterboxd.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -128,7 +128,7 @@ export default async function handler(req, res) {
 
     // NOUVEAU (03/09/2026) : résolution Letterboxd directement ici, sur
     // Vercel, plutôt que de compter uniquement sur Apps Script — voir
-    // _letterboxd.js pour le contexte complet (déclencheurs Apps Script
+    // lib/letterboxd.js pour le contexte complet (déclencheurs Apps Script
     // bloqués de façon reproductible sur les requêtes Letterboxd).
     //
     // Déclenché quand :
