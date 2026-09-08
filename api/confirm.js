@@ -1,7 +1,7 @@
-// Page de confirmation UNIQUE pour les 3 boutons envoyés par mail --
+// Page de confirmation UNIQUE pour les boutons envoyés par mail --
 // fusionnée (06/09/2026, correctif limite Vercel Hobby : 12 fonctions
 // serverless max par déploiement, on l'avait dépassée avec une page
-// par action). Dispatch par ?page=add|ignore|apply.
+// par action). Dispatch par ?page=add|ignore|apply|merge.
 //
 // Toujours le même principe de sécurité : le lien du mail est un
 // simple GET (sans danger même pré-visité par un scanner de client
@@ -15,6 +15,7 @@ export default function handler(req, res) {
   if (type === "add") return pageAjouter(req, res);
   if (type === "ignore") return pageIgnorer(req, res);
   if (type === "apply") return pageAppliquer(req, res);
+  if (type === "merge") return pageFusionner(req, res);
 
   return res.status(400).send(pageHtml(
     "Lien incomplet",
@@ -213,6 +214,103 @@ function pageAppliquer(req, res) {
   `;
 
   return res.status(200).send(pageHtml("Valider CONTROLE_PRIME", contenu));
+}
+
+// ---- ?page=merge : "Fusionner avec une fiche existante" (suggestions) ----
+function pageFusionner(req, res) {
+  const { titre, pw } = req.query || {};
+
+  if (!titre || !pw) {
+    return res.status(400).send(pageHtml(
+      "Lien incomplet",
+      "<p>Ce lien est incomplet ou abîmé.</p>"
+    ));
+  }
+
+  const titreEchappe = echapperHtml(titre);
+
+  const contenu = `
+    <p style="font-size:15px;color:#3A2E22">
+      <strong>${titreEchappe}</strong>
+    </p>
+    <p style="font-size:13px;color:#9A9182">
+      Ce titre est en fait déjà dans CinéMaison, juste écrit différemment ?
+      Cherche-le et sélectionne-le ci-dessous -- il sera lié définitivement
+      à cette fiche, pour que Prime puisse suivre sa date de départ correctement.
+    </p>
+    <input id="recherche" type="text" placeholder="Tape le début du titre..."
+      style="width:100%;box-sizing:border-box;padding:10px;font-size:15px;
+      font-family:Arial,sans-serif;border:1px solid #E3D9C4;border-radius:6px;margin-bottom:10px">
+    <div id="resultats" style="max-height:280px;overflow-y:auto"></div>
+    <p id="statut" style="font-size:13px;color:#9A9182;margin-top:12px"></p>
+    <script>
+      const champRecherche = document.getElementById("recherche");
+      const zoneResultats = document.getElementById("resultats");
+      const statut = document.getElementById("statut");
+      let films = [];
+
+      statut.textContent = "Chargement de la liste CinéMaison...";
+      fetch("/api/get-films?leger=1")
+        .then((r) => r.json())
+        .then((data) => {
+          films = data;
+          statut.textContent = films.length + " fiche(s) chargée(s). Tape pour chercher.";
+        })
+        .catch((e) => { statut.textContent = "Erreur de chargement : " + e.message; });
+
+      function normaliser(s) {
+        return (s || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+      }
+
+      function afficherResultats() {
+        const requete = normaliser(champRecherche.value.trim());
+        zoneResultats.innerHTML = "";
+        if (requete.length < 2) return;
+
+        const trouves = films.filter((f) => normaliser(f.titre).includes(requete)).slice(0, 25);
+        trouves.forEach((f) => {
+          const ligne = document.createElement("div");
+          ligne.style.cssText = "padding:10px;border-bottom:1px solid #EFE7D6;cursor:pointer;font-family:Arial,sans-serif;font-size:14px;color:#3A2E22";
+          ligne.textContent = f.titre + (f.annee ? " (" + f.annee + ")" : "") + " -- " + (f.plateforme || "?") + " -- " + f.id;
+          ligne.addEventListener("click", () => fusionner(f));
+          zoneResultats.appendChild(ligne);
+        });
+        if (trouves.length === 0) {
+          zoneResultats.innerHTML = '<div style="font-family:Arial,sans-serif;font-size:13px;color:#9A9182;padding:10px">Aucun résultat.</div>';
+        }
+      }
+
+      champRecherche.addEventListener("input", afficherResultats);
+
+      async function fusionner(film) {
+        statut.textContent = "Fusion en cours...";
+        try {
+          const reponse = await fetch("/api/prime-ignores", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              password: ${JSON.stringify(pw)},
+              titre: ${JSON.stringify(titre)},
+              type: "ALIAS",
+              idCible: film.id,
+            }),
+          });
+          const corps = await reponse.json().catch(() => ({}));
+          if (reponse.ok) {
+            zoneResultats.innerHTML = "";
+            champRecherche.style.display = "none";
+            statut.textContent = "C'est fait : \\"${titreEchappe}\\" est maintenant lié à " + film.titre + " (" + film.id + "). Tu peux fermer cette page.";
+          } else {
+            statut.textContent = "Erreur : " + (corps.error || "inconnue");
+          }
+        } catch (e) {
+          statut.textContent = "Erreur réseau : " + e.message;
+        }
+      }
+    </script>
+  `;
+
+  return res.status(200).send(pageHtml("Fusionner avec une fiche existante", contenu));
 }
 
 function echapperHtml(texte) {
