@@ -1,6 +1,12 @@
 // Fusionné (06/09/2026, correctif limite Vercel Hobby 12 fonctions) --
 // avant : write-controle-prime.js (écrit les résultats) +
 // appliquer-controle-prime.js (déclenche l'application réelle)
+//
+// V1.1 (08/09/2026) : ajout de StatutPrimeDetecte (7e colonne) --
+// transmet le statut Prime brut (INCLUS/VOD/INDISPONIBLE/
+// BIENTOT_DISPONIBLE/ABONNEMENT_COMPLEMENTAIRE) pour que
+// 11_CONTROLE_PRIME_OFFICIEL.gs puisse mettre à jour Type
+// automatiquement (Indispo/VOD/Bientôt disponible/restauration).
 // séparés. Même fichier, dispatch par body.action.
 import { google } from "googleapis";
 
@@ -11,10 +17,15 @@ const CONTROLE_SHEET_NAME = "CONTROLE_PRIME";
 
 // Colonnes N à S -- même bloc que celui lu par chargerContextePrimeV110_
 // (qui lit 10 colonnes à partir de N, mais seules ces 6 sont utilisées
-// par le script Apps Script).
+// par le script Apps Script). La 7e colonne (T, StatutPrimeDetecte,
+// V1.1 le 08/09/2026) fait partie de ce même bloc de 10 déjà réservé --
+// lue de façon générique par indexEntetesPrimeV110_ côté Apps Script,
+// aucune modification du coeur validé de 11_CONTROLE_PRIME_OFFICIEL.gs
+// n'a été nécessaire pour l'ajouter.
 const ENTETE = [
   "IDFilm", "MessagePrime", "JoursRestants",
   "DateRetraitDetectee", "ControleLe", "StatutControle",
+  "StatutPrimeDetecte",
 ];
 
 async function getSheetsClient() {
@@ -54,13 +65,15 @@ function construireLigne(resultat, controleLe, maintenant) {
   const idFilm = String(resultat.idFilm || "").trim();
   if (!idFilm) return null;
 
+  const statutPrime = String(resultat.statutPrime || "").trim();
+
   if (resultat.statutControle === "DATE_DETECTEE") {
     const jours = Math.round(Number(resultat.joursRestants));
     if (!Number.isFinite(jours) || jours < 0 || jours > 60) {
       return [
         idFilm,
         "Valeur joursRestants invalide reçue de prime.js (" + resultat.joursRestants + ")",
-        "", "", controleLe, "AUCUNE_ALERTE",
+        "", "", controleLe, "AUCUNE_ALERTE", statutPrime,
       ];
     }
 
@@ -74,13 +87,14 @@ function construireLigne(resultat, controleLe, maintenant) {
       formaterDateISO(dateRetrait),
       controleLe,
       "DATE_DETECTEE",
+      statutPrime,
     ];
   }
 
   return [
     idFilm,
     String(resultat.messagePrime || "Aucune alerte de départ détectée"),
-    "", "", controleLe, "AUCUNE_ALERTE",
+    "", "", controleLe, "AUCUNE_ALERTE", statutPrime,
   ];
 }
 
@@ -111,7 +125,7 @@ async function traiterEcriture(req, res) {
 
     await sheets.spreadsheets.values.clear({
       spreadsheetId: sheetId,
-      range: CONTROLE_SHEET_NAME + "!N1:S2000",
+      range: CONTROLE_SHEET_NAME + "!N1:T2000",
     });
 
     await sheets.spreadsheets.values.update({
