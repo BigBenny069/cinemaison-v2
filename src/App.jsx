@@ -2865,14 +2865,9 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           {(film.type || "").toUpperCase()} · {film.annee} · {film.duree || "—"}
         </p>
         {STATUT_DISPO_BADGE_V1[film.type] && (
-          <span style={{
-            display: "inline-flex", alignItems: "center", marginTop: 6,
-            padding: "3px 9px", borderRadius: 999,
-            fontFamily: F.mono, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
-            color: "#fff", background: STATUT_DISPO_BADGE_V1[film.type].couleur(T),
-          }}>
-            {STATUT_DISPO_BADGE_V1[film.type].label}
-          </span>
+          <div style={{ marginTop: 8 }}>
+            <BadgeExplosion type={film.type} size={44} />
+          </div>
         )}
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
           <PlatformIcon label={film.plateforme} />
@@ -3136,7 +3131,16 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
 /* ECRAN RECHERCHE — titre, réalisateur, casting                       */
 /* ------------------------------------------------------------------ */
 function normalizeSearch(s) {
-  return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    // Apostrophe droite (') vs courbe (') vs accent grave (`) -- le
+    // clavier tape systématiquement la droite, TMDb utilise souvent la
+    // courbe dans les titres. Ignorées toutes les deux pour la
+    // recherche (bug trouvé le 09/09/2026 : "L'attaque" ne trouvait pas
+    // "L'Attaque du métro 123").
+    .replace(/['’ʼ`]/g, "");
 }
 
 // Devine l'URL Letterboxd la plus probable à partir du titre — Letterboxd
@@ -3176,6 +3180,7 @@ function MatchTag({ match }) {
 }
 
 function SearchResultCard({ film, match, onOpen }) {
+  const statutInfo = STATUT_DISPO_BADGE_V1[film.type];
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
       <Poster film={film} className="w-20 h-28 flex-shrink-0" />
@@ -3189,6 +3194,11 @@ function SearchResultCard({ film, match, onOpen }) {
         </p>
         <MatchTag match={match} />
       </div>
+      {statutInfo && (
+        <div className="flex items-center pr-3">
+          <BadgeExplosion type={film.type} size={44} />
+        </div>
+      )}
     </button>
   );
 }
@@ -3414,16 +3424,26 @@ function ListResultCard({ film, onOpen, right }) {
   // propre slot "right" (Alertes/Archives ont leur propre badge dédié),
   // pour ne jamais en afficher deux à la fois. Utilisée dans les écrans
   // Bibliothèque (Film/Série/Documentaire/...), Recherche, Explorer, etc.
+  // Pastille de statut (VOD/Indispo/Bientôt disponible) OU pastille J-x
+  // -- naturellement exclusives en pratique (un film Indispo/VOD/Bientôt
+  // disponible n'a pas de date de départ à compter). Priorité au statut
+  // s'il y en a un. Slot "right" fourni par l'appelant (Alertes/Archives)
+  // prioritaire sur les deux.
   let expiryBadge = right;
-  if (!right && !isArchived(film)) {
+  if (!right && !isArchived(film) && STATUT_DISPO_BADGE_V1[film.type]) {
+    expiryBadge = (
+      <div className="flex items-center pr-3">
+        <BadgeExplosion type={film.type} size={44} />
+      </div>
+    );
+  }
+  if (!right && !expiryBadge && !isArchived(film)) {
     const days = computeExpiryDays(film);
     if (days != null && days >= 0) {
       const color = urgencyColor_(days) || T.accent;
       expiryBadge = (
         <div className="flex items-center pr-3">
-          <span className="rounded-full px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${color}22` : T.accentSoft }}>
-            <span style={{ fontFamily: F.mono, fontSize: 10, color, fontWeight: 700 }}>J-{days}</span>
-          </span>
+          <BadgeTampon days={days} couleur={color} />
         </div>
       );
     }
@@ -4057,6 +4077,65 @@ const STATUT_DISPO_BADGE_V1 = {
   "VOD": { label: "VOD", couleur: (T) => T.accentSecondary },
   "Bientôt disponible": { label: "BIENTÔT DISPONIBLE", couleur: (T) => T.accent },
 };
+
+/**
+ * Noir ou blanc selon la luminosité de la couleur de fond (V2,
+ * 09/09/2026) -- calculé à chaque rendu à partir de la couleur RÉELLE
+ * du badge, pas du thème lui-même, pour rester lisible même si un
+ * futur thème a un accent très clair ou très foncé.
+ */
+function texteLisibleSur_(hex) {
+  const c = String(hex || "").replace("#", "");
+  if (c.length !== 6) return "#fff";
+  const r = parseInt(c.substr(0, 2), 16), g = parseInt(c.substr(2, 2), 16), b = parseInt(c.substr(4, 2), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "#14100C" : "#fff";
+}
+
+const EXPLOSION_CLIP_PATH_V1 =
+  "polygon(50% 0%,61% 18%,80% 8%,79% 29%,100% 35%,86% 50%,100% 65%,79% 71%,80% 92%,61% 82%,50% 100%,39% 82%,20% 92%,21% 71%,0% 65%,14% 50%,0% 35%,21% 29%,20% 8%,39% 18%)";
+
+/**
+ * Badge "explosion" (V2, 09/09/2026) -- VOD/Indispo/Bientôt disponible,
+ * forme en éclat façon BD. Couleur du thème actif, texte clair/foncé
+ * choisi automatiquement selon le contraste (texteLisibleSur_).
+ * Composant partagé -- un seul endroit à maintenir, couvre tous les
+ * thèmes automatiquement (contrairement à l'accueil).
+ */
+function BadgeExplosion({ type, size = 52 }) {
+  const info = STATUT_DISPO_BADGE_V1[type];
+  if (!info) return null;
+  const couleur = info.couleur(T);
+  const texte = texteLisibleSur_(couleur);
+  const taillePolice = info.label.length > 7 ? size * 0.13 : size * 0.16;
+  return (
+    <div style={{
+      width: size, height: size, background: couleur, clipPath: EXPLOSION_CLIP_PATH_V1,
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+    }}>
+      <span style={{ color: texte, fontSize: taillePolice, fontWeight: 900, letterSpacing: 0.2, textAlign: "center", lineHeight: 1 }}>
+        {info.label}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Badge "tampon" (V2, 09/09/2026) -- jours restants avant départ, double
+ * contour légèrement incliné façon cachet. Remplace l'ancienne pastille
+ * pleine. Composant partagé, même principe que BadgeExplosion.
+ */
+function BadgeTampon({ days, couleur }) {
+  if (days == null) return null;
+  return (
+    <div style={{ border: `2px solid ${couleur}`, borderRadius: 6, padding: 2, transform: "rotate(-6deg)", display: "inline-block", flexShrink: 0 }}>
+      <div style={{ border: `1px solid ${couleur}`, borderRadius: 3, padding: "4px 9px" }}>
+        <span style={{ color: couleur, fontFamily: F.mono, fontSize: 12, fontWeight: 800, letterSpacing: 0.5 }}>{`J-${days}`}</span>
+      </div>
+    </div>
+  );
+}
+
 const PLATFORMS_LIST = ["Canal+", "Netflix", "Prime Video", "Disney+"];
 const DUREE_BUCKETS = [
   { id: "court", label: "Court", hint: "-60min", min: 0, max: 59 },
