@@ -1202,6 +1202,13 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
     return [...films].reverse().slice(0, nbAccueil);
   }, [films, nbAccueil]);
 
+  // "Bientôt disponible" (V1, 08/09/2026) -- Type mis à jour
+  // automatiquement par le contrôle Prime (voir 11_CONTROLE_PRIME_OFFICIEL.gs).
+  // Les plus récemment repérés d'abord (même logique que "derniers").
+  const bientotDisponible = useMemo(() => {
+    return [...films].reverse().filter((f) => f.type === "Bientôt disponible").slice(0, nbAccueil);
+  }, [films, nbAccueil]);
+
   // "Ce soir on a X minutes" — filtre optionnel de durée pour la
   // suggestion, qui priorise en plus les films qui expirent bientôt parmi
   // ceux qui rentrent dans le créneau choisi (combine les deux forces de
@@ -1589,6 +1596,31 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
+      {bientotDisponible.length > 0 && CURRENT_THEME === "letterboxd" && (
+        <>
+          <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
+          <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+            {bientotDisponible.map((f) => {
+              const rating = parseRating(f.noteLetterboxd);
+              return (
+                <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
+                  <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
+                    <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                  </div>
+                  <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, fontWeight: 600, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>
+                    {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                  </p>
+                  {rating != null && (
+                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {derniers.length > 0 && CURRENT_THEME === "letterboxd" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
@@ -1904,6 +1936,26 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             </>
           )}
 
+          {bientotDisponible.length > 0 && (
+            <>
+              <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
+              <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+                {bientotDisponible.map((f) => (
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
+                    <Poster film={f} className="w-full" style={{ height: 152, borderRadius: 8, objectFit: "cover" }} />
+                    <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
+                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                      {parseRating(f.noteLetterboxd) != null && (
+                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                      )}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           {derniers.length > 0 && (
             <>
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
@@ -2040,6 +2092,17 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               </div>
             </>
           )}
+          {bientotDisponible.length > 0 && (
+            <>
+              <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
+              <div className="flex gap-3 px-4 overflow-x-auto mb-5">
+                {bientotDisponible.map((f) => (
+                  <MiniCard key={f.id} film={f} onOpen={onOpen}
+                    sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
+                ))}
+              </div>
+            </>
+          )}
           {derniers.length > 0 && (
             <>
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
@@ -2061,6 +2124,18 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
                 sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
+            ))}
+          </div>
+        </>
+      )}
+
+      {bientotDisponible.length > 0 && CURRENT_THEME !== "kansoHeritage" && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "projectionniste" && CURRENT_THEME !== "bd" && CURRENT_THEME !== "table" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "popart" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && CURRENT_THEME !== "cacartoon" && (
+        <>
+          <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
+          <div className="flex gap-3 px-4 overflow-x-auto mb-5">
+            {bientotDisponible.map((f) => (
+              <MiniCard key={f.id} film={f} onOpen={onOpen}
+                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
             ))}
           </div>
         </>
@@ -2789,6 +2864,16 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <p style={{ fontFamily: F.mono, fontSize: 12, color: T.muted, letterSpacing: 0.6, fontWeight: 600 }}>
           {(film.type || "").toUpperCase()} · {film.annee} · {film.duree || "—"}
         </p>
+        {STATUT_DISPO_BADGE_V1[film.type] && (
+          <span style={{
+            display: "inline-flex", alignItems: "center", marginTop: 6,
+            padding: "3px 9px", borderRadius: 999,
+            fontFamily: F.mono, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+            color: "#fff", background: STATUT_DISPO_BADGE_V1[film.type].couleur(T),
+          }}>
+            {STATUT_DISPO_BADGE_V1[film.type].label}
+          </span>
+        )}
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
           <PlatformIcon label={film.plateforme} />
           {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
@@ -3959,7 +4044,19 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN EXPLORER                                                       */
 /* ------------------------------------------------------------------ */
-const TYPES_LIST = ["Film", "Série", "Documentaire", "Spectacle", "VOD", "Indispo"];
+const TYPES_LIST = ["Film", "Série", "Documentaire", "Spectacle", "VOD", "Indispo", "Bientôt disponible"];
+
+/**
+ * Badge visuel sur la fiche détaillée (V1, 08/09/2026) -- affiché quand
+ * Type est un statut de disponibilité (pas un genre de contenu). T
+ * (thème actif) passé en paramètre car couleur() est évalué au moment
+ * du rendu, pas à la définition de cet objet.
+ */
+const STATUT_DISPO_BADGE_V1 = {
+  "Indispo": { label: "INDISPONIBLE", couleur: (T) => T.alert },
+  "VOD": { label: "VOD", couleur: (T) => T.accentSecondary },
+  "Bientôt disponible": { label: "BIENTÔT DISPONIBLE", couleur: (T) => T.accent },
+};
 const PLATFORMS_LIST = ["Canal+", "Netflix", "Prime Video", "Disney+"];
 const DUREE_BUCKETS = [
   { id: "court", label: "Court", hint: "-60min", min: 0, max: 59 },
