@@ -88,8 +88,12 @@ function pageAjouter(req, res) {
 }
 
 // ---- ?page=ignore : "Ignorer" (suggestions) / "Validé, c'est normal" (ambiguïtés) ----
+// plateforme absente ou "PRIME" -> comportement historique inchangé
+// (api/prime-ignores.js) ; toute autre plateforme (NETFLIX, DISNEY...)
+// -> nouveau système générique (api/streaming-ignores.js). Garde les
+// liens Prime déjà envoyés dans des mails existants valides.
 function pageIgnorer(req, res) {
-  const { titre, type, pw } = req.query || {};
+  const { titre, type, pw, plateforme } = req.query || {};
 
   if (!titre || (type !== "SUGGESTION" && type !== "AMBIGUITE") || !pw) {
     return res.status(400).send(pageHtml(
@@ -97,6 +101,9 @@ function pageIgnorer(req, res) {
       "<p>Ce lien est incomplet ou abîmé.</p>"
     ));
   }
+
+  const estPrimeHistorique = !plateforme || plateforme === "PRIME";
+  const endpoint = estPrimeHistorique ? "/api/prime-ignores" : "/api/streaming-ignores";
 
   const titreEchappe = echapperHtml(titre);
   const estAmbiguite = type === "AMBIGUITE";
@@ -121,12 +128,13 @@ function pageIgnorer(req, res) {
         bouton.disabled = true;
         bouton.textContent = "...";
         try {
-          const reponse = await fetch("/api/prime-ignores", {
+          const reponse = await fetch(${JSON.stringify(endpoint)}, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               password: ${JSON.stringify(pw)},
               titre: ${JSON.stringify(titre)},
+              plateforme: ${JSON.stringify(plateforme || "PRIME")},
               type: ${JSON.stringify(type)},
             }),
           });
@@ -151,9 +159,12 @@ function pageIgnorer(req, res) {
   return res.status(200).send(pageHtml(texteBouton, contenu));
 }
 
-// ---- ?page=apply : "VALIDER ET APPLIQUER" (CONTROLE_PRIME) ----
+// ---- ?page=apply : "VALIDER ET APPLIQUER" (CONTROLE_<PLATEFORME>) ----
+// plateforme absente ou "PRIME" -> comportement historique inchangé
+// (api/controle-prime.js) ; toute autre plateforme -> nouveau système
+// générique (api/controle-streaming.js).
 function pageAppliquer(req, res) {
-  const { pw } = req.query || {};
+  const { pw, plateforme } = req.query || {};
 
   if (!pw) {
     return res.status(400).send(pageHtml(
@@ -162,10 +173,14 @@ function pageAppliquer(req, res) {
     ));
   }
 
+  const estPrimeHistorique = !plateforme || plateforme === "PRIME";
+  const endpoint = estPrimeHistorique ? "/api/controle-prime" : "/api/controle-streaming";
+  const nomPlateforme = plateforme || "Prime";
+
   const contenu = `
     <p style="font-size:14px;color:#3A2E22">
       Ça va écrire dans l'onglet <strong>Films</strong> les changements de dates,
-      plateformes et statuts détectés par le dernier passage de <code>prime.js</code>.
+      plateformes et statuts détectés par le dernier passage du collecteur ${echapperHtml(nomPlateforme)}.
     </p>
     <p style="font-size:13px;color:#9A9182">Cette action ne peut pas être annulée automatiquement.</p>
     <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
@@ -182,10 +197,14 @@ function pageAppliquer(req, res) {
         bouton.disabled = true;
         bouton.textContent = "Application en cours...";
         try {
-          const reponse = await fetch("/api/controle-prime", {
+          const reponse = await fetch(${JSON.stringify(endpoint)}, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password: ${JSON.stringify(pw)}, action: "apply" }),
+            body: JSON.stringify({
+              password: ${JSON.stringify(pw)},
+              action: "apply",
+              plateforme: ${JSON.stringify(plateforme || "PRIME")},
+            }),
           });
           const corps = await reponse.json().catch(() => ({}));
           if (reponse.ok) {
@@ -213,12 +232,12 @@ function pageAppliquer(req, res) {
     </script>
   `;
 
-  return res.status(200).send(pageHtml("Valider CONTROLE_PRIME", contenu));
+  return res.status(200).send(pageHtml("Valider CONTROLE_" + nomPlateforme.toUpperCase(), contenu));
 }
 
 // ---- ?page=merge : "Fusionner avec une fiche existante" (suggestions) ----
 function pageFusionner(req, res) {
-  const { titre, pw } = req.query || {};
+  const { titre, pw, plateforme } = req.query || {};
 
   if (!titre || !pw) {
     return res.status(400).send(pageHtml(
@@ -226,6 +245,9 @@ function pageFusionner(req, res) {
       "<p>Ce lien est incomplet ou abîmé.</p>"
     ));
   }
+
+  const estPrimeHistorique = !plateforme || plateforme === "PRIME";
+  const endpoint = estPrimeHistorique ? "/api/prime-ignores" : "/api/streaming-ignores";
 
   const titreEchappe = echapperHtml(titre);
 
@@ -285,12 +307,13 @@ function pageFusionner(req, res) {
       async function fusionner(film) {
         statut.textContent = "Fusion en cours...";
         try {
-          const reponse = await fetch("/api/prime-ignores", {
+          const reponse = await fetch(${JSON.stringify(endpoint)}, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               password: ${JSON.stringify(pw)},
               titre: ${JSON.stringify(titre)},
+              plateforme: ${JSON.stringify(plateforme || "PRIME")},
               type: "ALIAS",
               idCible: film.id,
             }),
