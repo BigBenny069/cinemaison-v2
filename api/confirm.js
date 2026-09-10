@@ -1,7 +1,7 @@
 // Page de confirmation UNIQUE pour les boutons envoyés par mail --
 // fusionnée (06/09/2026, correctif limite Vercel Hobby : 12 fonctions
 // serverless max par déploiement, on l'avait dépassée avec une page
-// par action). Dispatch par ?page=add|ignore|apply|merge.
+// par action). Dispatch par ?page=add|ignore|apply|merge|remove.
 //
 // Toujours le même principe de sécurité : le lien du mail est un
 // simple GET (sans danger même pré-visité par un scanner de client
@@ -16,12 +16,72 @@ export default function handler(req, res) {
   if (type === "ignore") return pageIgnorer(req, res);
   if (type === "apply") return pageAppliquer(req, res);
   if (type === "merge") return pageFusionner(req, res);
+  if (type === "remove") return pageSupprimer(req, res);
 
   return res.status(400).send(pageHtml(
     "Lien incomplet",
     "<p>Ce lien est incomplet ou abîmé (paramètre ?page= manquant ou inconnu).</p>"
   ));
 }
+
+// ---- ?page=remove : "Retirer de CinéMaison" (rapport d'écarts, 18_RAPPORT_ECARTS_PLATEFORMES.gs) ----
+function pageSupprimer(req, res) {
+  const { id, titre, pw } = req.query || {};
+
+  if (!id || !pw) {
+    return res.status(400).send(pageHtml(
+      "Lien incomplet",
+      "<p>Ce lien est incomplet ou abîmé.</p>"
+    ));
+  }
+
+  const titreEchappe = echapperHtml(titre || id);
+
+  const contenu = `
+    <p style="font-size:15px;color:#3A2E22"><strong>${titreEchappe}</strong></p>
+    <p style="font-size:13px;color:#9A9182">
+      Cette fiche est absente du dernier scan complet de sa plateforme -- confirme
+      pour la retirer définitivement de CinéMaison. Cette action ne peut pas être
+      annulée automatiquement.
+    </p>
+    <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
+      padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%">
+      Retirer de CinéMaison
+    </button>
+    <p id="statut" style="font-size:13px;color:#9A9182;margin-top:12px"></p>
+    <script>
+      const bouton = document.getElementById("btn");
+      const statut = document.getElementById("statut");
+      bouton.addEventListener("click", async () => {
+        bouton.disabled = true;
+        bouton.textContent = "Suppression en cours...";
+        try {
+          const reponse = await fetch("/api/delete-film", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: ${JSON.stringify(pw)}, id: ${JSON.stringify(id)} }),
+          });
+          const corps = await reponse.json().catch(() => ({}));
+          if (reponse.ok) {
+            bouton.textContent = "Retiré";
+            statut.textContent = "C'est fait, tu peux fermer cette page.";
+          } else {
+            bouton.disabled = false;
+            bouton.textContent = "Retirer de CinéMaison";
+            statut.textContent = "Erreur : " + (corps.error || "inconnue");
+          }
+        } catch (e) {
+          bouton.disabled = false;
+          bouton.textContent = "Retirer de CinéMaison";
+          statut.textContent = "Erreur réseau : " + e.message;
+        }
+      });
+    </script>
+  `;
+
+  return res.status(200).send(pageHtml("Retirer de CinéMaison", contenu));
+}
+
 
 // ---- ?page=add : "+ Ajouter à CinéMaison" (suggestions) ----
 function pageAjouter(req, res) {
