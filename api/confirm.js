@@ -341,7 +341,7 @@ function pageFusionner(req, res) {
         .catch((e) => { statut.textContent = "Erreur de chargement : " + e.message; });
 
       function normaliser(s) {
-        return (s || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+        return (s || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
       }
 
       function afficherResultats() {
