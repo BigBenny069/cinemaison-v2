@@ -15,6 +15,7 @@ const CAMEL_TO_HEADER = {
   synopsis: "Synopsis", noteLetterboxd: "NoteLetterboxd",
   votesLetterboxd: "VotesLetterboxd", urlLetterboxd: "URLLetterboxd",
   dateAuto: "DateDisponibiliteAuto",
+  tmdbId: "TMDbID",
   // Ajoutés pour "Redemander une vérification" (remplace Mode Vacances) :
   // vider ces deux champs fait sortir la fiche du lot "complet" au sens
   // du script d'enrichissement (05_ENRICHISSEMENT.gs), qui la reprend
@@ -156,6 +157,17 @@ export default async function handler(req, res) {
           finalFields.urlLetterboxd = resultat.url;
           finalFields.noteLetterboxd = resultat.note;
           finalFields.votesLetterboxd = resultat.votes;
+          // N'écrit l'ID TMDb extrait que si la colonne est encore vide
+          // côté Sheet -- on ne vient jamais écraser un TMDbID déjà
+          // saisi à la main (choix délibéré possible, ex. désambiguïser
+          // un remake).
+          if (resultat.tmdbId) {
+            const tmdbCol = headers.indexOf("TMDbID");
+            const tmdbIdActuel = tmdbCol >= 0 ? (rows[rowIndex][tmdbCol] || "") : "";
+            if (!String(tmdbIdActuel).trim()) {
+              finalFields.tmdbId = resultat.tmdbId;
+            }
+          }
           // Si la lecture réussit ici, plus besoin de rester en attente
           // côté Apps Script pour la partie Letterboxd — on le marque
           // résolu pour ne pas repartir en A_VERIFIER_LETTERBOXD au
