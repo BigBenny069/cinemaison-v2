@@ -67,6 +67,7 @@ export default async function handler(req, res) {
   let letterboxdUrlFinale = urlLetterboxd || "";
   let letterboxdNote = "";
   let letterboxdVotes = "";
+  let tmdbIdExtrait = "";
   if (urlLetterboxd) {
     try {
       const resultat = await lireLetterboxd(urlLetterboxd);
@@ -74,6 +75,7 @@ export default async function handler(req, res) {
         letterboxdUrlFinale = resultat.url;
         letterboxdNote = resultat.note;
         letterboxdVotes = resultat.votes;
+        if (resultat.tmdbId) tmdbIdExtrait = resultat.tmdbId;
       } else {
         console.error("[add-film] Letterboxd non résolu à la création :", resultat.reason);
       }
@@ -126,6 +128,10 @@ export default async function handler(req, res) {
     if (letterboxdUrlFinale) setField("URLLetterboxd", letterboxdUrlFinale);
     if (letterboxdNote) setField("NoteLetterboxd", letterboxdNote);
     if (letterboxdVotes) setField("VotesLetterboxd", letterboxdVotes);
+    // Écrit seulement si la colonne est encore vide côté client (on ne
+    // vient jamais écraser un TMDbID déjà saisi à la main) -- ici c'est
+    // toujours le cas puisqu'il s'agit d'une création.
+    if (tmdbIdExtrait) setField("TMDbID", tmdbIdExtrait);
 
     if (champsIgnores.length > 0) {
       // console.error (pas .warn) pour que ça remonte bien dans l'onglet
