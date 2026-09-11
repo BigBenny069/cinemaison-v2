@@ -436,15 +436,64 @@ const PLATFORM_URLS_UPPER = {
   "DISNEY+": "https://www.disneyplus.com/",
 };
 
+// Constat en usage réel (11/09/2026) : Canal+ et Disney+ s'ouvrent
+// très bien nativement via leur URL https (liens universels bien
+// enregistrés) -- mais Prime Video et Netflix, eux, retombent dans un
+// navigateur (intégré ou externe) au lieu de l'app. Les deux ont un
+// schéma d'app dédié plus fiable pour forcer l'ouverture native ;
+// jamais confirmé ici, à valider au prochain essai comme d'habitude.
+const PLATFORM_SCHEMES_UPPER = {
+  "NETFLIX": "nflx://",
+  "PRIME VIDEO": "aiv://aiv/home",
+};
+
+/**
+ * Tente le schéma natif de l'app (si connu pour cette plateforme) ;
+ * si rien ne se passe après un court instant (app absente, schéma
+ * refusé par l'OS), bascule sur l'URL https classique. Pour les
+ * plateformes sans schéma connu (Canal+, Disney+), va direct sur
+ * l'URL https -- déjà fiable telle quelle.
+ */
+function ouvrirPlateforme_(label, url) {
+  const scheme = PLATFORM_SCHEMES_UPPER[(label || "").toUpperCase()];
+  if (!scheme) {
+    window.location.href = url;
+    return;
+  }
+  const debut = Date.now();
+  window.location.href = scheme;
+  setTimeout(() => {
+    // Toujours sur la page après ~800ms : le schéma n'a probablement
+    // pas ouvert l'app (basculement d'app aurait déjà eu lieu sinon).
+    if (Date.now() - debut < 2000) window.location.href = url;
+  }, 800);
+}
+
 function PlatformIcon({ label }) {
   const [failed, setFailed] = useState(false);
   const slug = PLATFORM_SLUGS_UPPER[(label || "").toUpperCase()];
   const showImg = slug && !failed;
   const urlPlateforme = PLATFORM_URLS_UPPER[(label || "").toUpperCase()];
-  // Enveloppe en lien seulement si on connaît l'URL de cette
-  // plateforme -- un <span> normal sinon (label inconnu/vide).
+  // Enveloppe cliquable seulement si on connaît l'URL de cette
+  // plateforme -- un <span> normal sinon (label inconnu/vide). Un
+  // vrai <a href> (plutôt qu'un onClick pur) garde le comportement
+  // standard du navigateur (ouvrir dans un nouvel onglet au clic
+  // milieu, etc.) -- preventDefault seulement pour intercepter et
+  // tenter le schéma natif d'abord.
   const Enveloppe = urlPlateforme ? "a" : "span";
-  const propsEnveloppe = urlPlateforme ? { href: urlPlateforme, target: "_blank", rel: "noopener noreferrer" } : {};
+  const propsEnveloppe = urlPlateforme
+    ? {
+        href: urlPlateforme,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        onClick: (e) => {
+          if (PLATFORM_SCHEMES_UPPER[(label || "").toUpperCase()]) {
+            e.preventDefault();
+            ouvrirPlateforme_(label, urlPlateforme);
+          }
+        },
+      }
+    : {};
 
   if (CURRENT_THEME === "affiche") {
     // Bloc plein encre, comme sur l'affiche validée
