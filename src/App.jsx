@@ -424,30 +424,47 @@ const PLATFORM_SLUGS = {
 };
 const PLATFORM_SLUGS_UPPER = Object.fromEntries(Object.entries(PLATFORM_SLUGS).map(([k, v]) => [k.toUpperCase(), v]));
 
+// URL officielle de chaque plateforme -- sur mobile, si l'app est
+// installée, ouvre directement dedans (liens universels iOS/Android
+// déjà enregistrés par ces 4 apps) ; sinon ouvre simplement le site,
+// jamais d'échec silencieux comme un schéma custom (netflix:// etc.)
+// non géré selon l'OS/la version installée.
+const PLATFORM_URLS_UPPER = {
+  "CANAL+": "https://www.canalplus.com/",
+  "NETFLIX": "https://www.netflix.com/",
+  "PRIME VIDEO": "https://www.primevideo.com/",
+  "DISNEY+": "https://www.disneyplus.com/",
+};
+
 function PlatformIcon({ label }) {
   const [failed, setFailed] = useState(false);
   const slug = PLATFORM_SLUGS_UPPER[(label || "").toUpperCase()];
   const showImg = slug && !failed;
+  const urlPlateforme = PLATFORM_URLS_UPPER[(label || "").toUpperCase()];
+  // Enveloppe en lien seulement si on connaît l'URL de cette
+  // plateforme -- un <span> normal sinon (label inconnu/vide).
+  const Enveloppe = urlPlateforme ? "a" : "span";
+  const propsEnveloppe = urlPlateforme ? { href: urlPlateforme, target: "_blank", rel: "noopener noreferrer" } : {};
 
   if (CURRENT_THEME === "affiche") {
     // Bloc plein encre, comme sur l'affiche validée
     return (
-      <span className="inline-flex items-center px-3 py-1.5" style={{ background: T.cream }}>
+      <Enveloppe {...propsEnveloppe} className="inline-flex items-center px-3 py-1.5" style={{ background: T.cream, textDecoration: "none", cursor: urlPlateforme ? "pointer" : "default" }}>
         <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.6, color: T.surface, fontWeight: 700 }}>{(label || "").toUpperCase()}</span>
-      </span>
+      </Enveloppe>
     );
   }
   if (CURRENT_THEME === "salle") {
     // Pastille douce teintée mauve, plus discrète que le pilulier logo+texte
     return (
-      <span className="inline-flex items-center px-2.5 py-1 rounded-full" style={{ background: `${T.accentSecondary}22`, border: `1px solid ${T.accentSecondary}44` }}>
+      <Enveloppe {...propsEnveloppe} className="inline-flex items-center px-2.5 py-1 rounded-full" style={{ background: `${T.accentSecondary}22`, border: `1px solid ${T.accentSecondary}44`, textDecoration: "none", cursor: urlPlateforme ? "pointer" : "default" }}>
         <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.8, color: T.accentSecondary, fontWeight: 500, textTransform: "uppercase" }}>{label}</span>
-      </span>
+      </Enveloppe>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+    <Enveloppe {...propsEnveloppe} className="inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: T.surface, border: `1px solid ${T.line}`, textDecoration: "none", cursor: urlPlateforme ? "pointer" : "default" }}>
       {showImg ? (
         <img
           src={`/logos/${slug}.png`}
@@ -462,7 +479,7 @@ function PlatformIcon({ label }) {
         </span>
       )}
       <span style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: 0.6, color: T.cream, fontWeight: 600 }}>{(label || "").toUpperCase()}</span>
-    </span>
+    </Enveloppe>
   );
 }
 
