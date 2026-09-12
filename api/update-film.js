@@ -15,7 +15,7 @@ const CAMEL_TO_HEADER = {
   synopsis: "Synopsis", noteLetterboxd: "NoteLetterboxd",
   votesLetterboxd: "VotesLetterboxd", urlLetterboxd: "URLLetterboxd",
   dateAuto: "DateDisponibiliteAuto",
-  tmdbId: "TMDbID",
+  tmdbId: "TMDbID", imdbId: "IMDbID",
   // Ajoutés pour "Redemander une vérification" (remplace Mode Vacances) :
   // vider ces deux champs fait sortir la fiche du lot "complet" au sens
   // du script d'enrichissement (05_ENRICHISSEMENT.gs), qui la reprend
