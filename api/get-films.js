@@ -83,6 +83,7 @@ function toCamelCase(header) {
     NoteLetterboxd: "noteLetterboxd", VotesLetterboxd: "votesLetterboxd",
     URLLetterboxd: "urlLetterboxd", DateDisponibiliteAuto: "dateAuto",
     TMDbID: "tmdbId", IMDbID: "imdbId",
+    CanalContentId: "canalContentId", URLPlateforme: "urlPlateforme",
     URLBandeAnnonce: "urlBandeAnnonce",
   };
   return map[header] || header;
