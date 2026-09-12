@@ -2066,6 +2066,8 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
   const [plateforme, setPlateforme] = useState(film.plateforme || "");
   const [dateManuelle, setDateManuelle] = useState(film.dateManuelle || "");
   const [urlLetterboxd, setUrlLetterboxd] = useState(film.urlLetterboxd || "");
+  const [tmdbId, setTmdbId] = useState(film.tmdbId || "");
+  const [imdbId, setImdbId] = useState(film.imdbId || "");
   const [tag, setTag] = useState(() => activeTag(film));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -2084,6 +2086,8 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       plateforme,
       dateManuelle: dateManuelle.trim(),
       urlLetterboxd: urlLetterboxd.trim(),
+      tmdbId: tmdbId.trim(),
+      imdbId: imdbId.trim(),
       benoit: tag === "Benoit",
       romy: tag === "Romy",
       aDeux: tag === "À deux",
@@ -2155,6 +2159,16 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
         <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/…"
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+      </label>
+      <label className="block mb-5">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>ID TMDB (si la recherche automatique échoue)</span>
+        <input value={tmdbId} onChange={(e) => setTmdbId(e.target.value)} placeholder="ex : 107596 (themoviedb.org/movie/107596)"
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+      </label>
+      <label className="block mb-5">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>ID IMDB (si tu n'as que celui-ci)</span>
+        <input value={imdbId} onChange={(e) => setImdbId(e.target.value)} placeholder="ex : tt0126771"
           className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
       </label>
 
