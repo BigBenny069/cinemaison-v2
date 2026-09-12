@@ -469,27 +469,46 @@ function ouvrirPlateforme_(label, url) {
   }, 800);
 }
 
-function PlatformIcon({ label }) {
+// Construit l'URL Canal+ d'une fiche précise à partir de son
+// CanalContentId -- confirmé le 11/09/2026 : seul cet identifiant final
+// compte dans l'URL (https://www.canalplus.com/x/x/h/{id}), le reste du
+// chemin (catégorie cinema/series/decouverte, nom du titre) est ignoré
+// par Canal+, donc pas besoin de le connaître.
+function urlCanalPlusFiche_(canalContentId) {
+  const id = String(canalContentId || "").trim();
+  return id ? `https://www.canalplus.com/x/x/h/${id}` : null;
+}
+
+function PlatformIcon({ label, canalContentId, urlPlateforme }) {
   const [failed, setFailed] = useState(false);
   const slug = PLATFORM_SLUGS_UPPER[(label || "").toUpperCase()];
   const showImg = slug && !failed;
-  const urlPlateforme = PLATFORM_URLS_UPPER[(label || "").toUpperCase()];
-  // Enveloppe cliquable seulement si on connaît l'URL de cette
+
+  // Priorité à l'URL de la fiche précise quand on l'a (Canal+ calculée
+  // depuis CanalContentId ; Netflix/Disney+/Prime Video envoyée par
+  // leur collecteur respectif) -- repli sur le site générique de la
+  // plateforme sinon (comportement d'avant, inchangé).
+  const urlFiche = (label || "").toUpperCase() === "CANAL+"
+    ? urlCanalPlusFiche_(canalContentId)
+    : (urlPlateforme || null);
+  const urlCliquable = urlFiche || PLATFORM_URLS_UPPER[(label || "").toUpperCase()];
+
+  // Enveloppe cliquable seulement si on connaît une URL pour cette
   // plateforme -- un <span> normal sinon (label inconnu/vide). Un
   // vrai <a href> (plutôt qu'un onClick pur) garde le comportement
   // standard du navigateur (ouvrir dans un nouvel onglet au clic
   // milieu, etc.) -- preventDefault seulement pour intercepter et
   // tenter le schéma natif d'abord.
-  const Enveloppe = urlPlateforme ? "a" : "span";
-  const propsEnveloppe = urlPlateforme
+  const Enveloppe = urlCliquable ? "a" : "span";
+  const propsEnveloppe = urlCliquable
     ? {
-        href: urlPlateforme,
+        href: urlCliquable,
         target: "_blank",
         rel: "noopener noreferrer",
         onClick: (e) => {
           if (PLATFORM_SCHEMES_UPPER[(label || "").toUpperCase()]) {
             e.preventDefault();
-            ouvrirPlateforme_(label, urlPlateforme);
+            ouvrirPlateforme_(label, urlCliquable);
           }
         },
       }
@@ -498,7 +517,7 @@ function PlatformIcon({ label }) {
   if (CURRENT_THEME === "affiche") {
     // Bloc plein encre, comme sur l'affiche validée
     return (
-      <Enveloppe {...propsEnveloppe} className="inline-flex items-center px-3 py-1.5" style={{ background: T.cream, textDecoration: "none", cursor: urlPlateforme ? "pointer" : "default" }}>
+      <Enveloppe {...propsEnveloppe} className="inline-flex items-center px-3 py-1.5" style={{ background: T.cream, textDecoration: "none", cursor: urlCliquable ? "pointer" : "default" }}>
         <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.6, color: T.surface, fontWeight: 700 }}>{(label || "").toUpperCase()}</span>
       </Enveloppe>
     );
@@ -506,14 +525,14 @@ function PlatformIcon({ label }) {
   if (CURRENT_THEME === "salle") {
     // Pastille douce teintée mauve, plus discrète que le pilulier logo+texte
     return (
-      <Enveloppe {...propsEnveloppe} className="inline-flex items-center px-2.5 py-1 rounded-full" style={{ background: `${T.accentSecondary}22`, border: `1px solid ${T.accentSecondary}44`, textDecoration: "none", cursor: urlPlateforme ? "pointer" : "default" }}>
+      <Enveloppe {...propsEnveloppe} className="inline-flex items-center px-2.5 py-1 rounded-full" style={{ background: `${T.accentSecondary}22`, border: `1px solid ${T.accentSecondary}44`, textDecoration: "none", cursor: urlCliquable ? "pointer" : "default" }}>
         <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.8, color: T.accentSecondary, fontWeight: 500, textTransform: "uppercase" }}>{label}</span>
       </Enveloppe>
     );
   }
 
   return (
-    <Enveloppe {...propsEnveloppe} className="inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: T.surface, border: `1px solid ${T.line}`, textDecoration: "none", cursor: urlPlateforme ? "pointer" : "default" }}>
+    <Enveloppe {...propsEnveloppe} className="inline-flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1" style={{ background: T.surface, border: `1px solid ${T.line}`, textDecoration: "none", cursor: urlCliquable ? "pointer" : "default" }}>
       {showImg ? (
         <img
           src={`/logos/${slug}.png`}
@@ -2344,7 +2363,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           </div>
         )}
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
-          <PlatformIcon label={film.plateforme} />
+          <PlatformIcon label={film.plateforme} canalContentId={film.canalContentId} urlPlateforme={film.urlPlateforme} />
           {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
         </div>
 
