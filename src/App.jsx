@@ -2079,6 +2079,17 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
     setSaving(true);
     setError(null);
 
+    // Tolère un copier-coller d'URL complète en plus du chiffre/code
+    // brut -- ex: "themoviedb.org/tv/299255-..." -> "299255",
+    // "imdb.com/title/tt1234567/" -> "tt1234567".
+    const tmdbIdBrut = tmdbId.trim();
+    const matchTmdbUrl = tmdbIdBrut.match(/themoviedb\.org\/(?:movie|tv)\/(\d+)/i);
+    const tmdbIdNettoye = matchTmdbUrl ? matchTmdbUrl[1] : tmdbIdBrut;
+
+    const imdbIdBrut = imdbId.trim();
+    const matchImdbUrl = imdbIdBrut.match(/(tt\d+)/i);
+    const imdbIdNettoye = matchImdbUrl ? matchImdbUrl[1] : imdbIdBrut;
+
     const fields = {
       titre: titre.trim(),
       annee: annee.trim(),
@@ -2086,8 +2097,8 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       plateforme,
       dateManuelle: dateManuelle.trim(),
       urlLetterboxd: urlLetterboxd.trim(),
-      tmdbId: tmdbId.trim(),
-      imdbId: imdbId.trim(),
+      tmdbId: tmdbIdNettoye,
+      imdbId: imdbIdNettoye,
       benoit: tag === "Benoit",
       romy: tag === "Romy",
       aDeux: tag === "À deux",
