@@ -508,17 +508,20 @@ function PlatformIcon({ label, canalContentId, urlPlateforme, type }) {
   const urlCliquable = urlFiche || PLATFORM_URLS_UPPER[(label || "").toUpperCase()];
 
   // Enveloppe cliquable seulement si on connaît une URL pour cette
-  // plateforme -- un <span> normal sinon (label inconnu/vide). Un
-  // vrai <a href> (plutôt qu'un onClick pur) garde le comportement
-  // standard du navigateur (ouvrir dans un nouvel onglet au clic
-  // milieu, etc.) -- preventDefault seulement pour intercepter et
-  // tenter le schéma natif d'abord.
+  // plateforme -- un <span> normal sinon (label inconnu/vide).
+  //
+  // PAS de target="_blank" (essai du 12/09/2026) : sur iOS, depuis une
+  // PWA ajoutée à l'écran d'accueil, ouvrir "dans un nouvel onglet"
+  // semble empêcher iOS d'intercepter correctement le lien profond vers
+  // une autre app quand celle-ci est fermée (l'app cible retombe sur
+  // son accueil au lieu de la fiche précise) -- une navigation classique
+  // dans le même onglet donne au système la meilleure chance
+  // d'intercepter le lien avant même de commencer à le charger.
+  // Non garanti, à confirmer en usage réel.
   const Enveloppe = urlCliquable ? "a" : "span";
   const propsEnveloppe = urlCliquable
     ? {
         href: urlCliquable,
-        target: "_blank",
-        rel: "noopener noreferrer",
         onClick: (e) => {
           if (PLATFORM_SCHEMES_UPPER[(label || "").toUpperCase()]) {
             e.preventDefault();
