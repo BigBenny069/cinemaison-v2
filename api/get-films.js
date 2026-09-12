@@ -7,7 +7,7 @@ const EXPOSED_COLUMNS = [
   "Genre", "GenrePrincipal", "Benoit", "Romy", "À deux", "En famille", "Vu",
   "Affiche", "NoteTMDb", "Casting", "Réalisateur", "Synopsis",
   "NoteLetterboxd", "VotesLetterboxd", "URLLetterboxd", "DateDisponibiliteAuto",
-  "URLBandeAnnonce",
+  "URLBandeAnnonce", "TMDbID", "IMDbID", "CanalContentId", "URLPlateforme",
 ];
 
 // V1.1 (08/09/2026) : mode léger (?leger=1) utilisé par prime.js, qui
