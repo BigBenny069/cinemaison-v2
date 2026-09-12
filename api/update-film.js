@@ -16,6 +16,7 @@ const CAMEL_TO_HEADER = {
   votesLetterboxd: "VotesLetterboxd", urlLetterboxd: "URLLetterboxd",
   dateAuto: "DateDisponibiliteAuto",
   tmdbId: "TMDbID", imdbId: "IMDbID",
+  urlPlateforme: "URLPlateforme",
   // Ajoutés pour "Redemander une vérification" (remplace Mode Vacances) :
   // vider ces deux champs fait sortir la fiche du lot "complet" au sens
   // du script d'enrichissement (05_ENRICHISSEMENT.gs), qui la reprend
@@ -96,11 +97,70 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { password, id, fields } = req.body || {};
+  const { password, id, fields, updates } = req.body || {};
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
   }
+
+  // Mode lot (11/09/2026) : { updates: [{ id, fields }, ...] } -- une
+  // seule lecture + une seule écriture Sheets pour tout le lot, plutôt
+  // qu'un aller-retour par fiche. Utilisé par les collecteurs
+  // (prime.js/netflix.js/disney.js) pour écrire URLPlateforme sur
+  // toutes les fiches matchées d'un coup (potentiellement 200+ fiches
+  // -- un appel par fiche serait beaucoup trop lent et coûteux en
+  // quota). Volontairement minimal : pas de résolution Letterboxd, pas
+  // de déclenchement de ré-enrichissement -- juste une écriture
+  // mécanique de champs simples.
+  if (Array.isArray(updates)) {
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "updates ne peut pas être vide" });
+    }
+    try {
+      const sheets = await getSheetsClient();
+      const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: SHEET_RANGE });
+      const rows = response.data.values || [];
+      const headers = rows[0] || [];
+      const idCol = headers.indexOf("ID");
+
+      const ligneParId = new Map();
+      for (let i = 1; i < rows.length; i++) {
+        const idLigne = rows[i][idCol];
+        if (idLigne) ligneParId.set(idLigne, i + 1); // +1 -- ranges Sheets en 1-indexé
+      }
+
+      const data = [];
+      const ignores = [];
+      for (const u of updates) {
+        const sheetRow = ligneParId.get(u.id);
+        if (!sheetRow) { ignores.push(u.id); continue; }
+        for (const [camelKey, value] of Object.entries(u.fields || {})) {
+          const header = CAMEL_TO_HEADER[camelKey];
+          const colIndex = header ? headers.indexOf(header) : -1;
+          if (colIndex === -1) continue;
+          const col = columnLetter(colIndex);
+          data.push({ range: `Films!${col}${sheetRow}`, values: [[value === true ? "OUI" : value === false ? "" : value]] });
+        }
+      }
+
+      if (data.length === 0) {
+        return res.status(400).json({ error: "Aucune écriture valide dans ce lot", ignores });
+      }
+
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: { valueInputOption: "USER_ENTERED", data },
+      });
+
+      return res.status(200).json({ ok: true, cellulesEcrites: data.length, ignores });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ error: "Impossible d'appliquer le lot", details: e.message });
+    }
+  }
+
   if (!id || !fields || typeof fields !== "object" || Object.keys(fields).length === 0) {
     return res.status(400).json({ error: "id et au moins un champ à modifier sont obligatoires" });
   }
