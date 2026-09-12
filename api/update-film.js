@@ -157,14 +157,19 @@ export default async function handler(req, res) {
           finalFields.urlLetterboxd = resultat.url;
           finalFields.noteLetterboxd = resultat.note;
           finalFields.votesLetterboxd = resultat.votes;
-          // N'écrit l'ID TMDb extrait que si la colonne est encore vide
-          // côté Sheet -- on ne vient jamais écraser un TMDbID déjà
-          // saisi à la main (choix délibéré possible, ex. désambiguïser
-          // un remake).
+          // N'écrit l'ID TMDb extrait que si le client n'en a pas
+          // fourni un dans CETTE sauvegarde, ET que la colonne est
+          // encore vide côté Sheet -- sinon la résolution automatique
+          // écrasait silencieusement un ID que Ben venait de saisir à
+          // la main dans le même formulaire (bug constaté le
+          // 11/09/2026 : toute fiche avec une URL Letterboxd déjà
+          // renseignée ignorait systématiquement l'ID TMDb tapé à la
+          // main, remplacé avant même l'écriture dans le Sheet).
           if (resultat.tmdbId) {
+            const tmdbFourniParClient = typeof finalFields.tmdbId === "string" && finalFields.tmdbId.trim();
             const tmdbCol = headers.indexOf("TMDbID");
             const tmdbIdActuel = tmdbCol >= 0 ? (rows[rowIndex][tmdbCol] || "") : "";
-            if (!String(tmdbIdActuel).trim()) {
+            if (!tmdbFourniParClient && !String(tmdbIdActuel).trim()) {
               finalFields.tmdbId = resultat.tmdbId;
             }
           }
