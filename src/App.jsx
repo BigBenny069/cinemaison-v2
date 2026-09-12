@@ -470,16 +470,30 @@ function ouvrirPlateforme_(label, url) {
 }
 
 // Construit l'URL Canal+ d'une fiche précise à partir de son
-// CanalContentId -- confirmé le 11/09/2026 : seul cet identifiant final
-// compte dans l'URL (https://www.canalplus.com/x/x/h/{id}), le reste du
-// chemin (catégorie cinema/series/decouverte, nom du titre) est ignoré
-// par Canal+, donc pas besoin de le connaître.
-function urlCanalPlusFiche_(canalContentId) {
+// CanalContentId. Confirmé le 12/09/2026 : contrairement au site web
+// (qui ignore tout sauf l'identifiant final), l'APPLICATION mobile a
+// besoin de la vraie catégorie dans le chemin pour ouvrir la fiche
+// précise plutôt que l'accueil -- testé : un identifiant fictif dans
+// ce segment retombe sur l'accueil de l'app, la vraie catégorie ouvre
+// bien la fiche. Mapping déduit des exemples réels envoyés par Ben :
+// Film -> cinema, Série -> series, Documentaire -> decouverte.
+// Spectacle jamais confirmé avec un exemple réel -- "cinema" en repli
+// par défaut (mieux qu'un mot au hasard, la plupart des fiches CinéMaison
+// sont des films).
+const CANAL_CATEGORIE_PAR_TYPE = {
+  "Film": "cinema",
+  "Série": "series",
+  "Documentaire": "decouverte",
+};
+
+function urlCanalPlusFiche_(canalContentId, type) {
   const id = String(canalContentId || "").trim();
-  return id ? `https://www.canalplus.com/x/x/h/${id}` : null;
+  if (!id) return null;
+  const categorie = CANAL_CATEGORIE_PAR_TYPE[type] || "cinema";
+  return `https://www.canalplus.com/${categorie}/x/h/${id}`;
 }
 
-function PlatformIcon({ label, canalContentId, urlPlateforme }) {
+function PlatformIcon({ label, canalContentId, urlPlateforme, type }) {
   const [failed, setFailed] = useState(false);
   const slug = PLATFORM_SLUGS_UPPER[(label || "").toUpperCase()];
   const showImg = slug && !failed;
@@ -489,7 +503,7 @@ function PlatformIcon({ label, canalContentId, urlPlateforme }) {
   // leur collecteur respectif) -- repli sur le site générique de la
   // plateforme sinon (comportement d'avant, inchangé).
   const urlFiche = (label || "").toUpperCase() === "CANAL+"
-    ? urlCanalPlusFiche_(canalContentId)
+    ? urlCanalPlusFiche_(canalContentId, type)
     : (urlPlateforme || null);
   const urlCliquable = urlFiche || PLATFORM_URLS_UPPER[(label || "").toUpperCase()];
 
@@ -2363,7 +2377,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           </div>
         )}
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
-          <PlatformIcon label={film.plateforme} canalContentId={film.canalContentId} urlPlateforme={film.urlPlateforme} />
+          <PlatformIcon label={film.plateforme} canalContentId={film.canalContentId} urlPlateforme={film.urlPlateforme} type={film.type} />
           {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
         </div>
 
