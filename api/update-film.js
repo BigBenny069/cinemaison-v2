@@ -212,7 +212,19 @@ export default async function handler(req, res) {
 
     if (urlLetterboxdCandidate && estUrlLetterboxdExploitable(urlLetterboxdCandidate)) {
       try {
-        const resultat = await lireLetterboxd(urlLetterboxdCandidate);
+        // Borne stricte de temps (11/09/2026) : si Letterboxd traîne ou
+        // bloque la requête (constaté sur les liens /tmdb/ -- voir notes
+        // dans lib/letterboxd.js), l'ENSEMBLE de cette sauvegarde
+        // pouvait dépasser la limite d'exécution de Vercel et échouer
+        // intégralement -- y compris les champs qui n'ont rien à voir
+        // avec Letterboxd (titre, TMDbID saisi à la main, etc.). Passé
+        // ce délai, on abandonne juste cette étape et on continue avec
+        // le reste normalement.
+        const delaiMaxMs = 5000;
+        const resultat = await Promise.race([
+          lireLetterboxd(urlLetterboxdCandidate),
+          new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "délai dépassé (" + delaiMaxMs + "ms)" }), delaiMaxMs)),
+        ]);
         if (resultat.ok) {
           finalFields.urlLetterboxd = resultat.url;
           finalFields.noteLetterboxd = resultat.note;
