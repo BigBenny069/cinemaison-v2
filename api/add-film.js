@@ -70,7 +70,13 @@ export default async function handler(req, res) {
   let tmdbIdExtrait = "";
   if (urlLetterboxd) {
     try {
-      const resultat = await lireLetterboxd(urlLetterboxd);
+      // Même borne stricte que update-film.js -- voir sa note pour le
+      // contexte complet.
+      const delaiMaxMs = 5000;
+      const resultat = await Promise.race([
+        lireLetterboxd(urlLetterboxd),
+        new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "délai dépassé (" + delaiMaxMs + "ms)" }), delaiMaxMs)),
+      ]);
       if (resultat.ok) {
         letterboxdUrlFinale = resultat.url;
         letterboxdNote = resultat.note;
