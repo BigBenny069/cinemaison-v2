@@ -2,7 +2,9 @@ import { google } from "googleapis";
 
 // Colonnes qu'on expose au front pour l'instant (sous-ensemble des 53
 // colonnes du Sheet — on élargira au fil du développement des écrans).
-const EXPOSED_COLUMNS = [
+// Exporté (12/09/2026, point 6) pour le test de cohérence avec
+// HEADER_TO_CAMEL -- voir tests-get-films.js.
+export const EXPOSED_COLUMNS = [
   "ID", "Titre", "Annee", "Plateforme", "Duree", "DateDisponibilite", "Type",
   "Genre", "GenrePrincipal", "Benoit", "Romy", "À deux", "En famille", "Vu",
   "Affiche", "NoteTMDb", "Casting", "Réalisateur", "Synopsis",
@@ -72,19 +74,26 @@ export default async function handler(req, res) {
   }
 }
 
+// Exporté (12/09/2026, point 6 du plan de fiabilisation) uniquement
+// pour permettre un test automatisé de cohérence avec EXPOSED_COLUMNS
+// -- voir tests-get-films.js. N'importe quelle colonne renommée ici
+// mais absente d'EXPOSED_COLUMNS ne sera JAMAIS envoyée à l'app, en
+// silence (bug réel constaté le 12/09/2026 avec CanalContentId).
+export const HEADER_TO_CAMEL = {
+  ID: "id", Titre: "titre", Annee: "annee", Plateforme: "plateforme",
+  Duree: "duree", DateDisponibilite: "dateManuelle", Type: "type",
+  Genre: "genre", GenrePrincipal: "genrePrincipal", Benoit: "benoit",
+  Romy: "romy", "À deux": "aDeux", "En famille": "enFamille", Vu: "vu",
+  Affiche: "affiche", NoteTMDb: "noteTMDb", Casting: "casting",
+  Réalisateur: "realisateur", Synopsis: "synopsis",
+  NoteLetterboxd: "noteLetterboxd", VotesLetterboxd: "votesLetterboxd",
+  URLLetterboxd: "urlLetterboxd", DateDisponibiliteAuto: "dateAuto",
+  TMDbID: "tmdbId", IMDbID: "imdbId",
+  CanalContentId: "canalContentId", URLPlateforme: "urlPlateforme",
+  URLBandeAnnonce: "urlBandeAnnonce",
+};
+
 function toCamelCase(header) {
-  const map = {
-    ID: "id", Titre: "titre", Annee: "annee", Plateforme: "plateforme",
-    Duree: "duree", DateDisponibilite: "dateManuelle", Type: "type",
-    Genre: "genre", GenrePrincipal: "genrePrincipal", Benoit: "benoit",
-    Romy: "romy", "À deux": "aDeux", "En famille": "enFamille", Vu: "vu",
-    Affiche: "affiche", NoteTMDb: "noteTMDb", Casting: "casting",
-    Réalisateur: "realisateur", Synopsis: "synopsis",
-    NoteLetterboxd: "noteLetterboxd", VotesLetterboxd: "votesLetterboxd",
-    URLLetterboxd: "urlLetterboxd", DateDisponibiliteAuto: "dateAuto",
-    TMDbID: "tmdbId", IMDbID: "imdbId",
-    CanalContentId: "canalContentId", URLPlateforme: "urlPlateforme",
-    URLBandeAnnonce: "urlBandeAnnonce",
-  };
-  return map[header] || header;
+  return HEADER_TO_CAMEL[header] || header;
 }
+
