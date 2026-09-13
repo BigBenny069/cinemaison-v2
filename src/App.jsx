@@ -2095,6 +2095,36 @@ function TagSelector({ film, onSaved }) {
   );
 }
 
+/**
+ * Nettoie (tolère une URL complète, cf correctif du 11/09/2026) ET
+ * valide le format d'un ID TMDb -- corrige le 12/09/2026 : un caractère
+ * parasite collé au chiffre (ex "974558i") passait inaperçu jusqu'à ce
+ * que l'enrichissement échoue silencieusement, sans jamais dire
+ * pourquoi. Retourne { valeur, erreur } -- erreur est null si tout va bien.
+ */
+function nettoyerEtValiderTmdbId_(brut) {
+  const valeur = String(brut || "").trim();
+  if (!valeur) return { valeur: "", erreur: null };
+  const matchUrl = valeur.match(/themoviedb\.org\/(?:movie|tv)\/(\d+)/i);
+  const nettoye = matchUrl ? matchUrl[1] : valeur;
+  if (!/^\d+$/.test(nettoye)) {
+    return { valeur: nettoye, erreur: "Doit être uniquement des chiffres (ex : 107596)" };
+  }
+  return { valeur: nettoye, erreur: null };
+}
+
+/** Même principe que ci-dessus, pour l'ID IMDb ("tt" + chiffres). */
+function nettoyerEtValiderImdbId_(brut) {
+  const valeur = String(brut || "").trim();
+  if (!valeur) return { valeur: "", erreur: null };
+  const matchUrl = valeur.match(/(tt\d+)/i);
+  const nettoye = matchUrl ? matchUrl[1] : valeur;
+  if (!/^tt\d+$/i.test(nettoye)) {
+    return { valeur: nettoye, erreur: 'Doit commencer par "tt" suivi de chiffres (ex : tt0126771)' };
+  }
+  return { valeur: nettoye, erreur: null };
+}
+
 function EditFilmScreen({ film, onCancel, onSaved }) {
   const [titre, setTitre] = useState(film.titre || "");
   const [annee, setAnnee] = useState(film.annee || "");
@@ -2110,21 +2140,14 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
 
   const canSave = titre.trim() && annee.trim() && plateforme;
 
+  const tmdbIdInfo = nettoyerEtValiderTmdbId_(tmdbId);
+  const imdbIdInfo = nettoyerEtValiderImdbId_(imdbId);
+  const canSaveVraiment = canSave && !tmdbIdInfo.erreur && !imdbIdInfo.erreur;
+
   const handleSave = async () => {
-    if (!canSave) return;
+    if (!canSaveVraiment) return;
     setSaving(true);
     setError(null);
-
-    // Tolère un copier-coller d'URL complète en plus du chiffre/code
-    // brut -- ex: "themoviedb.org/tv/299255-..." -> "299255",
-    // "imdb.com/title/tt1234567/" -> "tt1234567".
-    const tmdbIdBrut = tmdbId.trim();
-    const matchTmdbUrl = tmdbIdBrut.match(/themoviedb\.org\/(?:movie|tv)\/(\d+)/i);
-    const tmdbIdNettoye = matchTmdbUrl ? matchTmdbUrl[1] : tmdbIdBrut;
-
-    const imdbIdBrut = imdbId.trim();
-    const matchImdbUrl = imdbIdBrut.match(/(tt\d+)/i);
-    const imdbIdNettoye = matchImdbUrl ? matchImdbUrl[1] : imdbIdBrut;
 
     const fields = {
       titre: titre.trim(),
@@ -2133,8 +2156,8 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       plateforme,
       dateManuelle: dateManuelle.trim(),
       urlLetterboxd: urlLetterboxd.trim(),
-      tmdbId: tmdbIdNettoye,
-      imdbId: imdbIdNettoye,
+      tmdbId: tmdbIdInfo.valeur,
+      imdbId: imdbIdInfo.valeur,
       benoit: tag === "Benoit",
       romy: tag === "Romy",
       aDeux: tag === "À deux",
@@ -2211,12 +2234,20 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>ID TMDB (si la recherche automatique échoue)</span>
         <input value={tmdbId} onChange={(e) => setTmdbId(e.target.value)} placeholder="ex : 107596 (themoviedb.org/movie/107596)"
-          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
+          style={{ background: T.surface, border: `1px solid ${tmdbIdInfo.erreur ? T.alert : T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+        {tmdbIdInfo.erreur && (
+          <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 10.5, color: T.alert }}>{tmdbIdInfo.erreur}</p>
+        )}
       </label>
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>ID IMDB (si tu n'as que celui-ci)</span>
         <input value={imdbId} onChange={(e) => setImdbId(e.target.value)} placeholder="ex : tt0126771"
-          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
+          style={{ background: T.surface, border: `1px solid ${imdbIdInfo.erreur ? T.alert : T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+        {imdbIdInfo.erreur && (
+          <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 10.5, color: T.alert }}>{imdbIdInfo.erreur}</p>
+        )}
       </label>
 
       {error && (
@@ -2227,8 +2258,8 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
 
       <div className="flex gap-2">
         <button onClick={onCancel} className="flex-1 rounded-lg py-3" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>ANNULER</button>
-        <button onClick={handleSave} disabled={!canSave || saving} className="flex-1 rounded-lg py-3"
-          style={{ background: canSave ? T.accent : T.surfaceRaised, fontFamily: F.mono, fontSize: 11, letterSpacing: 0.5, color: canSave ? T.bg : T.mutedDim, fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+        <button onClick={handleSave} disabled={!canSaveVraiment || saving} className="flex-1 rounded-lg py-3"
+          style={{ background: canSaveVraiment ? T.accent : T.surfaceRaised, fontFamily: F.mono, fontSize: 11, letterSpacing: 0.5, color: canSaveVraiment ? T.bg : T.mutedDim, fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
           {saving ? "ENREGISTREMENT…" : "ENREGISTRER"}
         </button>
       </div>
@@ -4899,6 +4930,48 @@ export default function App() {
     }
   }
 
+  // Détection de nouvelle version déployée (12/09/2026) -- Vite change
+  // automatiquement le nom du fichier JS à chaque build (un hash
+  // différent). On compare le fichier réellement chargé à celui que le
+  // serveur sert MAINTENANT (index.html frais, jamais mis en cache) --
+  // s'ils diffèrent, une bannière propose de recharger. Corrige la
+  // confusion vécue en usage réel : sur iOS, une PWA ajoutée à l'écran
+  // d'accueil peut continuer d'afficher une ancienne version pendant
+  // un moment après un déploiement, sans qu'aucune erreur ne le
+  // signale.
+  const [nouvelleVersionDisponible, setNouvelleVersionDisponible] = useState(false);
+
+  useEffect(() => {
+    const scriptActuel = document.querySelector('script[type="module"]')?.getAttribute("src") || null;
+    if (!scriptActuel) return; // en dev (Vite sans build), pas de hash à comparer -- rien à faire
+
+    const verifierNouvelleVersion = async () => {
+      try {
+        const reponse = await fetch("/index.html", { cache: "no-store" });
+        if (!reponse.ok) return;
+        const html = await reponse.text();
+        const m = html.match(/<script[^>]*type="module"[^>]*src="([^"]+)"/i);
+        if (m && m[1] && m[1] !== scriptActuel) setNouvelleVersionDisponible(true);
+      } catch (e) {
+        // Pas de réseau ou erreur transitoire -- on retentera au prochain
+        // passage, pas la peine de faire quoi que ce soit de plus ici.
+      }
+    };
+
+    verifierNouvelleVersion();
+    const onVisible = () => { if (document.visibilityState === "visible") verifierNouvelleVersion(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onVisible);
+    // Filet de sécurité supplémentaire pendant que l'app reste ouverte
+    // longtemps sans jamais passer en arrière-plan.
+    const intervalle = setInterval(verifierNouvelleVersion, 5 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+      clearInterval(intervalle);
+    };
+  }, []);
+
   const activeTab =
     screen.name === "accueil" ? "accueil" :
     screen.name === "biblio" && screen.params.type === "Film" ? "biblio" :
@@ -4922,6 +4995,19 @@ export default function App() {
         {error && (
           <div className="m-4 rounded-lg p-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
             <p style={{ fontFamily: F.mono, fontSize: 11, color: T.alert }}>Erreur : {error}</p>
+          </div>
+        )}
+
+        {nouvelleVersionDisponible && (
+          <div className="m-4 rounded-lg p-3 flex items-center justify-between gap-3" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
+            <p style={{ fontFamily: F.mono, fontSize: 11, color: T.cream }}>Nouvelle version disponible</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="rounded-md px-3 py-1.5 flex-shrink-0"
+              style={{ background: T.accent, fontFamily: F.mono, fontSize: 11, fontWeight: 700, color: T.bg }}
+            >
+              Recharger
+            </button>
           </div>
         )}
 
