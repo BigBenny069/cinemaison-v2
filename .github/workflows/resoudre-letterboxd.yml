@@ -1,0 +1,21 @@
+name: Résoudre les liens Letterboxd bloqués
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  resoudre:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Résoudre les liens Letterboxd
+        env:
+          CINEMAISON_PASSWORD: ${{ secrets.CINEMAISON_PASSWORD }}
+        run: node scripts/resoudre-letterboxd.js
