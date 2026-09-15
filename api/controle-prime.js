@@ -9,6 +9,7 @@
 // automatiquement (Indispo/VOD/Bientôt disponible/restauration).
 // séparés. Même fichier, dispatch par body.action.
 import { google } from "googleapis";
+import { appelerWebhookAvecReessai } from "../lib/webhook.js";
 
 // Doit rester identique à PRIME_CONTROLE_FEUILLE_V110 dans
 // 11_CONTROLE_PRIME_OFFICIEL.gs (script validé, ne pas modifier ce
@@ -154,21 +155,11 @@ async function traiterApplication(req, res) {
     return res.status(500).json({ error: "ENRICH_WEBHOOK_URL/SECRET non configurés côté Vercel" });
   }
 
-  try {
-    const reponse = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ secret: secret, action: "appliquerControlePrime" }),
-    });
-    const corps = await reponse.json().catch(() => ({}));
-    if (!reponse.ok || !corps.ok) {
-      return res.status(502).json({ error: "Le webhook Apps Script a échoué", details: corps });
-    }
-    return res.status(200).json({ ok: true, resume: corps.resume });
-  } catch (e) {
-    console.error("[controle-prime][apply] Erreur :", e.message);
-    return res.status(500).json({ error: "Erreur d'appel au webhook", details: e.message });
+  const resultat = await appelerWebhookAvecReessai(url, { secret: secret, action: "appliquerControlePrime" });
+  if (!resultat.ok) {
+    return res.status(502).json({ error: "Le webhook Apps Script a échoué après " + resultat.tentative + " tentative(s) : " + resultat.error });
   }
+  return res.status(200).json({ ok: true, resume: resultat.corps.resume });
 }
 
 export default async function handler(req, res) {
