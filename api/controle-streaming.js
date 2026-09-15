@@ -15,6 +15,7 @@
 // données), mais action="apply" échouera proprement (502) tant que ce
 // pendant n'est pas construit.
 import { google } from "googleapis";
+import { appelerWebhookAvecReessai } from "../lib/webhook.js";
 
 const PLATEFORMES_AUTORISEES = ["NETFLIX", "DISNEY"];
 
@@ -177,21 +178,13 @@ async function traiterApplication(req, res) {
     return res.status(500).json({ error: "ENRICH_WEBHOOK_URL/SECRET non configurés côté Vercel" });
   }
 
-  try {
-    const reponse = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ secret, action: "appliquerControleStreaming", plateforme }),
+  const resultat = await appelerWebhookAvecReessai(url, { secret, action: "appliquerControleStreaming", plateforme });
+  if (!resultat.ok) {
+    return res.status(502).json({
+      error: "Le webhook Apps Script a échoué après " + resultat.tentative + " tentative(s) : " + resultat.error,
     });
-    const corps = await reponse.json().catch(() => ({}));
-    if (!reponse.ok || !corps.ok) {
-      return res.status(502).json({ error: "Le webhook Apps Script a échoué (pendant Apps Script pas encore construit pour cette plateforme ?)", details: corps });
-    }
-    return res.status(200).json({ ok: true, resume: corps.resume });
-  } catch (e) {
-    console.error("[controle-streaming][apply] Erreur :", e.message);
-    return res.status(500).json({ error: "Erreur d'appel au webhook", details: e.message });
   }
+  return res.status(200).json({ ok: true, resume: resultat.corps.resume });
 }
 
 export default async function handler(req, res) {
