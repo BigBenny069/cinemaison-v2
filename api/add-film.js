@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { lireLetterboxd } from "../lib/letterboxd.js";
+import { declencherWorkflowLetterboxdV1_ } from "../lib/github-actions.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -84,6 +85,8 @@ export default async function handler(req, res) {
         if (resultat.tmdbId) tmdbIdExtrait = resultat.tmdbId;
       } else {
         console.error("[add-film] Letterboxd non résolu à la création :", resultat.reason);
+        // Même secours que update-film.js -- voir sa note (15/09/2026).
+        declencherWorkflowLetterboxdV1_().catch(() => {});
       }
     } catch (e) {
       console.error("[add-film] Erreur inattendue lors de la lecture Letterboxd :", e.message);
