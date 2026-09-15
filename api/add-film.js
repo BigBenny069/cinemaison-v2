@@ -70,9 +70,9 @@ export default async function handler(req, res) {
   let tmdbIdExtrait = "";
   if (urlLetterboxd) {
     try {
-      // Même borne stricte que update-film.js -- voir sa note pour le
-      // contexte complet.
-      const delaiMaxMs = 5000;
+      // Même correctif que update-film.js (régression identifiée le
+      // 15/09/2026) -- voir sa note pour le détail complet.
+      const delaiMaxMs = 12000;
       const resultat = await Promise.race([
         lireLetterboxd(urlLetterboxd),
         new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "délai dépassé (" + delaiMaxMs + "ms)" }), delaiMaxMs)),
