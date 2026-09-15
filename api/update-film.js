@@ -220,7 +220,15 @@ export default async function handler(req, res) {
         // avec Letterboxd (titre, TMDbID saisi à la main, etc.). Passé
         // ce délai, on abandonne juste cette étape et on continue avec
         // le reste normalement.
-        const delaiMaxMs = 5000;
+        // Régression identifiée le 15/09/2026 : lireLetterboxd() peut
+        // légitimement avoir besoin de 3 tentatives (pauses 1s+2s, plus
+        // le temps réseau de chacune) pour réussir face à un blocage
+        // anti-robot passager -- soit 6 à 9s au pire des cas. La limite
+        // de 5000ms posée le 12/09/2026 coupait ce mécanisme avant sa
+        // 3e tentative, transformant des succès légitimes (mais lents)
+        // en échecs. Remontée à 12s pour laisser le réessai aller au
+        // bout -- reste une vraie protection contre un blocage total.
+        const delaiMaxMs = 12000;
         const resultat = await Promise.race([
           lireLetterboxd(urlLetterboxdCandidate),
           new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "délai dépassé (" + delaiMaxMs + "ms)" }), delaiMaxMs)),
