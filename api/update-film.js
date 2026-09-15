@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { lireLetterboxd, estUrlLetterboxdExploitable } from "../lib/letterboxd.js";
+import { declencherWorkflowLetterboxdV1_ } from "../lib/github-actions.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -259,6 +260,16 @@ export default async function handler(req, res) {
           // prochain cycle si le reste (TMDb) était déjà bon.
         } else {
           console.error("[update-film] Letterboxd non résolu :", resultat.reason, "| id=", id);
+          // Ajout du 15/09/2026 : si la tentative rapide (Vercel) échoue
+          // sur un lien /tmdb/ ou /imdb/ -- typiquement un blocage
+          // anti-robot, voir lib/letterboxd.js -- on déclenche en
+          // secours le workflow GitHub Actions dédié
+          // (resoudre-letterboxd.yml), qui a un bien meilleur taux de
+          // réussite sur ces liens (trafic non filtré par Letterboxd,
+          // confirmé le 15/09/2026 en comparant avec CinéRadar). Sans
+          // bloquer la réponse : on ne fait qu'envoyer la demande, sans
+          // attendre le résultat.
+          declencherWorkflowLetterboxdV1_().catch(() => {});
         }
       } catch (e) {
         console.error("[update-film] Erreur inattendue lors de la lecture Letterboxd :", e.message, "| id=", id);
