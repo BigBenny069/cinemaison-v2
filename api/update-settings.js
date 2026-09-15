@@ -10,6 +10,8 @@
 //   ENRICH_WEBHOOK_URL, ENRICH_WEBHOOK_SECRET (déjà configurées)
 //   ADD_FILM_PASSWORD (même mot de passe que le reste de l'app)
 
+import { appelerWebhookAvecReessai } from "../lib/webhook.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée" });
@@ -28,32 +30,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "ENRICH_WEBHOOK_URL/SECRET non configurés sur Vercel" });
   }
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+  const resultat = await appelerWebhookAvecReessai(url, {
+    secret,
+    action: "updateDigestSettings",
+    actif: !!actif,
+    seuilJours: Number(seuilJours) || 7,
+    destinataires: String(destinataires || "").trim(),
+  });
 
-    const webhookRes = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        secret,
-        action: "updateDigestSettings",
-        actif: !!actif,
-        seuilJours: Number(seuilJours) || 7,
-        destinataires: String(destinataires || "").trim(),
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-    const data = await webhookRes.json().catch(() => ({}));
-
-    if (!data.ok) {
-      return res.status(502).json({ error: data.error || "Le webhook a refusé la mise à jour" });
-    }
-
-    return res.status(200).json({ ok: true, ...data });
-  } catch (e) {
-    return res.status(500).json({ error: "Impossible de joindre le webhook", details: e.message });
+  if (!resultat.ok) {
+    return res.status(502).json({ error: "Le webhook Apps Script a échoué après " + resultat.tentative + " tentative(s) : " + resultat.error });
   }
+
+  return res.status(200).json({ ok: true, ...resultat.corps });
 }
