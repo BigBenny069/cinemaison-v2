@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { lireLetterboxd, estUrlLetterboxdExploitable } from "../lib/letterboxd.js";
 import { declencherWorkflowLetterboxdV1_ } from "../lib/github-actions.js";
+import { appelerWebhookAvecReessai } from "../lib/webhook.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -102,6 +103,45 @@ export default async function handler(req, res) {
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
+  }
+
+  // Mode rapport (16/09/2026) : { rapportVerificationLetterboxd: { suspects,
+  // totalVerifies } } -- fusionné ici plutôt que dans un fichier séparé
+  // pour rester sous la limite de 12 fonctions serverless du plan Vercel
+  // Hobby (déjà à pleine capacité, voir les autres fusions du même type
+  // dans confirm.js). Ne touche jamais au Sheet -- relaie juste vers le
+  // webhook Apps Script (traiterRapportVerificationLetterboxdV1_ dans
+  // 09_WEBHOOK.gs) qui compose et envoie le mail récapitulatif. Appelé
+  // par scripts/verifier-urls-letterboxd.js (GitHub Actions,
+  // déclenchement manuel) une fois l'audit terminé.
+  if (req.body && req.body.rapportVerificationLetterboxd) {
+    const { suspects, totalVerifies } = req.body.rapportVerificationLetterboxd;
+    if (!Array.isArray(suspects)) {
+      return res.status(400).json({ error: "suspects doit être un tableau (vide si aucune anomalie)" });
+    }
+
+    const url = process.env.ENRICH_WEBHOOK_URL;
+    const secret = process.env.ENRICH_WEBHOOK_SECRET;
+    if (!url || !secret) {
+      return res.status(500).json({ error: "ENRICH_WEBHOOK_URL/SECRET non configurés côté Vercel" });
+    }
+
+    // Contrairement à notifierWebhookReenrichissement plus bas (qui ne
+    // doit jamais ralentir la réponse à l'app), cet appel peut se
+    // permettre des réessais -- pas de contrainte de délai ici, et on
+    // préfère perdre un peu de temps plutôt que le rapport si Apps
+    // Script répond mal une fois.
+    const resultatWebhook = await appelerWebhookAvecReessai(url, {
+      secret,
+      action: "rapportVerificationLetterboxd",
+      suspects,
+      totalVerifies: Number(totalVerifies) || suspects.length,
+    });
+
+    if (!resultatWebhook.ok) {
+      return res.status(502).json({ error: "Échec de l'envoi vers Apps Script", details: resultatWebhook.error });
+    }
+    return res.status(200).json({ ok: true, detail: resultatWebhook.corps });
   }
 
   // Mode lot (11/09/2026) : { updates: [{ id, fields }, ...] } -- une
