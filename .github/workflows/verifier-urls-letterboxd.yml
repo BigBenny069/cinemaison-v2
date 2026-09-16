@@ -1,0 +1,25 @@
+name: Vérifier les URL Letterboxd déjà résolues
+
+# NOUVEAU (16/09/2026) -- déclenchement manuel uniquement (pas de cron,
+# contrairement à resoudre-letterboxd.yml) : c'est un audit de fond, pas
+# un cycle régulier. Peut prendre plusieurs dizaines de minutes sur
+# l'ensemble du catalogue -- d'où le timeout-minutes explicite un peu
+# large ci-dessous.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Vérifier les URL Letterboxd
+        env:
+          CINEMAISON_PASSWORD: ${{ secrets.CINEMAISON_PASSWORD }}
+        run: node scripts/verifier-urls-letterboxd.js
