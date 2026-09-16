@@ -121,16 +121,47 @@ export default async function handler(req, res) {
       const sheets = await getSheetsClient();
       const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: SHEET_RANGE });
-      const rows = response.data.values || [];
-      const headers = rows[0] || [];
+      // Première lecture : sert uniquement à connaître l'en-tête (ordre
+      // des colonnes). Les colonnes ne bougent jamais en cours
+      // d'exécution -- seules les LIGNES peuvent se décaler (suppression
+      // d'une fiche ailleurs pendant qu'on traite ce lot) -- donc rien
+      // de sensible à récupérer ici.
+      const headerResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "Films!A1:ZZ1",
+      });
+      const headers = (headerResponse.data.values || [])[0] || [];
       const idCol = headers.indexOf("ID");
+      if (idCol === -1) {
+        return res.status(500).json({ error: "Colonne ID introuvable dans l'en-tête du Sheet" });
+      }
+
+      // NOUVEAU (16/09/2026) -- ANTI-COLLISION : bug constaté ce jour-là
+      // où une écriture en lot (résolution Letterboxd automatique)
+      // atterrissait sur la mauvaise ligne -- l'URL d'une fiche écrasant
+      // celle de la fiche voisine. Cause identifiée : delete-film.js
+      // supprime physiquement une ligne (deleteDimension), ce qui décale
+      // toutes les lignes suivantes ; si ça arrive entre le moment où un
+      // autre appel a lu les positions des fiches et le moment où il
+      // écrit, les numéros de ligne qu'il utilise sont périmés.
+      // On ne relit donc plus les positions en tout début de traitement
+      // -- on relit UNIQUEMENT la colonne ID, ici, juste avant d'écrire,
+      // pour repartir de positions aussi fraîches que possible. Ça ne
+      // supprime pas totalement la fenêtre de risque (deux appels réseau
+      // Sheets restent nécessaires, lecture puis écriture), mais la
+      // réduit au strict minimum permis par l'API Sheets classique.
+      const idColLetter = columnLetter(idCol);
+      const idResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `Films!${idColLetter}2:${idColLetter}`,
+      });
+      const idRows = idResponse.data.values || [];
 
       const ligneParId = new Map();
-      for (let i = 1; i < rows.length; i++) {
-        const idLigne = rows[i][idCol];
-        if (idLigne) ligneParId.set(idLigne, i + 1); // +1 -- ranges Sheets en 1-indexé
-      }
+      idRows.forEach((r, i) => {
+        const idLigne = r[0];
+        if (idLigne) ligneParId.set(idLigne, i + 2); // +2 -- ligne 1 = en-tête, tableau 0-indexé
+      });
 
       const data = [];
       const ignores = [];
@@ -274,6 +305,37 @@ export default async function handler(req, res) {
       } catch (e) {
         console.error("[update-film] Erreur inattendue lors de la lecture Letterboxd :", e.message, "| id=", id);
       }
+    }
+
+    // NOUVEAU (16/09/2026) -- ANTI-COLLISION : la résolution Letterboxd
+    // ci-dessus peut prendre jusqu'à 12 secondes (délaiMaxMs) -- une
+    // fenêtre largement suffisante pour qu'une suppression de fiche
+    // ailleurs (delete-film.js, qui décale physiquement les lignes
+    // suivantes via deleteDimension) survienne pendant l'attente. Si ça
+    // arrive, sheetRow (calculé tout en haut, avant l'attente) ne
+    // correspond plus à la bonne fiche -- écrire dessus quand même
+    // écraserait les données d'une fiche voisine sans que personne ne
+    // le sache (bug réel constaté le 16/09/2026 sur une écriture en
+    // lot, même mécanisme). On revérifie donc ici que l'ID est bien
+    // toujours celui attendu à cette ligne, juste avant d'écrire pour de
+    // vrai -- s'il a bougé, on abandonne proprement plutôt que
+    // d'écraser une autre fiche en silence ; l'app peut alors simplement
+    // réessayer (elle repartira d'une position à jour).
+    const idColLetterVerif = columnLetter(idCol);
+    const verifResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `Films!${idColLetterVerif}${sheetRow}`,
+    });
+    const idActuelALaLigne = (verifResponse.data.values && verifResponse.data.values[0] && verifResponse.data.values[0][0]) || "";
+    if (idActuelALaLigne !== id) {
+      console.error(
+        "[update-film] Anti-collision : position périmée pour id=", id,
+        "-- attendu à la ligne", sheetRow, "mais trouvé:", idActuelALaLigne,
+        "(probablement une suppression de fiche survenue pendant le traitement)"
+      );
+      return res.status(409).json({
+        error: "La position de la fiche a changé pendant le traitement (probablement une suppression ailleurs) -- réessaie.",
+      });
     }
 
     const data = Object.entries(finalFields).map(([camelKey, value]) => {
