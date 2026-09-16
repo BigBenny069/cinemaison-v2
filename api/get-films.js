@@ -10,6 +10,7 @@ export const EXPOSED_COLUMNS = [
   "Affiche", "NoteTMDb", "Casting", "Réalisateur", "Synopsis",
   "NoteLetterboxd", "VotesLetterboxd", "URLLetterboxd", "DateDisponibiliteAuto",
   "URLBandeAnnonce", "TMDbID", "IMDbID", "CanalContentId", "URLPlateforme",
+  "TitreOriginal",
 ];
 
 // V1.1 (08/09/2026) : mode léger (?leger=1) utilisé par prime.js, qui
@@ -90,6 +91,7 @@ export const HEADER_TO_CAMEL = {
   URLLetterboxd: "urlLetterboxd", DateDisponibiliteAuto: "dateAuto",
   TMDbID: "tmdbId", IMDbID: "imdbId",
   CanalContentId: "canalContentId", URLPlateforme: "urlPlateforme",
+  TitreOriginal: "titreOriginal",
   URLBandeAnnonce: "urlBandeAnnonce",
 };
 
