@@ -26,6 +26,41 @@ function nextSequentialId(existingIds) {
   return `FILM${String(max + 1).padStart(4, "0")}`;
 }
 
+// NOUVEAU (16/09/2026) : même fonction que update-film.js (duplicata
+// volontaire, pas de module partagé pour l'instant) -- prévient le
+// webhook Apps Script (09_WEBHOOK.gs) pour un enrichissement TMDb
+// immédiat (affiche, casting, réalisateur, synopsis, genre, note) plutôt
+// que d'attendre le prochain passage du cycle programmé
+// enrichirNouvellesFichesV4 (jusqu'à 5 min). Corrige un comportement
+// perturbant constaté par Ben : une fiche fraîchement ajoutée restait
+// visiblement "nue" (sans affiche ni infos) pendant plusieurs minutes.
+// Ne bloque JAMAIS la réponse à l'app en cas d'échec/lenteur : si la
+// variable d'environnement n'est pas configurée, ou si l'appel
+// échoue/timeout, on continue normalement -- la fiche a déjà été créée,
+// seule la relance immédiate est manquée (le cycle programmé prendra
+// quand même le relais plus tard).
+async function notifierWebhookReenrichissement(id) {
+  const url = process.env.ENRICH_WEBHOOK_URL;
+  const secret = process.env.ENRICH_WEBHOOK_SECRET;
+  if (!url || !secret) return { notified: false, reason: "ENRICH_WEBHOOK_URL/SECRET non configurés" };
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret, id }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const data = await res.json().catch(() => ({}));
+    return { notified: true, ok: !!data.ok, detail: data };
+  } catch (e) {
+    return { notified: false, reason: e.message };
+  }
+}
+
 export default async function handler(req, res) {
   // --- CORS pour cineradar-nu.vercel.app ---
   // Posés tout en haut, avant toute autre logique, pour qu'ils soient
@@ -85,12 +120,30 @@ export default async function handler(req, res) {
         if (resultat.tmdbId) tmdbIdExtrait = resultat.tmdbId;
       } else {
         console.error("[add-film] Letterboxd non résolu à la création :", resultat.reason);
-        // Même secours que update-film.js -- voir sa note (15/09/2026).
-        declencherWorkflowLetterboxdV1_().catch(() => {});
       }
     } catch (e) {
       console.error("[add-film] Erreur inattendue lors de la lecture Letterboxd :", e.message);
     }
+  }
+
+  // MODIFIÉ (16/09/2026) : auparavant, le déclenchement du workflow
+  // GitHub Actions de secours (résolution par déduction du slug, voir
+  // resoudre-letterboxd.js) n'avait lieu QUE si une URL avait été
+  // fournie ET que la tentative Vercel ci-dessus avait échoué -- ce qui
+  // laissait deux cas sans AUCUNE tentative de résolution à la création :
+  // les séries (le lien /tmdb/{id} ne fonctionne officiellement que pour
+  // les films, l'app ne pré-remplit donc jamais urlLetterboxd pour une
+  // série) et les fiches ajoutées en tapant le titre à la main sans
+  // passer par l'autocomplete TMDb (urlLetterboxd reste vide côté app).
+  // Dans ces deux cas, Ben devait attendre le cycle programmé ou cliquer
+  // "Redemander une vérification" -- pas immédiat comme souhaité. Le
+  // déclenchement est donc maintenant inconditionnel dès qu'on n'a pas
+  // déjà une résolution réussie en poche : la méthode par déduction du
+  // slug (resoudre-letterboxd.js) n'a de toute façon besoin que du titre
+  // et de l'année, déjà connus à ce stade, pas d'un TMDbID ni d'une URL
+  // pré-remplie.
+  if (!letterboxdNote) {
+    declencherWorkflowLetterboxdV1_().catch(() => {});
   }
 
   try {
@@ -161,6 +214,14 @@ export default async function handler(req, res) {
       requestBody: { values: [newRow] },
     });
 
+    // NOUVEAU (16/09/2026) : relance immédiate de l'enrichissement TMDb
+    // (affiche, casting, réalisateur, synopsis, genre, note) au lieu
+    // d'attendre jusqu'à 5 min le prochain passage du cycle programmé
+    // enrichirNouvellesFichesV4 -- voir notifierWebhookReenrichissement
+    // ci-dessus pour le comportement en cas d'échec (n'affecte jamais la
+    // réponse renvoyée à l'app, la fiche est déjà créée à ce stade).
+    const webhook = await notifierWebhookReenrichissement(newId);
+
     return res.status(200).json({
       id: newId,
       titre,
@@ -172,6 +233,7 @@ export default async function handler(req, res) {
       // que CinéRadar (ou tout autre appelant) voie immédiatement si un de
       // ses champs n'a pas pu être écrit, sans avoir à consulter les logs.
       champsIgnores: champsIgnores.length > 0 ? champsIgnores : undefined,
+      webhook,
     });
   } catch (e) {
     console.error(e);
