@@ -17,6 +17,7 @@ export default function handler(req, res) {
   if (type === "apply") return pageAppliquer(req, res);
   if (type === "merge") return pageFusionner(req, res);
   if (type === "remove") return pageSupprimer(req, res);
+  if (type === "letterboxdOk") return pageLetterboxdOk(req, res);
 
   return res.status(400).send(pageHtml(
     "Lien incomplet",
@@ -82,6 +83,69 @@ function pageSupprimer(req, res) {
   return res.status(200).send(pageHtml("Retirer de CinéMaison", contenu));
 }
 
+
+// ---- ?page=letterboxdOk : "C'est la bonne URL" (mail de vérification Letterboxd, 09_WEBHOOK.gs) ----
+function pageLetterboxdOk(req, res) {
+  const { id, url, titre, pw } = req.query || {};
+
+  if (!id || !url || !pw) {
+    return res.status(400).send(pageHtml(
+      "Lien incomplet",
+      "<p>Ce lien est incomplet ou abîmé.</p>"
+    ));
+  }
+
+  const titreEchappe = echapperHtml(titre || id);
+  const urlEchappee = echapperHtml(url);
+
+  const contenu = `
+    <p style="font-size:15px;color:#3A2E22"><strong>${titreEchappe}</strong></p>
+    <p style="font-size:13px;color:#9A9182">
+      <a href="${urlEchappee}" style="color:#B5622B">${urlEchappee}</a><br>
+      Confirme que c'est bien la bonne page Letterboxd pour ce film -- elle ne
+      sera plus resignalée par les prochains audits, tant que son URL ne
+      change pas.
+    </p>
+    <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
+      padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%">
+      C'est la bonne URL
+    </button>
+    <p id="statut" style="font-size:13px;color:#9A9182;margin-top:12px"></p>
+    <script>
+      const bouton = document.getElementById("btn");
+      const statut = document.getElementById("statut");
+      bouton.addEventListener("click", async () => {
+        bouton.disabled = true;
+        bouton.textContent = "Enregistrement...";
+        try {
+          const reponse = await fetch("/api/update-film", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              password: ${JSON.stringify(pw)},
+              letterboxdConfirmer: { id: ${JSON.stringify(id)}, url: ${JSON.stringify(url)} },
+            }),
+          });
+          const corps = await reponse.json().catch(() => ({}));
+          if (reponse.ok) {
+            bouton.textContent = "Confirmé";
+            statut.textContent = "C'est noté, tu peux fermer cette page.";
+          } else {
+            bouton.disabled = false;
+            bouton.textContent = "C'est la bonne URL";
+            statut.textContent = "Erreur : " + (corps.error || "inconnue");
+          }
+        } catch (e) {
+          bouton.disabled = false;
+          bouton.textContent = "C'est la bonne URL";
+          statut.textContent = "Erreur réseau : " + e.message;
+        }
+      });
+    </script>
+  `;
+
+  return res.status(200).send(pageHtml("Confirmer l'URL Letterboxd", contenu));
+}
 
 // ---- ?page=add : "+ Ajouter à CinéMaison" (suggestions) ----
 function pageAjouter(req, res) {
