@@ -114,7 +114,20 @@ async function verifierUneFiche_(film) {
     const html = await reponse.text();
     const titrePage = extraireTitrePage_(html);
     const anneePage = extraireAnneePage_(html);
-    const ok = pageCorrespond_(titrePage, anneePage, film.titre, film.annee);
+
+    // MODIFIÉ (16/09/2026) : retente avec titreOriginal avant de
+    // déclarer une fiche suspecte -- correctif suite au premier run
+    // (496 suspectes sur 984, immense majorité de faux positifs :
+    // Letterboxd affiche presque toujours le titre en langue
+    // originale, alors qu'on ne testait que contre le titre français
+    // enregistré en Sheet -- "La Liste de Schindler" vs "Schindler's
+    // List", etc.). Même repli que resoudreParSlug_ (méthode déjà
+    // utilisée avec succès à l'écriture), appliqué ici à la
+    // vérification plutôt qu'à la résolution.
+    let ok = pageCorrespond_(titrePage, anneePage, film.titre, film.annee);
+    if (!ok && film.titreOriginal && normaliserTexte_(film.titreOriginal) !== normaliserTexte_(film.titre)) {
+      ok = pageCorrespond_(titrePage, anneePage, film.titreOriginal, film.annee);
+    }
     return { suspecte: !ok, titrePage: titrePage, anneePage: anneePage };
   } catch (e) {
     // Erreur réseau ponctuelle -- on ne signale pas comme suspecte pour
@@ -126,10 +139,17 @@ async function verifierUneFiche_(film) {
 }
 
 async function envoyerRapport_(suspects, totalVerifies) {
-  const reponse = await fetch(API_BASE + "/api/rapport-verification-letterboxd", {
+  // MODIFIÉ (16/09/2026) : passe désormais par update-film.js (mode
+  // rapportVerificationLetterboxd) plutôt qu'une route séparée --
+  // corrige un dépassement de la limite de 12 fonctions serverless du
+  // plan Vercel Hobby, constaté au déploiement.
+  const reponse = await fetch(API_BASE + "/api/update-film", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: MOT_DE_PASSE, suspects: suspects, totalVerifies: totalVerifies }),
+    body: JSON.stringify({
+      password: MOT_DE_PASSE,
+      rapportVerificationLetterboxd: { suspects: suspects, totalVerifies: totalVerifies },
+    }),
   });
   const corps = await reponse.json().catch(function () { return {}; });
   if (!reponse.ok) throw new Error("HTTP " + reponse.status + " : " + (corps.error || "erreur inconnue"));
