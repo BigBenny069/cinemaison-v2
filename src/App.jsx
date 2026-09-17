@@ -2276,9 +2276,14 @@ function FicheLabel({ children, className }) {
     return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
 }
 
-function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onOpenPerson }) {
+function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onOpenPerson, autoEdit }) {
   const [film, setFilm] = useState(filmProp);
-  const [editing, setEditing] = useState(false);
+  // NOUVEAU (17/09/2026) : ouvre directement en mode édition quand on
+  // arrive ici via un lien profond (?film=ID&edit=1, voir le lien
+  // "Corriger dans l'app" du mail de vérification Letterboxd,
+  // 09_WEBHOOK.gs) -- évite d'avoir à rechercher la fiche à la main
+  // puis taper sur le crayon.
+  const [editing, setEditing] = useState(!!autoEdit);
   const expiryDays = computeExpiryDays(film);
   const archived = isArchived(film);
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -4779,6 +4784,27 @@ export default function App() {
 
   useEffect(() => { loadFilms(); }, []);
 
+  // NOUVEAU (17/09/2026) : lien profond ?film=<ID>[&edit=1] -- ouvre
+  // directement la fiche concernée (et son mode édition si demandé) au
+  // chargement de l'app, plutôt que de laisser Ben chercher le film à
+  // la main. Utilisé par le lien "Corriger dans l'app" du mail de
+  // vérification Letterboxd (09_WEBHOOK.gs). Se déclenche une seule
+  // fois, dès que films est chargé -- et nettoie le paramètre de l'URL
+  // ensuite (history.replaceState) pour qu'un rafraîchissement de page
+  // ne rouvre pas la fiche en boucle.
+  useEffect(() => {
+    if (!films) return;
+    const params = new URLSearchParams(window.location.search);
+    const idCible = params.get("film");
+    if (!idCible) return;
+    const filmCible = films.find((f) => f.id === idCible);
+    window.history.replaceState({}, "", window.location.pathname);
+    if (filmCible) {
+      setScreen({ name: "fiche", params: { film: filmCible, from: { name: "accueil", params: {} }, autoEdit: params.get("edit") === "1" } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [films]);
+
   // Recharge automatiquement les films à chaque fois que l'appli redevient
   // visible — pas seulement au tout premier chargement. Sur iOS, fermer
   // l'appli (sans la tuer) puis la rouvrir déclenche un simple retour au
@@ -4906,7 +4932,7 @@ export default function App() {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)}
         initialQuery={screen.params.query} onQueryChange={(q) => updateScreenParams({ query: q })} />;
     } else if (name === "fiche") {
-      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onOpenPerson={openPerson} />;
+      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onOpenPerson={openPerson} autoEdit={params.autoEdit} />;
     } else if (name === "personne") {
       body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "biblio") {
