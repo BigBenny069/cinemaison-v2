@@ -103,6 +103,20 @@ function pageCorrespond_(titrePage, anneePage, titreAttendu, anneeAttendue) {
   return true;
 }
 
+/** Même regex que extraireTmdbId (lib/letterboxd.js), qui l'utilise
+ * déjà pour retrouver le lien "TMDB" présent en bas de toute fiche
+ * Letterboxd normale ("More at IMDb TMDB"). Comparer des ID plutôt que
+ * des titres élimine le principal défaut de la méthode précédente :
+ * Letterboxd affiche presque toujours le titre en langue originale
+ * (souvent l'anglais), donc comparer au titre français stocké en
+ * Sheet produisait énormément de faux positifs même pour des URL
+ * parfaitement correctes ("La Liste de Schindler" vs "Schindler's
+ * List"). Un ID TMDb, lui, ne dépend d'aucune langue. */
+function extraireTmdbIdPage_(html) {
+  const m = html.match(/themoviedb\.org\/(movie|tv)\/(\d+)/i);
+  return m ? m[2] : null;
+}
+
 async function verifierUneFiche_(film) {
   try {
     const reponse = await fetch(film.urlLetterboxd, { headers: { "User-Agent": USER_AGENT } });
@@ -114,16 +128,23 @@ async function verifierUneFiche_(film) {
     const html = await reponse.text();
     const titrePage = extraireTitrePage_(html);
     const anneePage = extraireAnneePage_(html);
+    const tmdbIdPage = extraireTmdbIdPage_(html);
 
-    // MODIFIÉ (16/09/2026) : retente avec titreOriginal avant de
-    // déclarer une fiche suspecte -- correctif suite au premier run
-    // (496 suspectes sur 984, immense majorité de faux positifs :
-    // Letterboxd affiche presque toujours le titre en langue
-    // originale, alors qu'on ne testait que contre le titre français
-    // enregistré en Sheet -- "La Liste de Schindler" vs "Schindler's
-    // List", etc.). Même repli que resoudreParSlug_ (méthode déjà
-    // utilisée avec succès à l'écriture), appliqué ici à la
-    // vérification plutôt qu'à la résolution.
+    // MODIFIÉ (17/09/2026) : priorité à la comparaison d'ID TMDb quand
+    // les deux valeurs sont disponibles (fiche avec un TMDbID déjà
+    // renseigné en Sheet, ET page Letterboxd normale avec son lien TMDB
+    // visible) -- bien plus fiable qu'une comparaison de titres, et ça
+    // règle net la plupart des faux positifs restants après le premier
+    // correctif (repli titreOriginal). Le repli par titre reste utilisé
+    // quand l'un des deux ID manque (fiche sans TMDbID renseigné, ou
+    // page Letterboxd sans lien TMDB visible).
+    if (film.tmdbId && tmdbIdPage) {
+      const ok = String(film.tmdbId) === String(tmdbIdPage);
+      return { suspecte: !ok, titrePage: titrePage, anneePage: anneePage };
+    }
+
+    // Repli : comparaison de titre (titre puis titreOriginal) --
+    // correctif du 16/09/2026, cf. note plus bas.
     let ok = pageCorrespond_(titrePage, anneePage, film.titre, film.annee);
     if (!ok && film.titreOriginal && normaliserTexte_(film.titreOriginal) !== normaliserTexte_(film.titre)) {
       ok = pageCorrespond_(titrePage, anneePage, film.titreOriginal, film.annee);
@@ -156,6 +177,18 @@ async function envoyerRapport_(suspects, totalVerifies) {
   return corps;
 }
 
+async function chargerConfirmations_() {
+  try {
+    const reponse = await fetch(API_BASE + "/api/update-film?letterboxdConfirmations=1");
+    if (!reponse.ok) return new Map();
+    const liste = await reponse.json();
+    return new Map(liste.map(function (c) { return [c.id, c.urlConfirmee]; }));
+  } catch (e) {
+    console.log("(impossible de charger les confirmations existantes, ignoré : " + e.message + ")");
+    return new Map();
+  }
+}
+
 async function main() {
   if (!MOT_DE_PASSE) {
     console.log("CINEMAISON_PASSWORD non configuré (secret GitHub Actions manquant) -- arrêt.");
@@ -163,8 +196,19 @@ async function main() {
   }
 
   console.log("Récupération des fiches déjà résolues (api/get-films)...");
-  const films = await chargerFilmsResolus_();
-  console.log(films.length + " fiche(s) avec une URL Letterboxd déjà résolue à vérifier.\n");
+  const filmsBruts = await chargerFilmsResolus_();
+
+  // NOUVEAU (17/09/2026) -- ignore les fiches déjà confirmées
+  // manuellement comme correctes par Ben (voir api/confirm.js
+  // ?page=letterboxdOk), tant que l'URL enregistrée n'a pas changé
+  // depuis la confirmation. Économise aussi du temps de scan : ces
+  // fiches ne sont même plus revisitées.
+  const confirmations = await chargerConfirmations_();
+  const films = filmsBruts.filter(function (f) {
+    return confirmations.get(f.id) !== f.urlLetterboxd;
+  });
+  const ignorees = filmsBruts.length - films.length;
+  console.log(films.length + " fiche(s) à vérifier" + (ignorees > 0 ? " (" + ignorees + " déjà confirmée(s), ignorée(s))" : "") + ".\n");
 
   if (films.length === 0) {
     console.log("Rien à vérifier.");
@@ -186,6 +230,7 @@ async function main() {
         titre: f.titre,
         annee: f.annee,
         urlLetterboxd: f.urlLetterboxd,
+        affiche: f.affiche || "",
         titrePageTrouvee: resultat.titrePage,
         anneePageTrouvee: resultat.anneePage,
       });
