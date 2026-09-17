@@ -229,6 +229,8 @@ async function main() {
         id: f.id,
         titre: f.titre,
         annee: f.annee,
+        plateforme: f.plateforme || "",
+        duree: f.duree || "",
         urlLetterboxd: f.urlLetterboxd,
         affiche: f.affiche || "",
         titrePageTrouvee: resultat.titrePage,
