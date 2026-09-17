@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { lireLetterboxd, estUrlLetterboxdExploitable } from "../lib/letterboxd.js";
 import { declencherWorkflowLetterboxdV1_ } from "../lib/github-actions.js";
 import { appelerWebhookAvecReessai } from "../lib/webhook.js";
+import { listerConfirmations, confirmerUrl } from "../lib/letterboxd-ignores.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -95,6 +96,24 @@ async function notifierWebhookReenrichissement(id) {
 }
 
 export default async function handler(req, res) {
+  // NOUVEAU (17/09/2026) -- GET ?letterboxdConfirmations=1 : liste des
+  // fiches déjà confirmées manuellement comme correctes (voir
+  // lib/letterboxd-ignores.js). Utilisé par
+  // scripts/verifier-urls-letterboxd.js pour ne pas resignaler une
+  // fiche déjà vérifiée par Ben tant que son URL n'a pas changé depuis.
+  // Fusionné ici plutôt que dans un fichier séparé -- même raison que
+  // le mode rapport ci-dessous (limite de 12 fonctions serverless,
+  // Vercel Hobby).
+  if (req.method === "GET" && req.query && req.query.letterboxdConfirmations === "1") {
+    try {
+      const confirmations = await listerConfirmations();
+      return res.status(200).json(confirmations);
+    } catch (e) {
+      console.error("[update-film][GET confirmations] Erreur :", e.message);
+      return res.status(500).json({ error: "Erreur lecture", details: e.message });
+    }
+  }
+
   if (req.method !== "POST" && req.method !== "PATCH") {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
@@ -103,6 +122,26 @@ export default async function handler(req, res) {
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
+  }
+
+  // Mode confirmation Letterboxd (17/09/2026) : { letterboxdConfirmer:
+  // { id, url } } -- appelé depuis le lien "C'est la bonne URL" du mail
+  // de vérification (api/confirm.js?page=letterboxdOk). Ne touche
+  // jamais au Sheet Films -- enregistre juste la confirmation dans
+  // l'onglet LETTERBOXD_IGNORES pour que le prochain audit ne
+  // resignale plus cette fiche (tant que son URL ne change pas).
+  if (req.body && req.body.letterboxdConfirmer) {
+    const { id: idConfirme, url: urlConfirmee } = req.body.letterboxdConfirmer;
+    if (!idConfirme || !urlConfirmee) {
+      return res.status(400).json({ error: "id et url requis" });
+    }
+    try {
+      await confirmerUrl(idConfirme, urlConfirmee);
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error("[update-film][letterboxdConfirmer] Erreur :", e.message);
+      return res.status(500).json({ error: "Erreur écriture", details: e.message });
+    }
   }
 
   // Mode rapport (16/09/2026) : { rapportVerificationLetterboxd: { suspects,
