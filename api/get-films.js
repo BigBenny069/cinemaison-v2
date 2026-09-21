@@ -6,6 +6,7 @@ import { google } from "googleapis";
 // HEADER_TO_CAMEL -- voir tests-get-films.js.
 export const EXPOSED_COLUMNS = [
   "ID", "Titre", "Annee", "Plateforme", "Duree", "DateDisponibilite", "Type",
+  "StatutAcces",
   "Genre", "GenrePrincipal", "Benoit", "Romy", "À deux", "En famille", "Vu",
   "Affiche", "NoteTMDb", "Casting", "Réalisateur", "Synopsis",
   "NoteLetterboxd", "VotesLetterboxd", "URLLetterboxd", "DateDisponibiliteAuto",
@@ -83,6 +84,14 @@ export default async function handler(req, res) {
 export const HEADER_TO_CAMEL = {
   ID: "id", Titre: "titre", Annee: "annee", Plateforme: "plateforme",
   Duree: "duree", DateDisponibilite: "dateManuelle", Type: "type",
+  // NOUVEAU (19/09/2026) -- Phase D du chantier "Séparer Catégorie et
+  // Statut dans Type" : StatutAcces porte désormais Inclus/VOD/Indispo/
+  // Bientôt disponible/Abonnement complémentaire, Type ne garde plus
+  // que Film/Série/Documentaire/Spectacle. Peut être vide pour une
+  // fiche jamais retouchée depuis la migration (Phase C) -- équivaut
+  // alors à "Inclus", à traiter comme tel côté App.jsx plutôt que
+  // d'écrire "Inclus" partout rétroactivement.
+  StatutAcces: "statutAcces",
   Genre: "genre", GenrePrincipal: "genrePrincipal", Benoit: "benoit",
   Romy: "romy", "À deux": "aDeux", "En famille": "enFamille", Vu: "vu",
   Affiche: "affiche", NoteTMDb: "noteTMDb", Casting: "casting",
