@@ -3861,7 +3861,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
       setTmdbLoading(true);
       setTmdbError(null);
       try {
-        const res = await fetch(`/api/search-tmdb?q=${encodeURIComponent(titre.trim())}`, { signal: controller.signal });
+        const res = await fetch(`/api/search-tmdb?q=${encodeURIComponent(titre.trim())}&type=${encodeURIComponent(type)}`, { signal: controller.signal });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           // On affiche le message renvoyé par la route (ex: clé TMDB_API_KEY
@@ -3880,7 +3880,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
       }
     }, 400);
     return () => { clearTimeout(t); controller.abort(); };
-  }, [titre, titreTouchedByUser]);
+  }, [titre, titreTouchedByUser, type]);
 
   // ID TMDb retenu au moment du choix — sert à construire un lien
   // Letterboxd fiable via https://letterboxd.com/tmdb/{ID}, la redirection
@@ -4776,6 +4776,12 @@ function AppBootIntro({ ready, onDone }) {
   const CURTAIN_OPEN_DURATION = 1300;
   const HOLD_DURATION = 1100;
   const FADE_OUT_DURATION = 600;
+  // NOUVEAU (19/09/2026) -- voir la note complète plus bas (au niveau du
+  // bloc texte) : le texte doit avoir fini de disparaître BIEN avant que
+  // le fond noir ne devienne assez transparent pour laisser deviner le
+  // vrai titre "CINÉMAISON" en dessous -- sensiblement plus court que
+  // FADE_OUT_DURATION (600ms), pas juste un peu plus court.
+  const FADE_OUT_TEXTE_DURATION = 250;
   useEffect(() => {
     if (!ready) return;
     const t1 = setTimeout(() => setCurtainOpen(true), CURTAIN_OPEN_DELAY);
@@ -4818,7 +4824,17 @@ function AppBootIntro({ ready, onDone }) {
       {/* Le logo reste affiché, fixe, sur fond noir après l'ouverture du   */}
       {/* rideau — il ne s'efface plus en même temps que le rideau s'ouvre, */}
       {/* seulement au moment du fondu final (fadingOut).                  */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 50, pointerEvents: "none" }}>
+      {/* CORRECTIF (19/09/2026) -- ce bloc (texte + points lumineux) a son */}
+      {/* PROPRE fondu, plus rapide (FADE_OUT_TEXTE_DURATION) que celui du  */}
+      {/* fond noir juste au-dessus (FADE_OUT_DURATION) : signalé par Ben,  */}
+      {/* capture d'écran à l'appui -- le fond noir mettant 600ms à devenir */}
+      {/* transparent, le VRAI titre "CINÉMAISON" de l'app (dessous, autre  */}
+      {/* police/couleur) apparaissait en transparence AVANT que ce texte-  */}
+      {/* ci ait fini de s'effacer, donnant l'impression de deux titres     */}
+      {/* superposés/flous. Ce texte disparaît maintenant intégralement     */}
+      {/* avant que le fond ne devienne assez transparent pour laisser      */}
+      {/* deviner quoi que ce soit en dessous.                              */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 50, pointerEvents: "none", opacity: fadingOut ? 0 : 1, transition: `opacity ${FADE_OUT_TEXTE_DURATION}ms ease` }}>
         <div className="flex gap-1 mb-6">
           {Array.from({ length: 18 }).map((_, i) => (
             <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: GOLD, boxShadow: `0 0 6px ${GOLD}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
