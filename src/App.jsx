@@ -1099,7 +1099,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
   // automatiquement par le contrôle Prime (voir 11_CONTROLE_PRIME_OFFICIEL.gs).
   // Les plus récemment repérés d'abord (même logique que "derniers").
   const bientotDisponible = useMemo(() => {
-    return [...films].reverse().filter((f) => f.type === "Bientôt disponible").slice(0, nbAccueil);
+    return [...films].reverse().filter((f) => f.statutAcces === "Bientôt disponible").slice(0, nbAccueil);
   }, [films, nbAccueil]);
 
   // "Ce soir on a X minutes" — filtre optionnel de durée pour la
@@ -2129,6 +2129,7 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
   const [titre, setTitre] = useState(film.titre || "");
   const [annee, setAnnee] = useState(film.annee || "");
   const [type, setType] = useState(film.type || "");
+  const [statutAcces, setStatutAcces] = useState(film.statutAcces || "Inclus");
   const [plateforme, setPlateforme] = useState(film.plateforme || "");
   const [dateManuelle, setDateManuelle] = useState(film.dateManuelle || "");
   const [urlLetterboxd, setUrlLetterboxd] = useState(film.urlLetterboxd || "");
@@ -2153,6 +2154,7 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       titre: titre.trim(),
       annee: annee.trim(),
       type,
+      statutAcces,
       plateforme,
       dateManuelle: dateManuelle.trim(),
       urlLetterboxd: urlLetterboxd.trim(),
@@ -2187,12 +2189,22 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
         <input value={annee} onChange={(e) => setAnnee(e.target.value)} className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
       </label>
 
-      <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>TYPE</p>
+      <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>CATÉGORIE</p>
       <div className="flex gap-2 flex-wrap mb-5">
-        {AJOUT_TYPES.map((t) => (
-          <button key={t.id} onClick={() => setType(t.id)} className="rounded-full px-3 py-1.5"
-            style={{ background: type === t.id ? T.accentSoft : T.surface, border: `1px solid ${type === t.id ? T.accent + "66" : T.line}` }}>
-            <span style={{ fontFamily: F.mono, fontSize: 10.5, color: type === t.id ? T.accent : T.muted }}>{t.label}</span>
+        {CATEGORIES_LIST.map((t) => (
+          <button key={t} onClick={() => setType(t)} className="rounded-full px-3 py-1.5"
+            style={{ background: type === t ? T.accentSoft : T.surface, border: `1px solid ${type === t ? T.accent + "66" : T.line}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10.5, color: type === t ? T.accent : T.muted }}>{t}</span>
+          </button>
+        ))}
+      </div>
+
+      <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>STATUT</p>
+      <div className="flex gap-2 flex-wrap mb-5">
+        {STATUTS_LIST.map((s) => (
+          <button key={s} onClick={() => setStatutAcces(s)} className="rounded-full px-3 py-1.5"
+            style={{ background: statutAcces === s ? T.accentSoft : T.surface, border: `1px solid ${statutAcces === s ? T.accent + "66" : T.line}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10.5, color: statutAcces === s ? T.accent : T.muted }}>{s}</span>
           </button>
         ))}
       </div>
@@ -2405,9 +2417,9 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <p style={{ fontFamily: F.mono, fontSize: 12, color: T.muted, letterSpacing: 0.6, fontWeight: 600 }}>
           {(film.type || "").toUpperCase()} · {film.annee} · {film.duree || "—"}
         </p>
-        {STATUT_DISPO_BADGE_V1[film.type] && (
+        {STATUT_DISPO_BADGE_V1[film.statutAcces] && (
           <div style={{ marginTop: 8 }}>
-            <BadgeExplosion type={film.type} size={44} />
+            <BadgeExplosion type={film.statutAcces} size={44} />
           </div>
         )}
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
@@ -2692,7 +2704,7 @@ function MatchTag({ match }) {
 }
 
 function SearchResultCard({ film, match, onOpen }) {
-  const statutInfo = STATUT_DISPO_BADGE_V1[film.type];
+  const statutInfo = STATUT_DISPO_BADGE_V1[film.statutAcces];
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
       <Poster film={film} className="w-20 h-28 flex-shrink-0" />
@@ -2708,7 +2720,7 @@ function SearchResultCard({ film, match, onOpen }) {
       </div>
       {statutInfo && (
         <div className="flex items-center pr-3">
-          <BadgeExplosion type={film.type} size={44} />
+          <BadgeExplosion type={film.statutAcces} size={44} />
         </div>
       )}
     </button>
@@ -2942,10 +2954,10 @@ function ListResultCard({ film, onOpen, right }) {
   // s'il y en a un. Slot "right" fourni par l'appelant (Alertes/Archives)
   // prioritaire sur les deux.
   let expiryBadge = right;
-  if (!right && !isArchived(film) && STATUT_DISPO_BADGE_V1[film.type]) {
+  if (!right && !isArchived(film) && STATUT_DISPO_BADGE_V1[film.statutAcces]) {
     expiryBadge = (
       <div className="flex items-center pr-3">
-        <BadgeExplosion type={film.type} size={44} />
+        <BadgeExplosion type={film.statutAcces} size={44} />
       </div>
     );
   }
@@ -2985,44 +2997,58 @@ const SORTS = [
   { id: "note_asc", label: "Note ↑" },
 ];
 
-// Bibliothèque (Film/Série/Documentaire/...) est démonté/remonté à chaque
-// navigation vers une fiche puis retour — même mécanisme que Explorer et
-// Accueil : position de scroll + tri mémorisés par type en dehors du
-// composant pour survivre à l'aller-retour.
-let bibliothequeState_ = {}; // { [type]: { scrollTop, sort } }
+// Bibliothèque (Film/Série/Documentaire/... OU VOD/Indispo/Bientôt
+// disponible/Abonnement complémentaire depuis la Phase D, 19/09/2026)
+// est démonté/remonté à chaque navigation vers une fiche puis retour --
+// même mécanisme que Explorer et Accueil : position de scroll + tri
+// mémorisés par bibliothèque en dehors du composant pour survivre à
+// l'aller-retour.
+let bibliothequeState_ = {}; // { [type|statut]: { scrollTop, sort } }
 
-function BibliothequeScreen({ films, type, onOpen, onBack, onMenu }) {
-  const remembered = bibliothequeState_[type] || {};
+function BibliothequeScreen({ films, type, statut, onOpen, onBack, onMenu }) {
+  // NOUVEAU (19/09/2026) -- Phase D (Étape 5) : un seul composant pour
+  // les deux genres de bibliothèque (par Catégorie ou par Statut) --
+  // filtre sur l'un OU l'autre, jamais les deux à la fois (voir les 2
+  // sections distinctes du menu, MenuDrawer plus bas). "cle" identifie
+  // la bibliothèque pour la mémorisation scroll/tri, peu importe
+  // laquelle des deux dimensions elle représente.
+  const cle = type || statut;
+  const remembered = bibliothequeState_[cle] || {};
   const [sort, setSortState] = useState(remembered.sort || "az");
   const scrollRef = useRef(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = remembered.scrollTop || 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
+  }, [cle]);
 
   const handleScroll = () => {
     if (scrollRef.current) {
-      bibliothequeState_[type] = { ...(bibliothequeState_[type] || {}), scrollTop: scrollRef.current.scrollTop };
+      bibliothequeState_[cle] = { ...(bibliothequeState_[cle] || {}), scrollTop: scrollRef.current.scrollTop };
     }
   };
   const changeSort = (s) => {
     setSortState(s);
-    bibliothequeState_[type] = { ...(bibliothequeState_[type] || {}), sort: s };
+    bibliothequeState_[cle] = { ...(bibliothequeState_[cle] || {}), sort: s };
   };
 
   const list = useMemo(() => {
-    const arr = films.filter((f) => f.type === type && !isArchived(f));
+    const arr = films.filter((f) => {
+      if (isArchived(f)) return false;
+      if (type) return f.type === type;
+      if (statut) return (f.statutAcces || "Inclus") === statut;
+      return false;
+    });
     if (sort === "az") arr.sort((a, b) => (a.titre || "").localeCompare(b.titre || ""));
     if (sort === "za") arr.sort((a, b) => (b.titre || "").localeCompare(a.titre || ""));
     if (sort === "note_desc") arr.sort((a, b) => (parseRating(b.noteLetterboxd) ?? -1) - (parseRating(a.noteLetterboxd) ?? -1));
     if (sort === "note_asc") arr.sort((a, b) => (parseRating(a.noteLetterboxd) ?? 99) - (parseRating(b.noteLetterboxd) ?? 99));
     return arr;
-  }, [films, type, sort]);
+  }, [films, type, statut, sort]);
 
   return (
     <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
-      <ScreenHeader title={(type || "").toUpperCase()} onBack={onBack} onMenu={onMenu} />
+      <ScreenHeader title={(type || statut || "").toUpperCase()} onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-1.5 mb-4">
         {SORTS.map((s) => {
           const active = sort === s.id;
@@ -3431,18 +3457,35 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN EXPLORER                                                       */
 /* ------------------------------------------------------------------ */
-const TYPES_LIST = ["Film", "Série", "Documentaire", "Spectacle", "VOD", "Indispo", "Bientôt disponible"];
+// MODIFIÉ (19/09/2026) -- Phase D (Étape 5) du chantier "Séparer
+// Catégorie et Statut dans Type" : deux listes distinctes au lieu
+// d'une seule mélangeant les deux notions. CATEGORIES_LIST pour Type,
+// STATUTS_LIST pour StatutAcces (nouveau champ, voir get-films.js/
+// update-film.js).
+const CATEGORIES_LIST = ["Film", "Série", "Documentaire", "Spectacle"];
+const STATUTS_LIST = ["Inclus", "VOD", "Indispo", "Bientôt disponible", "Abonnement complémentaire"];
+// Ancien nom gardé en alias le temps de la transition -- TYPES_LIST ne
+// désignait déjà QUE les catégories dans la plupart des usages
+// existants (Bibliothèques, comptage), jamais vraiment les 3 statuts
+// avec toute leur richesse (Bientôt disponible/Abonnement complémentaire
+// manquaient déjà à l'appel).
+const TYPES_LIST = CATEGORIES_LIST;
 
 /**
- * Badge visuel sur la fiche détaillée (V1, 08/09/2026) -- affiché quand
- * Type est un statut de disponibilité (pas un genre de contenu). T
- * (thème actif) passé en paramètre car couleur() est évalué au moment
- * du rendu, pas à la définition de cet objet.
+ * Badge visuel sur la fiche détaillée -- affiché selon StatutAcces
+ * (Phase D, 19/09/2026 -- lisait Type avant la séparation Catégorie/
+ * Statut). T (thème actif) passé en paramètre car couleur() est
+ * évalué au moment du rendu, pas à la définition de cet objet.
  */
 const STATUT_DISPO_BADGE_V1 = {
-  "Indispo": { label: "INDISPONIBLE", couleur: (T) => T.alert },
-  "VOD": { label: "VOD", couleur: (T) => T.accentSecondary },
-  "Bientôt disponible": { label: "BIENTÔT DISPONIBLE", couleur: (T) => T.accent },
+  "Indispo": { label: "INDISPONIBLE", couleur: (T) => T.alert, forme: "explosion" },
+  "VOD": { label: "VOD", couleur: (T) => T.accentSecondary, forme: "explosion" },
+  "Bientôt disponible": { label: "BIENTÔT DISPONIBLE", couleur: (T) => T.accent, forme: "explosion" },
+  // NOUVEAU (19/09/2026) -- décision du 18/09/2026 : info neutre
+  // ("nécessite un abonnement en plus"), pas une alerte de
+  // disponibilité limitée dans le temps -- forme étoile distincte de
+  // l'éclat "urgence" des 3 statuts ci-dessus (voir BadgeExplosion).
+  "Abonnement complémentaire": { label: "ABO SUPP", couleur: (T) => T.accentSecondary, forme: "etoile" },
 };
 
 /**
@@ -3474,6 +3517,20 @@ function BadgeExplosion({ type, size = 52 }) {
   if (!info) return null;
   const couleur = info.couleur(T);
   const texte = texteLisibleSur_(couleur);
+
+  // NOUVEAU (19/09/2026) -- forme étoile pour "Abonnement complémentaire"
+  // (StatutAcces), distincte de l'éclat "urgence" des 3 autres statuts.
+  if (info.forme === "etoile") {
+    return (
+      <div style={{
+        width: size, height: size, borderRadius: "50%", background: couleur,
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        <Star size={size * 0.5} color={texte} fill={texte} />
+      </div>
+    );
+  }
+
   const taillePolice = info.label.length > 7 ? size * 0.13 : size * 0.16;
   return (
     <div style={{
@@ -3623,7 +3680,7 @@ function GenreField({ genreCounts, selected, onChange }) {
 // ouverte (pas localStorage, se réinitialise à la fermeture). ExplorerScreen
 // est démonté puis remonté à chaque navigation (ouvrir une fiche, revenir
 // en arrière), ce qui effacerait ses useState internes sans ce filet.
-let explorerFiltersState_ = { type: null, plateforme: null, duree: null, genresSel: [], noteMin: 0, noteMax: 5 };
+let explorerFiltersState_ = { type: null, statut: null, plateforme: null, duree: null, genresSel: [], noteMin: 0, noteMax: 5 };
 // Position de défilement mémorisée en dehors de React, pour la restaurer
 // au retour d'une fiche ouverte depuis Explorer (au lieu de remonter en
 // haut de la liste à chaque fois).
@@ -3631,6 +3688,12 @@ let explorerScrollTop_ = 0;
 
 function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
   const [type, setType] = useState(explorerFiltersState_.type);
+  // NOUVEAU (19/09/2026) -- Phase D (Étape 5) : filtre Statut séparé
+  // du filtre Catégorie (Type), qui ne mélangeait plus vraiment les
+  // deux (STATUTS_LIST manquait "Bientôt disponible"/"Abonnement
+  // complémentaire" côté ancien TYPES_LIST) mais restait quand même le
+  // même champ, StatutAcces).
+  const [statut, setStatut] = useState(explorerFiltersState_.statut);
   const [plateforme, setPlateforme] = useState(explorerFiltersState_.plateforme);
   const [duree, setDuree] = useState(explorerFiltersState_.duree);
   const [genresSel, setGenresSel] = useState(
@@ -3642,8 +3705,8 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
 
   // Recopie à chaque changement, pour que le prochain montage reparte d'ici.
   useEffect(() => {
-    explorerFiltersState_ = { type, plateforme, duree, genresSel, noteMin, noteMax };
-  }, [type, plateforme, duree, genresSel, noteMin, noteMax]);
+    explorerFiltersState_ = { type, statut, plateforme, duree, genresSel, noteMin, noteMax };
+  }, [type, statut, plateforme, duree, genresSel, noteMin, noteMax]);
 
   // Restaure la position de défilement au montage (retour depuis une      //
   // fiche), et la mémorise en continu pendant le défilement.               //
@@ -3666,6 +3729,10 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
     return films.filter((f) => {
       if (isArchived(f)) return false;
       if (type && f.type !== type) return false;
+      // "Inclus" == pas de valeur écrite (fiche jamais retouchée depuis
+      // la migration Phase C, voir get-films.js) -- traité comme
+      // équivalent ici, pas juste une chaîne vide qui ne matcherait rien.
+      if (statut && (f.statutAcces || "Inclus") !== statut) return false;
       if (plateforme && (f.plateforme || "").toUpperCase() !== plateforme.toUpperCase()) return false;
       const fGenres = (f.genre || "").split(",").map((g) => g.trim());
       if (genresSel.length && !fGenres.some((g) => genresSel.includes(g))) return false;
@@ -3677,12 +3744,13 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
       if (noteMax < 5 && (parseRating(f.noteLetterboxd) ?? 99) > noteMax) return false;
       return true;
     });
-  }, [films, type, plateforme, genresSel, dureeBucket, noteMin, noteMax]);
+  }, [films, type, statut, plateforme, genresSel, dureeBucket, noteMin, noteMax]);
 
   return (
     <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="EXPLORER" onBack={onBack} onMenu={onMenu} />
-      <PillGroup label="Type de fiche" options={TYPES_LIST} value={type} onChange={setType} />
+      <PillGroup label="Catégorie" options={CATEGORIES_LIST} value={type} onChange={setType} />
+      <PillGroup label="Statut" options={STATUTS_LIST} value={statut} onChange={setStatut} />
       <PillGroup label="Plateforme" options={PLATFORMS_LIST} value={plateforme} onChange={setPlateforme} />
       <GenreField genreCounts={genreCounts} selected={genresSel} onChange={setGenresSel} />
       <PillGroup label="Durée" options={DUREE_BUCKETS} value={duree} onChange={(v) => setDuree(v === null ? null : v.id)}
@@ -3746,9 +3814,15 @@ function GenresScreen({ films, onNavigate, onBack, onMenu }) {
 /* ------------------------------------------------------------------ */
 /* ECRAN AJOUTER — visuel complet, PAS ENCORE branché à /api/add-film   */
 /* ------------------------------------------------------------------ */
+// MODIFIÉ (19/09/2026) -- Phase D (Étape 5) : ne propose plus que les 4
+// catégories (le "ticket" = quelle sorte de contenu, jamais un statut
+// de disponibilité -- c'était le même mélange que l'ancien deviverType_
+// de prime.js, ici côté app). Le statut (facultatif, "Inclus" par
+// défaut) se choisit maintenant dans le formulaire lui-même, section
+// FACULTATIF, voir plus bas.
 const AJOUT_TYPES = [
   { id: "Film", label: "Film" }, { id: "Série", label: "Série" }, { id: "Documentaire", label: "Documentaire" },
-  { id: "Spectacle", label: "Spectacle" }, { id: "VOD", label: "VOD" }, { id: "Indispo", label: "Indispo" },
+  { id: "Spectacle", label: "Spectacle" },
 ];
 
 function AjouterScreen({ onBack, onAdded, onMenu }) {
@@ -3758,6 +3832,12 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   const [plateforme, setPlateforme] = useState("");
   const [dateManuelle, setDateManuelle] = useState("");
   const [urlLetterboxd, setUrlLetterboxd] = useState("");
+  // NOUVEAU (19/09/2026) -- Phase D (Étape 5). "Inclus" par défaut --
+  // la quasi-totalité des ajouts manuels sont des choses qu'on
+  // s'apprête à regarder, pas des VOD/Indispo/Bientôt disponible
+  // (plutôt le rôle des collecteurs automatiques). Sélecteur facultatif
+  // plus bas pour les cas rares où ce n'est pas le cas.
+  const [statutAcces, setStatutAcces] = useState("Inclus");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [justAdded, setJustAdded] = useState(null); // titre du film ajouté, pour le toast — null = pas de toast affiché
@@ -3833,7 +3913,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
-    const result = await apiWrite("/api/add-film", { titre: titre.trim(), annee: annee.trim(), plateforme, type, dateManuelle: dateManuelle.trim() || undefined, urlLetterboxd: urlLetterboxd.trim() || undefined });
+    const result = await apiWrite("/api/add-film", { titre: titre.trim(), annee: annee.trim(), plateforme, type, statutAcces: statutAcces !== "Inclus" ? statutAcces : undefined, dateManuelle: dateManuelle.trim() || undefined, urlLetterboxd: urlLetterboxd.trim() || undefined });
     setSaving(false);
     if (!result.ok) {
       setError(result.error || "Impossible d'ajouter ce film");
@@ -3922,6 +4002,17 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
         ))}
       </div>
       <SectionLabel>FACULTATIF</SectionLabel>
+      <label className="block mb-4">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>STATUT</span>
+        <div className="flex gap-2 flex-wrap mt-1.5">
+          {STATUTS_LIST.map((s) => (
+            <button key={s} onClick={() => setStatutAcces(s)} className="rounded-full px-3 py-1.5"
+              style={{ background: statutAcces === s ? T.accentSoft : T.surface, border: `1px solid ${statutAcces === s ? T.accent + "66" : T.line}` }}>
+              <span style={{ fontFamily: F.mono, fontSize: 10.5, color: statutAcces === s ? T.accent : T.muted }}>{s}</span>
+            </button>
+          ))}
+        </div>
+      </label>
       <label className="block mb-4">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>DATE DE DISPONIBILITÉ (JJ/MM/AAAA)</span>
         <DateFieldWithCalendar value={dateManuelle} onChange={setDateManuelle} />
@@ -4374,11 +4465,25 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
     return m;
   }, [films]);
 
+  // NOUVEAU (19/09/2026) -- Phase D (Étape 5) : comptage séparé par
+  // StatutAcces, pour la nouvelle section "DISPONIBILITÉ" -- "Inclus"
+  // exclu (cas normal, pas de bibliothèque dédiée pour ça, comme "sans
+  // badge" ne l'était pas avant non plus).
+  const countsStatut = useMemo(() => {
+    const m = {};
+    films.filter((f) => !isArchived(f)).forEach((f) => {
+      const s = f.statutAcces || "Inclus";
+      if (s !== "Inclus") m[s] = (m[s] || 0) + 1;
+    });
+    return m;
+  }, [films]);
+
   const groups = [
     { label: "ALERTES", items: [
       { id: "alertes", title: "Alertes", nav: { name: "alertes", params: {} } },
     ]},
     { label: "BIBLIOTHÈQUES", items: TYPES_LIST.map((t) => ({ id: `type_${t}`, title: t, count: counts[t] || 0, nav: { name: "biblio", params: { type: t } } })) },
+    { label: "DISPONIBILITÉ", items: STATUTS_LIST.filter((s) => s !== "Inclus").map((s) => ({ id: `statut_${s}`, title: s, count: countsStatut[s] || 0, nav: { name: "biblio", params: { statut: s } } })) },
     { label: "DÉCOUVRIR", items: [
       { id: "recherche", title: "Recherche", nav: { name: "recherche", params: {} } },
       { id: "explorer", title: "Explorer", nav: { name: "explorer", params: {} } },
@@ -4910,7 +5015,7 @@ export default function App() {
     } else if (name === "personne") {
       body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "biblio") {
-      body = <BibliothequeScreen films={films} type={params.type} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
+      body = <BibliothequeScreen films={films} type={params.type} statut={params.statut} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "alertes") {
       body = <AlertesScreen films={films} mode={params.mode} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "explorer") {
@@ -5011,13 +5116,13 @@ export default function App() {
         {/* existant (pointer-events désactivés, ne gêne jamais le tap).     */}
 
         {error && (
-          <div className="m-4 rounded-lg p-3" style={{ background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
+          <div className="mx-4 mb-4 rounded-lg p-3" style={{ marginTop: "max(16px, env(safe-area-inset-top))", background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
             <p style={{ fontFamily: F.mono, fontSize: 11, color: T.alert }}>Erreur : {error}</p>
           </div>
         )}
 
         {nouvelleVersionDisponible && (
-          <div className="m-4 rounded-lg p-3 flex items-center justify-between gap-3" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
+          <div className="mx-4 mb-4 rounded-lg p-3 flex items-center justify-between gap-3" style={{ marginTop: "max(16px, env(safe-area-inset-top))", background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
             <p style={{ fontFamily: F.mono, fontSize: 11, color: T.cream }}>Nouvelle version disponible</p>
             <button
               onClick={() => window.location.reload()}
