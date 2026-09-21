@@ -12,6 +12,9 @@ const SHEET_RANGE = "Films!A1:ZZ";
 const CAMEL_TO_HEADER = {
   titre: "Titre", annee: "Annee", plateforme: "Plateforme", duree: "Duree",
   dateManuelle: "DateDisponibilite", type: "Type", genre: "Genre",
+  // NOUVEAU (19/09/2026) -- Phase D, voir get-films.js pour le contexte
+  // complet de la séparation Catégorie/Statut.
+  statutAcces: "StatutAcces",
   genrePrincipal: "GenrePrincipal", benoit: "Benoit", romy: "Romy",
   aDeux: "À deux", enFamille: "En famille", vu: "Vu", affiche: "Affiche",
   noteTMDb: "NoteTMDb", casting: "Casting", realisateur: "Réalisateur",
