@@ -2276,14 +2276,9 @@ function FicheLabel({ children, className }) {
     return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
 }
 
-function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onOpenPerson, autoEdit }) {
+function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onOpenPerson }) {
   const [film, setFilm] = useState(filmProp);
-  // NOUVEAU (17/09/2026) : ouvre directement en mode édition quand on
-  // arrive ici via un lien profond (?film=ID&edit=1, voir le lien
-  // "Corriger dans l'app" du mail de vérification Letterboxd,
-  // 09_WEBHOOK.gs) -- évite d'avoir à rechercher la fiche à la main
-  // puis taper sur le crayon.
-  const [editing, setEditing] = useState(!!autoEdit);
+  const [editing, setEditing] = useState(false);
   const expiryDays = computeExpiryDays(film);
   const archived = isArchived(film);
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -4784,27 +4779,6 @@ export default function App() {
 
   useEffect(() => { loadFilms(); }, []);
 
-  // NOUVEAU (17/09/2026) : lien profond ?film=<ID>[&edit=1] -- ouvre
-  // directement la fiche concernée (et son mode édition si demandé) au
-  // chargement de l'app, plutôt que de laisser Ben chercher le film à
-  // la main. Utilisé par le lien "Corriger dans l'app" du mail de
-  // vérification Letterboxd (09_WEBHOOK.gs). Se déclenche une seule
-  // fois, dès que films est chargé -- et nettoie le paramètre de l'URL
-  // ensuite (history.replaceState) pour qu'un rafraîchissement de page
-  // ne rouvre pas la fiche en boucle.
-  useEffect(() => {
-    if (!films) return;
-    const params = new URLSearchParams(window.location.search);
-    const idCible = params.get("film");
-    if (!idCible) return;
-    const filmCible = films.find((f) => f.id === idCible);
-    window.history.replaceState({}, "", window.location.pathname);
-    if (filmCible) {
-      setScreen({ name: "fiche", params: { film: filmCible, from: { name: "accueil", params: {} }, autoEdit: params.get("edit") === "1" } });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [films]);
-
   // Recharge automatiquement les films à chaque fois que l'appli redevient
   // visible — pas seulement au tout premier chargement. Sur iOS, fermer
   // l'appli (sans la tuer) puis la rouvrir déclenche un simple retour au
@@ -4932,7 +4906,7 @@ export default function App() {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)}
         initialQuery={screen.params.query} onQueryChange={(q) => updateScreenParams({ query: q })} />;
     } else if (name === "fiche") {
-      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onOpenPerson={openPerson} autoEdit={params.autoEdit} />;
+      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onOpenPerson={openPerson} />;
     } else if (name === "personne") {
       body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "biblio") {
@@ -5006,11 +4980,29 @@ export default function App() {
 
   return (
     <div className="w-full flex items-center justify-center" style={{ background: T.bg, height: "100dvh" }}>
-      <style>{`@font-face { font-family: 'Simpsonfont'; src: url('/fonts/Simpsonfont.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; } @keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } } @keyframes seanceChase { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } } @keyframes toastSlideIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <style>{`@font-face { font-family: 'Simpsonfont'; src: url('/fonts/Simpsonfont.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; } @keyframes spin { to { transform: rotate(360deg); } } @keyframes minitelBlink { 50% { opacity: 0; } } @keyframes seanceChase { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } } @keyframes toastSlideIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+        /* NOUVEAU (18/09/2026) -- usage TV/Android TV (télécommande D-pad,
+           sans pointeur) : demandé par Ben pour un usage sur projecteur
+           (Philips NeoPix 450, TV Bro). Le navigateur pose déjà le focus
+           clavier/D-pad sur les <button> (aucun tabIndex ajouté nulle
+           part n'était nécessaire, la quasi-totalité des éléments
+           cliquables de l'app sont déjà de vrais <button>) -- seul le
+           contour de focus par défaut du navigateur, ténu, était en
+           cause : quasiment invisible depuis un canapé sur un
+           projecteur. Contour épais et coloré ci-dessous, sur TOUS les
+           boutons de l'app sans exception ni changement de comportement
+           sur téléphone (:focus-visible ne s'active de toute façon
+           jamais au toucher, seulement au clavier/D-pad/Tab). */
+        button:focus-visible {
+          outline: 3px solid ${T.accent};
+          outline-offset: 2px;
+          border-radius: 6px;
+        }
+      `}</style>
       <div
-        className="flex flex-col w-full relative"
+        className="flex flex-col w-full relative max-w-[460px] lg:max-w-[900px] xl:max-w-[1100px]"
         style={{
-          maxWidth: 460, height: "100%", background: T.bg,
+          height: "100%", background: T.bg,
         }}
       >
         {/* Kanso Héritage : reliure cousue sur le bord gauche + paquet      */}
