@@ -149,7 +149,7 @@ function pageLetterboxdOk(req, res) {
 
 // ---- ?page=add : "+ Ajouter à CinéMaison" (suggestions) ----
 function pageAjouter(req, res) {
-  const { titre, annee, type, plateforme, pw } = req.query || {};
+  const { titre, annee, type, statutAcces, plateforme, pw } = req.query || {};
 
   if (!titre || !annee || !type || !plateforme || !pw) {
     return res.status(400).send(pageHtml(
@@ -162,10 +162,14 @@ function pageAjouter(req, res) {
   const anneeEchappee = echapperHtml(String(annee));
   const typeEchappe = echapperHtml(type);
   const plateformeEchappee = echapperHtml(plateforme);
+  // NOUVEAU (19/09/2026) -- Phase D (Étape 4) : optionnel, seulement
+  // présent si différent d'"Inclus" (voir construireUrlConfirmation_,
+  // prime.js).
+  const statutAccesEchappe = statutAcces ? echapperHtml(statutAcces) : "";
 
   const contenu = `
     <p style="font-size:15px;color:#3A2E22">
-      <strong>${titreEchappe}</strong> (${anneeEchappee}) -- ${plateformeEchappee}, type suggéré : ${typeEchappe}
+      <strong>${titreEchappe}</strong> (${anneeEchappee}) -- ${plateformeEchappee}, type suggéré : ${typeEchappe}${statutAccesEchappe ? " (" + statutAccesEchappe + ")" : ""}
     </p>
     <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
       padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%">
@@ -188,6 +192,7 @@ function pageAjouter(req, res) {
               annee: ${JSON.stringify(annee)},
               plateforme: ${JSON.stringify(plateforme)},
               type: ${JSON.stringify(type)},
+              statutAcces: ${JSON.stringify(statutAcces || "")},
             }),
           });
           const corps = await reponse.json().catch(() => ({}));
