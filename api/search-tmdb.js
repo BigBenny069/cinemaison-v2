@@ -32,16 +32,35 @@ export default async function handler(req, res) {
     return res.status(200).json({ results: [] });
   }
 
+  // NOUVEAU (19/09/2026) -- Phase D (Étape 5) du chantier "Séparer
+  // Catégorie et Statut dans Type". Avant, cette route ne cherchait
+  // JAMAIS que dans /search/movie -- une série était donc TOUJOURS
+  // introuvable ici, quelle que soit la catégorie choisie côté app
+  // (constaté par Ben le 19/09/2026 : "Stuart Fails to Save the
+  // Universe" introuvable alors qu'elle existe bien sur TMDb). Depuis
+  // que l'écran Ajouter demande la catégorie EN PREMIER (avant même le
+  // titre), l'app sait déjà si c'est une Série au moment de la
+  // recherche -- ?type=Série bascule sur /search/tv, tout le reste
+  // (Film/Documentaire/Spectacle -- des films au sens TMDb) reste sur
+  // /search/movie comme avant.
+  const type = (req.query.type || "").toString().trim();
+  const estSerie = type === "Série";
+
   try {
-    const url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(q)}&include_adult=false`;
+    const url = estSerie
+      ? `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(q)}&include_adult=false`
+      : `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(q)}&include_adult=false`;
     const tmdbRes = await fetch(url);
     if (!tmdbRes.ok) {
       return res.status(502).json({ error: `TMDb a répondu ${tmdbRes.status}` });
     }
     const data = await tmdbRes.json();
+    // /search/tv renvoie "name"/"first_air_date" au lieu de
+    // "title"/"release_date" (mêmes noms de champs que l'app attend
+    // dans les deux cas, une fois passés dans .map ci-dessous).
     const results = (data.results || []).slice(0, 8).map((r) => ({
-      titre: r.title,
-      annee: r.release_date ? r.release_date.slice(0, 4) : null,
+      titre: estSerie ? r.name : r.title,
+      annee: (estSerie ? r.first_air_date : r.release_date) ? (estSerie ? r.first_air_date : r.release_date).slice(0, 4) : null,
       affiche: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
       tmdbId: r.id,
     }));
