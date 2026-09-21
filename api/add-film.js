@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { password, titre, annee, plateforme, type, dateManuelle, urlLetterboxd } = req.body || {};
+  const { password, titre, annee, plateforme, type, statutAcces, dateManuelle, urlLetterboxd } = req.body || {};
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
@@ -186,6 +186,12 @@ export default async function handler(req, res) {
     setField("Annee", annee);
     setField("Plateforme", plateforme);
     setField("Type", type);
+    // NOUVEAU (19/09/2026) -- Phase D. Optionnel : à la création, une
+    // fiche est presque toujours "Inclus" (laissé vide plutôt que
+    // d'écrire "Inclus" partout -- voir get-films.js), sauf cas rare
+    // où l'appelant (app ou CinéRadar) sait déjà que ce n'est pas le
+    // cas. N'écrit que si explicitement fourni.
+    if (statutAcces) setField("StatutAcces", statutAcces);
     if (dateManuelle) setField("DateDisponibilite", dateManuelle);
     if (letterboxdUrlFinale) setField("URLLetterboxd", letterboxdUrlFinale);
     if (letterboxdNote) setField("NoteLetterboxd", letterboxdNote);
