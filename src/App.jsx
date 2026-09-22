@@ -20,6 +20,11 @@ const THEMES = {
       accentSoft: "#3A2C13",
       accentSecondary: "#56929F",
       accentSecondarySoft: "#16262A",
+      // NOUVEAU (19/09/2026) -- manquait dans ce thème (et 2 autres,
+      // bleu/salle) : badge "Abonnement complémentaire" (StatutAcces)
+      // en rendait la couleur invalide. Distinct de l'accent existant
+      // (#C58D29, déjà doré) pour rester lisible côte à côte.
+      gold: "#E8B33D",
       cream: "#F3EEE3",
       muted: "#9C9284",
       mutedDim: "#6B6355",
@@ -44,6 +49,9 @@ const THEMES = {
       accentSoft: "#152244",
       accentSecondary: "#7FB4FF",
       accentSecondarySoft: "#16223F",
+      // NOUVEAU (19/09/2026) -- voir la note complète dans le thème
+      // "ticket" plus haut -- même correctif, manquait ici aussi.
+      gold: "#F2B33D",
       cream: "#EDEFF3",
       muted: "#7C8494",
       mutedDim: "#4E5666",
@@ -93,6 +101,9 @@ const THEMES = {
       accentSoft: "#3A3226",
       accentSecondary: "#8E7F9E",
       accentSecondarySoft: "#332C42",
+      // NOUVEAU (19/09/2026) -- voir la note complète dans le thème
+      // "ticket" plus haut -- même correctif, manquait ici aussi.
+      gold: "#D9B65C",
       cream: "#F0EAE2",
       muted: "#A69AAE",
       mutedDim: "#6E637A",
@@ -498,6 +509,65 @@ function urlCanalPlusFiche_(canalContentId, type) {
   if (!id) return null;
   const categorie = CANAL_CATEGORIE_PAR_TYPE[type] || "cinema";
   return `https://www.canalplus.com/${categorie}/x/h/${id}`;
+}
+
+/**
+ * NOUVEAU (19/09/2026) -- correspondance code de chaîne (suffixe après
+ * le "_" dans CanalContentId) -> nom affiché + slug de logo, fournie
+ * par Ben le 19/09/2026 à partir des fiches réelles de son Sheet.
+ * Grandit avec le temps si de nouveaux codes apparaissent (voir
+ * ChaineCanalBadge plus bas : un code inconnu affiche le code brut
+ * plutôt que de disparaître silencieusement, pour rester repérable).
+ */
+const CANAL_CHAINES_V1 = {
+  "50001": { label: "CANAL+", slug: "canalplus" },
+  "50002": { label: "CINÉ+OCS", slug: "cineplusocs" },
+  "50007": { label: "ACTION", slug: "action" },
+  "50008": { label: "ARTE", slug: "arte" },
+  "50016": { label: "COMÉDIE+", slug: "comedieplus" },
+  "50026": { label: "FRANCE.TV", slug: "francetv" },
+  "50035": { label: "M6/M6+", slug: "m6" },
+  "50049": { label: "PARIS PREMIÈRE", slug: "parispremiere" },
+  "50055": { label: "SÉRIE CLUB", slug: "serieclub" },
+  "50060": { label: "TÉVA", slug: "teva" },
+  "50061": { label: "MYTF1", slug: "mytf1" },
+  "50662": { label: "PARAMOUNT+", slug: "paramountchaine" },
+  "50696": { label: "APPLE TV", slug: "appletv" },
+  "50780": { label: "INSOMNIA", slug: "insomnia" },
+  "50889": { label: "HBO MAX", slug: "hbomax" },
+  "40099": { label: "CANAL VOD", slug: "canalvod" },
+};
+
+/**
+ * Petit badge secondaire affiché à côté du badge CANAL+ (jamais seul :
+ * précise SUR QUELLE CHAÎNE Canal+ le film est disponible, VOD/HBO MAX/
+ * CINÉ+OCS/etc. -- distinct de la plateforme elle-même, demandé par Ben
+ * le 19/09/2026 sur la fiche "Yannick", visible seulement sur CINÉ+OCS
+ * dans l'app Canal+ mais nulle part sur la fiche CinéMaison jusqu'ici).
+ * Logo réel si présent dans /public/logos/chaines/<slug>.png -- sinon
+ * repli automatique sur le texte seul (même principe que PlatformIcon/
+ * les logos de plateforme, voir plus haut).
+ */
+function ChaineCanalBadge({ canalContentId }) {
+  const [failed, setFailed] = useState(false);
+  const id = String(canalContentId || "").trim();
+  if (!id || !id.includes("_")) return null;
+  const code = id.split("_").pop();
+  const chaine = CANAL_CHAINES_V1[code];
+  // Code encore jamais vu/mappé -- affiche le code brut plutôt que rien
+  // du tout, pour que ça reste repérable et ajoutable à CANAL_CHAINES_V1.
+  const label = chaine ? chaine.label : "CHAÎNE " + code;
+  const slug = chaine ? chaine.slug : null;
+  const showImg = slug && !failed;
+
+  return (
+    <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ background: "rgba(0,0,0,0.55)" }}>
+      {showImg ? (
+        <img src={`/logos/chaines/${slug}.png`} alt="" className="h-3.5 w-auto object-contain" onError={() => setFailed(true)} />
+      ) : null}
+      <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.5, color: "#fff", fontWeight: 700 }}>{label}</span>
+    </div>
+  );
 }
 
 function PlatformIcon({ label, canalContentId, urlPlateforme, type }) {
@@ -2431,6 +2501,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         )}
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
           <PlatformIcon label={film.plateforme} canalContentId={film.canalContentId} urlPlateforme={film.urlPlateforme} type={film.type} />
+          {(film.plateforme || "").toUpperCase() === "CANAL+" && <ChaineCanalBadge canalContentId={film.canalContentId} />}
           {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
         </div>
 
