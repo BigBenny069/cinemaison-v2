@@ -3485,14 +3485,14 @@ const TYPES_LIST = CATEGORIES_LIST;
  * évalué au moment du rendu, pas à la définition de cet objet.
  */
 const STATUT_DISPO_BADGE_V1 = {
-  "Indispo": { label: "INDISPONIBLE", couleur: (T) => T.alert, forme: "explosion" },
+  "Indispo": { label: "INDISPO", couleur: (T) => T.alert, forme: "explosion" },
   "VOD": { label: "VOD", couleur: (T) => T.accentSecondary, forme: "explosion" },
-  "Bientôt disponible": { label: "BIENTÔT DISPONIBLE", couleur: (T) => T.accent, forme: "explosion" },
-  // NOUVEAU (19/09/2026) -- décision du 18/09/2026 : info neutre
-  // ("nécessite un abonnement en plus"), pas une alerte de
-  // disponibilité limitée dans le temps -- forme étoile distincte de
-  // l'éclat "urgence" des 3 statuts ci-dessus (voir BadgeExplosion).
-  "Abonnement complémentaire": { label: "ABO SUPP", couleur: (T) => T.accentSecondary, forme: "etoile" },
+  "Bientôt disponible": { label: "BIENTÔT", couleur: (T) => T.accent, forme: "explosion" },
+  // NOUVEAU (19/09/2026) -- info neutre ("nécessite un abonnement en
+  // plus"), pas une alerte de disponibilité limitée dans le temps --
+  // forme étoile + couleur "gold" (existe dans les 6 thèmes) distincte
+  // des 3 autres statuts, jamais l'éclat "urgence".
+  "Abonnement complémentaire": { label: "ABO", couleur: (T) => T.gold, forme: "etoile" },
 };
 
 /**
@@ -3527,13 +3527,19 @@ function BadgeExplosion({ type, size = 52 }) {
 
   // NOUVEAU (19/09/2026) -- forme étoile pour "Abonnement complémentaire"
   // (StatutAcces), distincte de l'éclat "urgence" des 3 autres statuts.
+  // CORRECTIF (19/09/2026) : le texte du label (info.label, "ABO") n'était
+  // jamais affiché ici -- juste l'icône étoile seule, signalé par Ben
+  // (capture à l'appui) -- ajouté sous l'étoile, dans le même cercle.
   if (info.forme === "etoile") {
     return (
       <div style={{
         width: size, height: size, borderRadius: "50%", background: couleur,
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
-        <Star size={size * 0.5} color={texte} fill={texte} />
+        <Star size={size * 0.32} color={texte} fill={texte} />
+        <span style={{ color: texte, fontSize: size * 0.15, fontWeight: 900, letterSpacing: 0.3, lineHeight: 1, marginTop: size * 0.04 }}>
+          {info.label}
+        </span>
       </div>
     );
   }
