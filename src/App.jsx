@@ -421,6 +421,12 @@ const PLATFORM_SLUGS = {
   "Netflix": "netflix",
   "Prime Video": "prime",
   "Disney+": "disney",
+  // NOUVEAU (19/09/2026) -- demandé par Ben : certains films de son
+  // abonnement Canal+ ne sont en réalité disponibles que sur
+  // Paramount+ (pas dans le forfait Canal+, à part). Volontairement
+  // hors du contrôle streaming automatique pour l'instant (~10 fiches,
+  // ajout manuel uniquement) -- à revoir si le volume grandit.
+  "Paramount+": "paramount",
 };
 const PLATFORM_SLUGS_UPPER = Object.fromEntries(Object.entries(PLATFORM_SLUGS).map(([k, v]) => [k.toUpperCase(), v]));
 
@@ -434,6 +440,7 @@ const PLATFORM_URLS_UPPER = {
   "NETFLIX": "https://www.netflix.com/",
   "PRIME VIDEO": "https://www.primevideo.com/",
   "DISNEY+": "https://www.disneyplus.com/",
+  "PARAMOUNT+": "https://www.paramountplus.com/",
 };
 
 // Constat en usage réel (11/09/2026) : Canal+ et Disney+ s'ouvrent
@@ -3560,7 +3567,7 @@ function BadgeTampon({ days, couleur }) {
   );
 }
 
-const PLATFORMS_LIST = ["Canal+", "Netflix", "Prime Video", "Disney+"];
+const PLATFORMS_LIST = ["Canal+", "Netflix", "Prime Video", "Disney+", "Paramount+"];
 const DUREE_BUCKETS = [
   { id: "court", label: "Court", hint: "-60min", min: 0, max: 59 },
   { id: "standard", label: "Standard", hint: "60-110", min: 60, max: 110 },
