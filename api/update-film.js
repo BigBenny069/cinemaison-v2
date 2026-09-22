@@ -23,6 +23,19 @@ const CAMEL_TO_HEADER = {
   dateAuto: "DateDisponibiliteAuto",
   tmdbId: "TMDbID", imdbId: "IMDbID",
   urlPlateforme: "URLPlateforme",
+  // CORRECTIF (22/09/2026) -- champ manquant depuis toujours (pas une
+  // régression récente, vérifié) : canal.js écrit canalContentId ET
+  // urlPlateforme dans le même appel en lot depuis le début, mais SEUL
+  // urlPlateforme avait sa correspondance ici -- canalContentId était
+  // donc systématiquement ignoré à l'écriture (colIndex=-1 -> continue,
+  // silencieusement, sans erreur). Les fiches déjà pourvues d'un
+  // CanalContentId gardaient leur ancienne valeur (jamais rafraîchie
+  // depuis), donnant l'illusion que ça marchait -- seules les fiches
+  // TOUTES NEUVES (jamais eu de valeur) révélaient le problème par une
+  // case franchement vide. Diagnostiqué le 22/09/2026 à partir d'un cas
+  // réel signalé par Ben (12 fiches Canal+ ajoutées manuellement,
+  // jamais mises à jour malgré plusieurs contrôles Canal+ réussis).
+  canalContentId: "CanalContentId",
   // Ajoutés pour "Redemander une vérification" (remplace Mode Vacances) :
   // vider ces deux champs fait sortir la fiche du lot "complet" au sens
   // du script d'enrichissement (05_ENRICHISSEMENT.gs), qui la reprend
