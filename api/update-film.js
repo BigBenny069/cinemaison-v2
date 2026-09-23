@@ -314,6 +314,29 @@ export default async function handler(req, res) {
       TAG_FIELDS.forEach((t) => { if (t !== activatedTag) finalFields[t] = false; });
     }
 
+    // NOUVEAU (22/09/2026) -- demandé par Ben après le cas "Johnny
+    // Mnemonic" (basculée de Canal+ vers Netflix à la main,
+    // CanalContentId resté collé sur l'ancienne valeur -- le
+    // contrôleur de disponibilité Cloudflare continuait à taper
+    // dessus inutilement, 404 systématique). Si la plateforme change
+    // ET que la fiche était sur CANAL+ juste avant ce changement, on
+    // vide CanalContentId et URLPlateforme -- les deux n'ont plus
+    // aucun sens pour la nouvelle plateforme (un lien canalplus.com
+    // ne mène nulle part une fois sur Netflix). Le prochain contrôle
+    // de la nouvelle plateforme (s'il y en a un) repartira proprement
+    // plutôt que de traîner une valeur périmée.
+    if (typeof finalFields.plateforme === "string" && finalFields.plateforme.trim()) {
+      const plateformeCol = headers.indexOf("Plateforme");
+      const plateformeActuelle = plateformeCol >= 0
+        ? String(rows[rowIndex][plateformeCol] || "").trim().toUpperCase()
+        : "";
+      const nouvellePlateforme = finalFields.plateforme.trim().toUpperCase();
+      if (plateformeActuelle === "CANAL+" && nouvellePlateforme !== "CANAL+") {
+        finalFields.canalContentId = "";
+        finalFields.urlPlateforme = "";
+      }
+    }
+
     // NOUVEAU (03/09/2026) : résolution Letterboxd directement ici, sur
     // Vercel, plutôt que de compter uniquement sur Apps Script — voir
     // lib/letterboxd.js pour le contexte complet (déclencheurs Apps Script
