@@ -407,6 +407,17 @@ function urgencyColor_(days) {
   return null;
 }
 
+// NOUVEAU (23/09/2026) -- couleur des badges d'ARRIVÉE ("Bientôt
+// disponible"), volontairement bleue plutôt que rouge/orange (la
+// palette d'urgence habituelle ci-dessus) : un film qui arrive
+// bientôt est une bonne nouvelle, pas une alerte. Fixe, comme
+// urgencyColor_, pour rester reconnaissable quel que soit le thème
+// actif -- demandé par Ben en particulier sur "Chaîne Cryptée", dont
+// TOUTES les couleurs d'accent (accent/accentSecondary/gold/alert)
+// sont la même teinte rose-rouge, sans alternative possible dans ce
+// thème.
+const ARRIVEE_COULEUR_V1 = "#3D8BFF";
+
 // Une fiche est archivée uniquement si dateManuelle est renseignée ET dépassée.
 // Sans dateManuelle, la fiche reste toujours visible dans sa bibliothèque,
 // quoi que dise dateAuto.
@@ -886,8 +897,8 @@ function RatingStamp({ value, size = 58 }) {
   );
 }
 
-function DateStamp({ days }) {
-  const urgent = urgencyColor_(days);
+function DateStamp({ days, arrivee }) {
+  const urgent = arrivee ? ARRIVEE_COULEUR_V1 : urgencyColor_(days);
   const color = urgent || T.accent;
   return (
     <div className="absolute flex flex-col items-center justify-center"
@@ -896,7 +907,7 @@ function DateStamp({ days }) {
         border: `2px solid ${color}`, background: "rgba(20,16,12,0.72)",
         boxShadow: `0 0 0 2px ${T.bg}`, transform: "rotate(-10deg)",
       }}>
-      <span style={{ fontFamily: F.marquee, fontSize: 15, color, lineHeight: 1 }}>J-{days}</span>
+      <span style={{ fontFamily: F.marquee, fontSize: 15, color, lineHeight: 1 }}>{arrivee ? "J+" : "J-"}{days}</span>
     </div>
   );
 }
@@ -1079,7 +1090,7 @@ function MiniCard({ film, onOpen, sub, showStamp }) {
     <button onClick={() => onOpen(film)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
       <div className="relative">
         <Poster film={film} className="w-full" style={{ height: 152, borderRadius: T.radiusSm }} />
-        {showStamp && expiryDays != null && <DateStamp days={expiryDays} />}
+        {showStamp && expiryDays != null && <DateStamp days={expiryDays} arrivee={film.statutAcces === "Bientôt disponible"} />}
       </div>
       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 12, fontWeight: 600, color: T.cream }}>{film.titre}</p>
       <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{film.plateforme}{film.duree ? ` · ${film.duree}` : ""}</p>
@@ -1781,18 +1792,26 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             <>
               <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
               <div className="flex gap-3 px-4 overflow-x-auto mb-6">
-                {bientotDisponible.map((f) => (
-                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
-                    <Poster film={f} className="w-full" style={{ height: 152, borderRadius: 8, objectFit: "cover" }} />
-                    <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
-                    <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
-                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                      {parseRating(f.noteLetterboxd) != null && (
-                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
-                      )}
-                    </p>
-                  </button>
-                ))}
+                {bientotDisponible.map((f) => {
+                  const joursArrivee = computeExpiryDays(f);
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
+                      <div className="relative overflow-hidden" style={{ height: 152, borderRadius: 8 }}>
+                        <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                        {joursArrivee != null && (
+                          <span className="absolute top-1.5 left-1.5" style={{ background: ARRIVEE_COULEUR_V1, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4 }}>J+{joursArrivee}</span>
+                        )}
+                      </div>
+                      <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
+                      <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
+                        {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                        {parseRating(f.noteLetterboxd) != null && (
+                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        )}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}
@@ -1854,7 +1873,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="flex gap-3 px-4 overflow-x-auto mb-5">
                 {bientotDisponible.map((f) => (
                   <MiniCard key={f.id} film={f} onOpen={onOpen}
-                    sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
+                    sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
                 ))}
               </div>
             </>
@@ -1891,7 +1910,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
             {bientotDisponible.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen}
-                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
+                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
             ))}
           </div>
         </>
@@ -2525,48 +2544,50 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           // Urgence visuelle : au-delà des couleurs habituelles du thème, la
           // couleur du badge J-x vire au rouge (≤2j) ou orange (≤5j) — même
           // logique que sur les affiches de l'Accueil.
-          const urg = urgencyColor_(expiryDays);
+          const estArrivee = film.statutAcces === "Bientôt disponible";
+          const signeJours = estArrivee ? "J+" : "J-";
+          const urg = estArrivee ? ARRIVEE_COULEUR_V1 : urgencyColor_(expiryDays);
           return CURRENT_THEME === "affiche" ? (
             <div className="inline-flex items-center gap-2 mt-4 px-3 py-2" style={{ background: urg || T.gold, border: `${T.borderWidth}px solid ${T.cream}`, boxShadow: T.shadow, transform: "rotate(-1deg)" }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>J−{expiryDays} · DERNIÈRE SÉANCE</span>
+              <span style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>{signeJours}{expiryDays} · {estArrivee ? "BIENTÔT DISPONIBLE" : "DERNIÈRE SÉANCE"}</span>
             </div>
           ) : CURRENT_THEME === "salle" ? (
             <div className="flex items-center gap-2.5 rounded-2xl px-4 py-3 mt-5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: urg || T.alert, flexShrink: 0 }} />
-              <span style={{ fontFamily: F.mono, fontSize: 11.5, color: T.cream }}>Disponible encore <span style={{ color: urg || T.alert, fontWeight: 600 }}>{expiryDays} jours</span></span>
+              <span style={{ fontFamily: F.mono, fontSize: 11.5, color: T.cream }}>{estArrivee ? "Disponible dans" : "Disponible encore"} <span style={{ color: urg || T.alert, fontWeight: 600 }}>{expiryDays} jours</span></span>
             </div>
           ) : CURRENT_THEME === "letterboxd" ? (
             <span className="inline-flex items-center rounded px-2.5 py-1 mt-4" style={{ background: `${urg || T.alert}1F` }}>
-              <span style={{ fontFamily: F.mono, fontSize: 11, color: urg || T.alert, fontWeight: 700 }}>J-{expiryDays} · dernière séance</span>
+              <span style={{ fontFamily: F.mono, fontSize: 11, color: urg || T.alert, fontWeight: 700 }}>{signeJours}{expiryDays} · {estArrivee ? "bientôt disponible" : "dernière séance"}</span>
             </span>
           ) : CURRENT_THEME === "canalplus" ? (
             <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: urg || T.accent, borderRadius: 6 }}>
-              <span style={{ fontFamily: F.serif, fontWeight: 800, fontSize: 12, color: "#fff" }}>J-{expiryDays} avant retrait</span>
+              <span style={{ fontFamily: F.serif, fontWeight: 800, fontSize: 12, color: "#fff" }}>{signeJours}{expiryDays} avant {estArrivee ? "disponibilité" : "retrait"}</span>
             </div>
           ) : CURRENT_THEME === "cacartoon" ? (
             <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: urg || T.accent, borderRadius: 20, border: `2px solid ${T.cream}` }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff" }}>J-{expiryDays} avant la dernière séance</span>
+              <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff" }}>{signeJours}{expiryDays} avant la {estArrivee ? "première" : "dernière"} séance</span>
             </div>
           )   : CURRENT_THEME === "popbrutal" ? (
             <div className="inline-block mt-5 px-4 py-2" style={{ background: urg || T.accent, color: "#fff", border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: "rotate(-1.5deg)" }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 14 }}>J-{expiryDays} AVANT DISPARITION</span>
+              <span style={{ fontFamily: F.marquee, fontSize: 14 }}>{signeJours}{expiryDays} AVANT {estArrivee ? "DISPONIBILITÉ" : "DISPARITION"}</span>
             </div>
           ) : CURRENT_THEME === "ticket" ? (
             <div className="relative inline-flex items-center gap-3 mt-4 rounded-xl p-3" style={{ background: urg ? `${urg}22` : T.alertSoft, border: `1px dashed ${urg || T.alert}66` }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 22, color: urg || T.alert }}>J-{expiryDays}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
+              <span style={{ fontFamily: F.marquee, fontSize: 22, color: urg || T.alert }}>{signeJours}{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert }}>{estArrivee ? "BIENTÔT DISPONIBLE" : "DERNIÈRE SÉANCE PRÉVUE"}</span>
               <span className="absolute" style={{ left: -6, top: "50%", width: 12, height: 12, borderRadius: "50%", background: T.bg, transform: "translateY(-50%)" }} />
               <span className="absolute" style={{ right: -6, top: "50%", width: 12, height: 12, borderRadius: "50%", background: T.bg, transform: "translateY(-50%)" }} />
             </div>
           ) : CURRENT_THEME === "bleu" ? (
             <div className="inline-flex items-center gap-3 mt-4 rounded-full px-4 py-2.5" style={{ background: urg ? `${urg}22` : T.alertSoft, boxShadow: `0 0 16px ${urg || T.alert}33` }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 18, color: urg || T.alert }}>J-{expiryDays}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert, letterSpacing: 0.5 }}>DERNIÈRE SÉANCE PRÉVUE</span>
+              <span style={{ fontFamily: F.marquee, fontSize: 18, color: urg || T.alert }}>{signeJours}{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert, letterSpacing: 0.5 }}>{estArrivee ? "BIENTÔT DISPONIBLE" : "DERNIÈRE SÉANCE PRÉVUE"}</span>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-xl p-3 mt-4" style={{ background: urg ? `${urg}22` : T.alertSoft, border: `1px solid ${urg || T.alert}44` }}>
-              <span style={{ fontFamily: F.marquee, fontSize: 22, color: urg || T.alert }}>J-{expiryDays}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert }}>DERNIÈRE SÉANCE PRÉVUE</span>
+              <span style={{ fontFamily: F.marquee, fontSize: 22, color: urg || T.alert }}>{signeJours}{expiryDays}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: urg || T.alert }}>{estArrivee ? "BIENTÔT DISPONIBLE" : "DERNIÈRE SÉANCE PRÉVUE"}</span>
             </div>
           );
         })()}
