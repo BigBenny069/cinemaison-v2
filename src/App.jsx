@@ -5204,8 +5204,14 @@ export default function App() {
           border-radius: 6px;
         }
       `}</style>
+      {/* NOUVEAU (23/09/2026) -- palier 2xl ajouté : sur PC avec un
+         navigateur en grande largeur (≥1536px), 1100px laissait encore
+         beaucoup d'espace vide à gauche/à droite (signalé par Ben,
+         captures à l'appui). Phone (aucun palier ne matche, reste à
+         460px) et TV/tablette (lg/xl, inchangés) ne sont pas affectés --
+         uniquement les très grands écrans gagnent en largeur. */}
       <div
-        className="flex flex-col w-full relative max-w-[460px] lg:max-w-[900px] xl:max-w-[1100px]"
+        className="flex flex-col w-full relative max-w-[460px] lg:max-w-[900px] xl:max-w-[1100px] 2xl:max-w-[1500px]"
         style={{
           height: "100%", background: T.bg,
         }}
