@@ -3701,14 +3701,28 @@ const TYPES_LIST = CATEGORIES_LIST;
  * évalué au moment du rendu, pas à la définition de cet objet.
  */
 const STATUT_DISPO_BADGE_V1 = {
-  "Indispo": { label: "INDISPO", couleur: (T) => T.alert, forme: "explosion" },
-  "VOD": { label: "VOD", couleur: (T) => T.accentSecondary, forme: "explosion" },
-  "Bientôt disponible": { label: "BIENTÔT", couleur: (T) => T.accent, forme: "explosion" },
+  // MODIFIÉ (23/09/2026) -- "Indispo" passe aussi à une couleur fixe
+  // (gris ardoise) plutôt que T.alert : Ben veut le rouge réservé
+  // STRICTEMENT au compte à rebours J-X (urgencyColor_), nulle part
+  // ailleurs -- pas même sur "Indispo".
+  "Indispo": { label: "INDISPO", couleur: () => "#6B7280", forme: "explosion" },
+  // MODIFIÉ (23/09/2026) -- VOD/BIENTÔT/ABO passent à des couleurs FIXES
+  // (indépendantes du thème), plutôt que T.accentSecondary/T.accent/
+  // T.gold : sur "Chaîne Cryptée" notamment, ces 3 couleurs de thème
+  // valent TOUTES la même teinte rouge-rose que T.alert -- les 4 badges
+  // se confondaient en un seul mur de rouge (signalé par Ben, captures
+  // à l'appui). Rouge réservé désormais au seul "Indispo" (et au
+  // compte à rebours J-X, urgencyColor_) ; "Bientôt disponible" reprend
+  // le même bleu que le badge d'arrivée J+X (ARRIVEE_COULEUR_V1), pour
+  // rester cohérent : tout ce qui parle d'arrivée est bleu, tout ce qui
+  // parle de départ/indisponibilité reste rouge.
+  "VOD": { label: "VOD", couleur: () => "#8B5CF6", forme: "explosion" },
+  "Bientôt disponible": { label: "BIENTÔT", couleur: () => ARRIVEE_COULEUR_V1, forme: "explosion" },
   // NOUVEAU (19/09/2026) -- info neutre ("nécessite un abonnement en
   // plus"), pas une alerte de disponibilité limitée dans le temps --
-  // forme étoile + couleur "gold" (existe dans les 6 thèmes) distincte
-  // des 3 autres statuts, jamais l'éclat "urgence".
-  "Abonnement complémentaire": { label: "ABO", couleur: (T) => T.gold, forme: "etoile" },
+  // forme étoile distincte des 3 autres statuts, jamais l'éclat
+  // "urgence". Couleur fixe (voir note ci-dessus) au lieu de T.gold.
+  "Abonnement complémentaire": { label: "ABO", couleur: () => "#D9A536", forme: "etoile" },
 };
 
 /**
