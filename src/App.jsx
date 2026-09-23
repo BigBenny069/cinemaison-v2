@@ -1454,10 +1454,12 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <div className="flex gap-3 px-4 overflow-x-auto mb-6">
             {bientotDisponible.map((f) => {
               const rating = parseRating(f.noteLetterboxd);
+              const jours = computeExpiryDays(f);
               return (
                 <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
                   <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
                     <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                    {jours != null && <span className="absolute" style={{ top: 4, right: 4, background: ARRIVEE_COULEUR_V1, color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3 }}>J+{jours}</span>}
                   </div>
                   <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, fontWeight: 600, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>
@@ -1588,6 +1590,37 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             </>
           )}
 
+          {/* NOUVEAU (23/09/2026) -- section "Bientôt disponible" absente     */}
+          {/* jusqu'ici pour ce thème (juste le badge manquait pour la        */}
+          {/* plupart des thèmes ; ici la section entière n'existait pas).    */}
+          {bientotDisponible.length > 0 && (
+            <>
+              <div className="relative px-4 mb-2.5">
+                <SpringfieldTitle>BIENTÔT DISPONIBLE</SpringfieldTitle>
+              </div>
+              <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
+                {bientotDisponible.map((f) => {
+                  const jours = computeExpiryDays(f);
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
+                      <div className="relative overflow-hidden" style={{ height: 132, borderRadius: 8, background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
+                        <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                        {jours != null && <span className="absolute top-1.5 left-1.5" style={{ background: ARRIVEE_COULEUR_V1, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4, border: "1.5px solid #1A1400" }}>J+{jours}</span>}
+                      </div>
+                      <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
+                      <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#1c3350", fontWeight: 700, marginTop: 2 }}>
+                        {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                        {parseRating(f.noteLetterboxd) != null && (
+                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        )}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
           {derniers.length > 0 && (
             <>
               <div className="relative px-4 mb-2.5">
@@ -1680,6 +1713,38 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <div className="relative">
                         <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
                         {days != null && <span className="absolute" style={{ top: 4, right: 4, background: frameColor, color: "#fff", fontFamily: F.marquee, fontSize: 11, padding: "1px 6px", borderRadius: 999 }}>J-{days}</span>}
+                      </div>
+                      <div className="p-2">
+                        <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
+                        <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 1 }}>
+                          {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                          {parseRating(f.noteLetterboxd) != null && (
+                            <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                          )}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* NOUVEAU (23/09/2026) -- section "Bientôt disponible" absente     */}
+          {/* jusqu'ici pour ce thème.                                        */}
+          {bientotDisponible.length > 0 && (
+            <>
+              <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
+              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+                {bientotDisponible.map((f, i) => {
+                  const jours = computeExpiryDays(f);
+                  const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
+                  const frameColor = frameColors[i % frameColors.length];
+                  return (
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left overflow-hidden" style={{ width: 108, background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
+                      <div className="relative">
+                        <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
+                        {jours != null && <span className="absolute" style={{ top: 4, right: 4, background: ARRIVEE_COULEUR_V1, color: "#fff", fontFamily: F.marquee, fontSize: 11, padding: "1px 6px", borderRadius: 999 }}>J+{jours}</span>}
                       </div>
                       <div className="p-2">
                         <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
@@ -1984,6 +2049,35 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
         </>
       )}
 
+      {/* NOUVEAU (23/09/2026) -- section "Bientôt disponible" absente       */}
+      {/* jusqu'ici pour ce thème, même carte sticker que ci-dessus.         */}
+      {bientotDisponible.length > 0 && CURRENT_THEME === "popbrutal" && (
+        <>
+          <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>Bientôt disponible</SectionTitle>
+          <div className="flex gap-3 px-4 overflow-x-auto mb-6 pb-1">
+            {bientotDisponible.map((f, i) => {
+              const jours = computeExpiryDays(f);
+              const rot = i % 2 === 0 ? -2 : 2;
+              return (
+                <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left p-1.5" style={{ width: 100, background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: `rotate(${rot}deg)` }}>
+                  <div className="relative">
+                    <Poster film={f} className="w-full" style={{ height: 114, border: `${T.borderWidth}px solid ${T.line}` }} />
+                    <span className="absolute" style={{ top: 3, right: 3, background: ARRIVEE_COULEUR_V1, color: "#fff", fontFamily: F.marquee, fontSize: 10, fontWeight: 900, padding: "1px 5px", border: `1px solid ${T.line}` }}>{jours != null ? `J+${jours}` : ""}</span>
+                  </div>
+                  <p className="truncate mt-1.5" style={{ fontFamily: "'Archivo', sans-serif", fontSize: 10, fontWeight: 700, color: T.cream }}>{f.titre}</p>
+                  <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.muted, marginTop: 1, fontWeight: 700 }}>
+                    {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                  </p>
+                  {parseRating(f.noteLetterboxd) != null && (
+                    <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.accentSecondary, fontWeight: 900, marginTop: 1 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* Le Projectionniste : bande de pellicule perforée horizontale,     */}
       {/* photogrammes numérotés — remplace le rail de cartes classique.    */}
 
@@ -2055,6 +2149,36 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <div className="relative">
                     <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover", borderBottom: `2px solid ${T.cream}` }} />
                     {days != null && <span className="absolute" style={{ top: -8, right: -8, background: T.accentSoft, color: T.cream, fontFamily: F.marquee, fontSize: 11, padding: "3px 7px", border: `2px solid ${T.cream}`, borderRadius: 999 }}>J-{days}</span>}
+                  </div>
+                  <div className="p-2">
+                    <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
+                    <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>
+                      {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                      {parseRating(f.noteLetterboxd) != null && (
+                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                      )}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* NOUVEAU (23/09/2026) -- section "Bientôt disponible" absente       */}
+      {/* jusqu'ici pour ce thème, même carte néobrutaliste que ci-dessus.   */}
+      {bientotDisponible.length > 0 && CURRENT_THEME === "affiche" && (
+        <>
+          <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
+          <div className="flex gap-4 px-4 overflow-x-auto mb-6 pb-1">
+            {bientotDisponible.map((f) => {
+              const jours = computeExpiryDays(f);
+              return (
+                <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100, background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
+                  <div className="relative">
+                    <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover", borderBottom: `2px solid ${T.cream}` }} />
+                    {jours != null && <span className="absolute" style={{ top: -8, right: -8, background: ARRIVEE_COULEUR_V1, color: "#fff", fontFamily: F.marquee, fontSize: 11, padding: "3px 7px", border: `2px solid ${T.cream}`, borderRadius: 999 }}>J+{jours}</span>}
                   </div>
                   <div className="p-2">
                     <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
