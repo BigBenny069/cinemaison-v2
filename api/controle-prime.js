@@ -92,6 +92,36 @@ function construireLigne(resultat, controleLe, maintenant) {
     ];
   }
 
+  // NOUVEAU (23/09/2026) -- symétrique de DATE_DETECTEE ci-dessus, mais
+  // pour une fiche BIENTOT_DISPONIBLE (pas encore sortie) plutôt qu'une
+  // fiche sur le départ. Réutilise volontairement les mêmes colonnes
+  // JoursRestants/DateRetraitDetectee (génériques en pratique -- leur
+  // sens réel dépend uniquement de StatutControle) plutôt que d'ajouter
+  // 2 colonnes de plus au bloc N:T déjà réservé.
+  if (resultat.statutControle === "ARRIVEE_DETECTEE") {
+    const jours = Math.round(Number(resultat.joursAvantDisponible));
+    if (!Number.isFinite(jours) || jours < 0 || jours > 60) {
+      return [
+        idFilm,
+        "Valeur joursAvantDisponible invalide reçue de prime.js (" + resultat.joursAvantDisponible + ")",
+        "", "", controleLe, "AUCUNE_ALERTE", statutPrime,
+      ];
+    }
+
+    const dateArrivee = new Date(maintenant);
+    dateArrivee.setDate(dateArrivee.getDate() + jours);
+
+    return [
+      idFilm,
+      "Disponible sur Prime Video dans " + jours + (jours === 1 ? " jour" : " jours"),
+      jours,
+      formaterDateISO(dateArrivee),
+      controleLe,
+      "ARRIVEE_DETECTEE",
+      statutPrime,
+    ];
+  }
+
   return [
     idFilm,
     String(resultat.messagePrime || "Aucune alerte de départ détectée"),
