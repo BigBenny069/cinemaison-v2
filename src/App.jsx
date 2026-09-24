@@ -3700,29 +3700,21 @@ const TYPES_LIST = CATEGORIES_LIST;
  * Statut). T (thème actif) passé en paramètre car couleur() est
  * évalué au moment du rendu, pas à la définition de cet objet.
  */
+const EXPLOSION_CLIP_PATH_V1 =
+  "polygon(50% 0%,61% 18%,80% 8%,79% 29%,100% 35%,86% 50%,100% 65%,79% 71%,80% 92%,61% 82%,50% 100%,39% 82%,20% 92%,21% 71%,0% 65%,14% 50%,0% 35%,21% 29%,20% 8%,39% 18%)";
+
 const STATUT_DISPO_BADGE_V1 = {
-  // MODIFIÉ (23/09/2026) -- "Indispo" passe aussi à une couleur fixe
-  // (gris ardoise) plutôt que T.alert : Ben veut le rouge réservé
-  // STRICTEMENT au compte à rebours J-X (urgencyColor_), nulle part
-  // ailleurs -- pas même sur "Indispo".
-  "Indispo": { label: "INDISPO", couleur: () => "#6B7280", forme: "explosion" },
-  // MODIFIÉ (23/09/2026) -- VOD/BIENTÔT/ABO passent à des couleurs FIXES
-  // (indépendantes du thème), plutôt que T.accentSecondary/T.accent/
-  // T.gold : sur "Chaîne Cryptée" notamment, ces 3 couleurs de thème
-  // valent TOUTES la même teinte rouge-rose que T.alert -- les 4 badges
-  // se confondaient en un seul mur de rouge (signalé par Ben, captures
-  // à l'appui). Rouge réservé désormais au seul "Indispo" (et au
-  // compte à rebours J-X, urgencyColor_) ; "Bientôt disponible" reprend
-  // le même bleu que le badge d'arrivée J+X (ARRIVEE_COULEUR_V1), pour
-  // rester cohérent : tout ce qui parle d'arrivée est bleu, tout ce qui
-  // parle de départ/indisponibilité reste rouge.
-  "VOD": { label: "VOD", couleur: () => "#8B5CF6", forme: "explosion" },
-  "Bientôt disponible": { label: "BIENTÔT", couleur: () => ARRIVEE_COULEUR_V1, forme: "explosion" },
-  // NOUVEAU (19/09/2026) -- info neutre ("nécessite un abonnement en
-  // plus"), pas une alerte de disponibilité limitée dans le temps --
-  // forme étoile distincte des 3 autres statuts, jamais l'éclat
-  // "urgence". Couleur fixe (voir note ci-dessus) au lieu de T.gold.
-  "Abonnement complémentaire": { label: "ABO", couleur: () => "#D9A536", forme: "etoile" },
+  // MODIFIÉ (24/09/2026) -- nouvelles formes validées par Ben (tableau
+  // "actuellement / nouvelle version") : anneau barré pour Indispo,
+  // croix pour Abo, anneau simple pour Bientôt, nuage pour VOD. Voir
+  // BadgeExplosion plus bas pour le détail de chaque forme.
+  "Indispo": { label: "INDISPO", couleur: () => "#6B7280", forme: "anneauBarre" },
+  // MODIFIÉ (24/09/2026) -- VOD passe du violet au vert (#92D050),
+  // demandé par Ben.
+  "VOD": { label: "VOD", couleur: () => "#92D050", forme: "nuage" },
+  "Bientôt disponible": { label: "BIENTÔT", couleur: () => ARRIVEE_COULEUR_V1, forme: "anneau" },
+  // MODIFIÉ (24/09/2026) -- libellé "ABO" -> "ABO ++", demandé par Ben.
+  "Abonnement complémentaire": { label: "ABO ++", couleur: () => "#D9A536", forme: "croix" },
 };
 
 /**
@@ -3739,42 +3731,78 @@ function texteLisibleSur_(hex) {
   return luminance > 0.6 ? "#14100C" : "#fff";
 }
 
-const EXPLOSION_CLIP_PATH_V1 =
-  "polygon(50% 0%,61% 18%,80% 8%,79% 29%,100% 35%,86% 50%,100% 65%,79% 71%,80% 92%,61% 82%,50% 100%,39% 82%,20% 92%,21% 71%,0% 65%,14% 50%,0% 35%,21% 29%,20% 8%,39% 18%)";
-
 /**
- * Badge "explosion" (V2, 09/09/2026) -- VOD/Indispo/Bientôt disponible,
- * forme en éclat façon BD. Couleur du thème actif, texte clair/foncé
- * choisi automatiquement selon le contraste (texteLisibleSur_).
- * Composant partagé -- un seul endroit à maintenir, couvre tous les
- * thèmes automatiquement (contrairement à l'accueil).
+ * Badges de statut (refonte V3, 24/09/2026) -- une forme dédiée par
+ * statut plutôt qu'un même éclat générique réutilisé partout, sur
+ * demande de Ben (tableau "actuellement / nouvelle version" validé
+ * le 24/09/2026, y compris la correction du couplage couleur/forme
+ * inversé entre Abo et Bientôt sur son premier jet). Composant
+ * partagé, un seul endroit à maintenir, couvre tous les thèmes
+ * automatiquement (contrairement à l'accueil).
  */
 function BadgeExplosion({ type, size = 52 }) {
   const info = STATUT_DISPO_BADGE_V1[type];
   if (!info) return null;
   const couleur = info.couleur(T);
   const texte = texteLisibleSur_(couleur);
+  const taillePolice = info.label.length > 6 ? size * 0.15 : size * 0.19;
 
-  // NOUVEAU (19/09/2026) -- forme étoile pour "Abonnement complémentaire"
-  // (StatutAcces), distincte de l'éclat "urgence" des 3 autres statuts.
-  // CORRECTIF (19/09/2026) : le texte du label (info.label, "ABO") n'était
-  // jamais affiché ici -- juste l'icône étoile seule, signalé par Ben
-  // (capture à l'appui) -- ajouté sous l'étoile, dans le même cercle.
-  if (info.forme === "etoile") {
+  // Indispo -- anneau avec une barre pleine traversant le centre
+  // (façon panneau "interdit"), le libellé écrit sur cette barre.
+  // Épaisseur d'anneau (15) alignée sur celle de "Bientôt" ci-dessous
+  // -- même famille de forme, même épaisseur, pour rester cohérent.
+  // dominantBaseline volontairement évité (support inégal sur les
+  // anciennes versions de Safari/WebKit, pertinent en PWA iOS) --
+  // décalage vertical calculé à la place (repère standard : centre +
+  // taille de police × 0.35).
+  if (info.forme === "anneauBarre") {
     return (
-      <div style={{
-        width: size, height: size, borderRadius: "50%", background: couleur,
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0,
-      }}>
-        <Star size={size * 0.32} color={texte} fill={texte} />
-        <span style={{ color: texte, fontSize: size * 0.15, fontWeight: 900, letterSpacing: 0.3, lineHeight: 1, marginTop: size * 0.04 }}>
-          {info.label}
-        </span>
-      </div>
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ flexShrink: 0 }}>
+        <circle cx="50" cy="50" r="42" fill="none" stroke={couleur} strokeWidth="15" />
+        <rect x="6" y="42.5" width="88" height="15" fill={couleur} />
+        <text x="50" y="54.5" textAnchor="middle" fill={texte} fontSize="13" fontWeight="900" fontFamily={F.mono} letterSpacing="0.3">{info.label}</text>
+      </svg>
     );
   }
 
-  const taillePolice = info.label.length > 7 ? size * 0.13 : size * 0.16;
+  // Bientôt disponible -- anneau simple, libellé au centre (fond clair
+  // pour rester lisible -- pas de fond sombre, signalé par Ben).
+  if (info.forme === "anneau") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ flexShrink: 0 }}>
+        <circle cx="50" cy="50" r="42" fill={T.cream} stroke={couleur} strokeWidth="15" />
+        <text x="50" y="54.5" textAnchor="middle" fill={couleur} fontSize="13" fontWeight="900" fontFamily={F.mono} letterSpacing="0.3">{info.label}</text>
+      </svg>
+    );
+  }
+
+  // Abonnement complémentaire -- croix pleine (parfaitement symétrique
+  // autour du centre), libellé au centre.
+  if (info.forme === "croix") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ flexShrink: 0 }}>
+        <path d="M36 4 H64 V36 H96 V64 H64 V96 H36 V64 H4 V36 H36 Z" fill={couleur} />
+        <text x="50" y="54" textAnchor="middle" fill={texte} fontSize="12.5" fontWeight="900" fontFamily={F.mono} letterSpacing="0.2">{info.label}</text>
+      </svg>
+    );
+  }
+
+  // VOD -- nuage plein (3 bosses parfaitement symétriques + base
+  // arrondie), libellé remonté dans le corps du nuage.
+  if (info.forme === "nuage") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 76" style={{ flexShrink: 0 }}>
+        <circle cx="27" cy="43" r="19" fill={couleur} />
+        <circle cx="50" cy="25" r="24" fill={couleur} />
+        <circle cx="73" cy="43" r="19" fill={couleur} />
+        <rect x="19" y="41" width="62" height="26" rx="13" fill={couleur} />
+        <text x="50" y="48" textAnchor="middle" fill={texte} fontSize="14" fontWeight="900" fontFamily={F.mono}>{info.label}</text>
+      </svg>
+    );
+  }
+
+  // Repli (ancienne forme éclat) -- gardé au cas où un statut futur
+  // n'aurait pas encore de forme dédiée assignée ci-dessus.
   return (
     <div style={{
       width: size, height: size, background: couleur, clipPath: EXPLOSION_CLIP_PATH_V1,
