@@ -5396,9 +5396,14 @@ export default function App() {
          beaucoup d'espace vide à gauche/à droite (signalé par Ben,
          captures à l'appui). Phone (aucun palier ne matche, reste à
          460px) et TV/tablette (lg/xl, inchangés) ne sont pas affectés --
-         uniquement les très grands écrans gagnent en largeur. */}
+         uniquement les très grands écrans gagnent en largeur.
+         MODIFIÉ (24/09/2026) -- 1500px encore un peu court sur les très
+         grands écrans (marge encore visible, captures à l'appui) ;
+         passé à 1700px. Élargir le conteneur n'étire aucune affiche --
+         chaque vignette garde sa taille propre, ça ajoute juste de la
+         place autour (plus de vignettes visibles par rangée). */}
       <div
-        className="flex flex-col w-full relative max-w-[460px] lg:max-w-[900px] xl:max-w-[1100px] 2xl:max-w-[1500px]"
+        className="flex flex-col w-full relative max-w-[460px] lg:max-w-[900px] xl:max-w-[1100px] 2xl:max-w-[1700px]"
         style={{
           height: "100%", background: T.bg,
         }}
