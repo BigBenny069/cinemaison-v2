@@ -20,7 +20,12 @@ export const EXPOSED_COLUMNS = [
 // 1000+ fiches à chaque scraping Prime alourdissait beaucoup la réponse
 // pour rien -- probable facteur aggravant des coupures réseau (ECONNRESET)
 // rencontrées le 08/09/2026 sur une connexion moins stable.
-const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree"];
+// MODIFIÉ (24/09/2026) -- "Type" ajouté : nécessaire pour que les
+// collecteurs puissent repérer une fiche existante mal étiquetée
+// Film/Série (comparaison avec le contenu réel de la page -- voir
+// estSerie dans prime.js/netflix.js/disney.js). Un seul champ texte
+// de plus, coût négligeable sur le volume déjà transmis en mode léger.
+const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree", "Type"];
 
 async function getSheetsClient() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
