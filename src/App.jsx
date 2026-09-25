@@ -421,10 +421,17 @@ const ARRIVEE_COULEUR_V1 = "#3D8BFF";
 // Une fiche est archivée uniquement si dateManuelle est renseignée ET dépassée.
 // Sans dateManuelle, la fiche reste toujours visible dans sa bibliothèque,
 // quoi que dise dateAuto.
+// MODIFIÉ (24/09/2026) -- vérifie maintenant dateManuelle ET dateAuto
+// (avant : seulement dateManuelle, signalé par Ben). Si L'UNE OU
+// L'AUTRE est dépassée, la fiche part en Archive -- une fiche peut
+// avoir une date automatique détectée (contrôle streaming) sans
+// jamais avoir de date manuelle saisie, et inversement.
 function isArchived(film) {
   const manuelle = parseDateFR(film.dateManuelle);
-  if (!manuelle) return false;
-  return daysUntil(manuelle) < 0;
+  if (manuelle && daysUntil(manuelle) < 0) return true;
+  const auto = parseDateFR(film.dateAuto);
+  if (auto && daysUntil(auto) < 0) return true;
+  return false;
 }
 
 // Ignore les valeurs texte non-numériques du Sheet (ex. "PAS DE NOTE")
