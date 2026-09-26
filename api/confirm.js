@@ -18,6 +18,7 @@ export default function handler(req, res) {
   if (type === "merge") return pageFusionner(req, res);
   if (type === "remove") return pageSupprimer(req, res);
   if (type === "letterboxdOk") return pageLetterboxdOk(req, res);
+  if (type === "confirmType") return pageConfirmerType(req, res);
 
   return res.status(400).send(pageHtml(
     "Lien incomplet",
@@ -463,6 +464,75 @@ function pageFusionner(req, res) {
   `;
 
   return res.status(200).send(pageHtml("Fusionner avec une fiche existante", contenu));
+}
+
+// ---- ?page=confirmType : "Corriger" (mail "Type possiblement
+// incohérent", 09_WEBHOOK.gs traiterAlerteTypeIncoherentStreamingV1_)
+// NOUVEAU (26/09/2026) -- remplace l'ancien lien direct vers l'app
+// (baseUrl + "/?film=...&edit=1"), qui n'a jamais fonctionné : l'app
+// ne lit aucun paramètre d'URL de ce genre, donc le lien ouvrait juste
+// l'accueil (signalé par Ben). Même principe que les autres boutons
+// de cette page : le clic écrit directement le Type détecté sur la
+// fiche, sans repasser par l'application.
+function pageConfirmerType(req, res) {
+  const { id, titre, typeDetecte, pw } = req.query || {};
+
+  if (!id || !typeDetecte || !pw) {
+    return res.status(400).send(pageHtml(
+      "Lien incomplet",
+      "<p>Ce lien est incomplet ou abîmé -- retourne dans l'app pour corriger le Type à la main.</p>"
+    ));
+  }
+
+  const titreEchappe = echapperHtml(titre || id);
+  const typeEchappe = echapperHtml(typeDetecte);
+
+  const contenu = `
+    <p style="font-size:15px;color:#3A2E22"><strong>${titreEchappe}</strong></p>
+    <p style="font-size:13px;color:#9A9182">
+      Confirme pour enregistrer le Type détecté sur la page de la plateforme :
+      <strong>${typeEchappe}</strong>.
+    </p>
+    <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
+      padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%">
+      Corriger le Type en ${typeEchappe}
+    </button>
+    <p id="statut" style="font-size:13px;color:#9A9182;margin-top:12px"></p>
+    <script>
+      const bouton = document.getElementById("btn");
+      const statut = document.getElementById("statut");
+      bouton.addEventListener("click", async () => {
+        bouton.disabled = true;
+        bouton.textContent = "Enregistrement...";
+        try {
+          const reponse = await fetch("/api/update-film", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              password: ${JSON.stringify(pw)},
+              id: ${JSON.stringify(id)},
+              fields: { type: ${JSON.stringify(typeDetecte)} },
+            }),
+          });
+          const corps = await reponse.json().catch(() => ({}));
+          if (reponse.ok) {
+            bouton.textContent = "Corrigé";
+            statut.textContent = "C'est fait, tu peux fermer cette page.";
+          } else {
+            bouton.disabled = false;
+            bouton.textContent = "Corriger le Type en ${typeDetecte}";
+            statut.textContent = "Erreur : " + (corps.error || "inconnue");
+          }
+        } catch (e) {
+          bouton.disabled = false;
+          bouton.textContent = "Corriger le Type en ${typeDetecte}";
+          statut.textContent = "Erreur réseau : " + e.message;
+        }
+      });
+    </script>
+  `;
+
+  return res.status(200).send(pageHtml("Corriger le Type", contenu));
 }
 
 function echapperHtml(texte) {
