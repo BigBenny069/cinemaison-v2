@@ -2515,13 +2515,25 @@ function FicheLabel({ children, className }) {
     return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
 }
 
-function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onOpenPerson }) {
+function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onFilmRemoved, onOpenPerson, initialEditing, allFilms }) {
   const [film, setFilm] = useState(filmProp);
-  const [editing, setEditing] = useState(false);
+  // NOUVEAU (26/09/2026) -- initialEditing permet d'ouvrir la fiche
+  // directement en mode édition (lien profond ?film=ID&edit=1, voir
+  // App() plus bas) -- sans ça, l'édition démarrait toujours fermée.
+  const [editing, setEditing] = useState(!!initialEditing);
   const expiryDays = computeExpiryDays(film);
   const archived = isArchived(film);
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
   const [deleting, setDeleting] = useState(false);
+  // NOUVEAU (27/09/2026) -- demandé par Ben : à la suppression d'une
+  // fiche, propose aussi de supprimer les AUTRES fiches du même film
+  // (même titre+année, plateforme différente -- typiquement un film
+  // suivi à la fois sur CANAL+ et Prime). fichesLiees = candidates
+  // trouvées après la suppression de la fiche courante ; confirmLiees
+  // ouvre le second écran de confirmation.
+  const [fichesLiees, setFichesLiees] = useState([]);
+  const [confirmLiees, setConfirmLiees] = useState(false);
+  const [suppressionLiees, setSuppressionLiees] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [revising, setRevising] = useState(false);
   const [revised, setRevised] = useState(false);
@@ -2551,9 +2563,47 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
       return;
     }
     setConfirmDelete(false);
-    onDelete(film.id);
+    onFilmRemoved(film.id);
+
+    // Cherche d'autres fiches du même film (même titre+année normalisés,
+    // peu importe la plateforme) parmi les films déjà chargés -- pas
+    // besoin d'appel réseau, tout est déjà en mémoire. Si on en trouve,
+    // on retarde le retour à l'accueil pour proposer de les supprimer
+    // aussi ; sinon on revient directement comme avant.
+    const cleFilm = normalizeSearch(film.titre) + "|" + (film.annee || "");
+    const liees = (allFilms || []).filter((f) =>
+      f.id !== film.id &&
+      normalizeSearch(f.titre) + "|" + (f.annee || "") === cleFilm
+    );
+    if (liees.length > 0) {
+      setFichesLiees(liees);
+      setConfirmLiees(true);
+    } else {
+      onBack();
+    }
+  };
+
+  const handleDeleteLiees = async (fiches) => {
+    setSuppressionLiees(true);
+    for (const f of fiches) {
+      const result = await apiWrite("/api/delete-film", { id: f.id });
+      if (result.ok) onFilmRemoved(f.id);
+    }
+    setSuppressionLiees(false);
+    setConfirmLiees(false);
+    setFichesLiees([]);
+    onBack();
   };
   const [posterOpen, setPosterOpen] = useState(false);
+  // Sélection dans l'écran "fiches liées" -- toutes cochées par défaut.
+  const [selectionLiees, setSelectionLiees] = useState({});
+  useEffect(() => {
+    if (confirmLiees) {
+      const initial = {};
+      fichesLiees.forEach((f) => { initial[f.id] = true; });
+      setSelectionLiees(initial);
+    }
+  }, [confirmLiees]);
 
   // Chaîne Cryptée : lance la bande-annonce en muet ~3.5s après l'arrivée
   // sur la fiche, façon myCanal — seulement si un lien YouTube exploitable
@@ -2871,6 +2921,48 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
               <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 rounded-lg py-2.5" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>ANNULER</button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 rounded-lg py-2.5" style={{ background: T.alert, fontFamily: F.mono, fontSize: 11, color: T.cream, opacity: deleting ? 0.7 : 1 }}>
                 {deleting ? "SUPPRESSION…" : "SUPPRIMER"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NOUVEAU (27/09/2026) -- après suppression, propose de supprimer
+          aussi les autres fiches du même film (même titre+année) trouvées
+          sur d'autres plateformes, pour éviter d'en oublier une (demandé
+          par Ben : un film retiré sur CANAL+ dont la fiche Prime restait
+          orpheline, sans qu'il sache qu'elle existait encore). */}
+      {confirmLiees && (
+        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: "rgba(20,16,12,0.7)" }}>
+          <div className="w-full rounded-t-2xl p-5" style={{ maxWidth: 460, background: T.surfaceRaised, paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+            <p style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>AUSSI SUR D'AUTRES PLATEFORMES</p>
+            <p className="mt-1 mb-3" style={{ fontFamily: F.serif, fontSize: 13, color: T.muted }}>
+              « {film.titre} » a aussi {fichesLiees.length > 1 ? "ces fiches" : "cette fiche"} :
+            </p>
+            <div className="mb-4" style={{ maxHeight: 220, overflowY: "auto" }}>
+              {fichesLiees.map((f) => (
+                <label key={f.id} className="flex items-center gap-2.5 py-2" style={{ borderBottom: `1px solid ${T.surface}` }}>
+                  <input
+                    type="checkbox"
+                    checked={!!selectionLiees[f.id]}
+                    onChange={(e) => setSelectionLiees((prev) => ({ ...prev, [f.id]: e.target.checked }))}
+                    style={{ width: 18, height: 18, accentColor: T.accent }}
+                  />
+                  <span style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>
+                    {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setConfirmLiees(false); setFichesLiees([]); onBack(); }} disabled={suppressionLiees} className="flex-1 rounded-lg py-2.5" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>NE PAS TOUCHER</button>
+              <button
+                onClick={() => handleDeleteLiees(fichesLiees.filter((f) => selectionLiees[f.id]))}
+                disabled={suppressionLiees || fichesLiees.every((f) => !selectionLiees[f.id])}
+                className="flex-1 rounded-lg py-2.5"
+                style={{ background: T.alert, fontFamily: F.mono, fontSize: 11, color: T.cream, opacity: suppressionLiees ? 0.7 : 1 }}
+              >
+                {suppressionLiees ? "SUPPRESSION…" : "SUPPRIMER LA SÉLECTION"}
               </button>
             </div>
           </div>
@@ -5267,6 +5359,27 @@ export default function App() {
   const openFiche = (film) => {
     setScreen({ name: "fiche", params: { film, from: screen } });
   };
+  // NOUVEAU (26/09/2026) -- lien profond depuis les mails (ex. mail
+  // "Type possiblement incohérent", 09_WEBHOOK.gs) : ?film=ID ouvre
+  // directement cette fiche au chargement, &edit=1 en plus l'ouvre
+  // déjà en mode édition. Signalé par Ben : le lien existait déjà
+  // côté mail depuis un moment mais n'avait jamais été lu ici, donc
+  // le clic n'ouvrait que l'accueil. useRef pour ne déclencher qu'une
+  // fois (pas à chaque rechargement de films en arrière-plan).
+  const deepLinkTraite = useRef(false);
+  useEffect(() => {
+    if (!films || deepLinkTraite.current) return;
+    deepLinkTraite.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const filmId = params.get("film");
+    if (!filmId) return;
+    const filmCible = films.find((f) => f.id === filmId);
+    if (!filmCible) return;
+    setScreen({
+      name: "fiche",
+      params: { film: filmCible, from: { name: "accueil", params: {} }, editRequested: params.get("edit") === "1" },
+    });
+  }, [films]);
   // Permet à un écran (Recherche notamment) de garder une trace de son
   // état (texte tapé, filtres…) directement dans les params de l'écran
   // courant — pour que ce texte survive au passage par une fiche puis au
@@ -5305,7 +5418,7 @@ export default function App() {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)}
         initialQuery={screen.params.query} onQueryChange={(q) => updateScreenParams({ query: q })} />;
     } else if (name === "fiche") {
-      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onOpenPerson={openPerson} />;
+      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onFilmRemoved={(id) => setFilms((prev) => prev.filter((f) => f.id !== id))} allFilms={films} onOpenPerson={openPerson} initialEditing={params.editRequested} />;
     } else if (name === "personne") {
       body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "biblio") {
