@@ -389,21 +389,7 @@ function daysUntil(date) {
 
 // Priorité à la date saisie manuellement ; à défaut la date automatique
 function computeExpiryDays(film) {
-  // CORRECTIF (27/09/2026) -- une fiche "Bientôt disponible" (statutAcces)
-  // utilise dateAuto pour stocker sa date d'ARRIVÉE, pas une date de
-  // départ (même champ Sheet des deux côtés, DateDisponibiliteAuto --
-  // voir 11_CONTROLE_PRIME_OFFICIEL.gs). Sans cette exclusion, un film
-  // qui arrive dans 4 jours pouvait aussi ressortir dans "Ça part
-  // bientôt" comme s'il partait dans 4 jours -- même film, deux badges
-  // contradictoires en même temps ("Quand Harry rencontre Sally",
-  // signalé par Ben avec capture à l'appui). dateManuelle reste
-  // toujours valable pour une expiration réelle même sur une fiche
-  // "Bientôt disponible" (rare, mais pas impossible) -- seule dateAuto
-  // est ignorée dans ce cas précis.
   const manuelle = parseDateFR(film.dateManuelle);
-  if (film.statutAcces === "Bientôt disponible") {
-    return daysUntil(manuelle) ?? null;
-  }
   const auto = parseDateFR(film.dateAuto);
   const days = daysUntil(manuelle) ?? daysUntil(auto);
   return days;
@@ -1188,6 +1174,17 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
 
   const bientot = useMemo(() => {
     return films
+      // CORRECTIF (27/09/2026) -- une fiche "Bientôt disponible"
+      // (statutAcces) utilise dateAuto pour stocker sa date
+      // d'ARRIVÉE, pas une date de départ (même champ Sheet des deux
+      // côtés -- voir 11_CONTROLE_PRIME_OFFICIEL.gs). Exclue ici
+      // (uniquement de CETTE liste, pas de computeExpiryDays lui-même,
+      // qui reste utilisé tel quel par le badge "Bientôt disponible")
+      // -- sans ça, un film qui arrive dans 4 jours ressortait aussi
+      // dans "Ça part bientôt" comme s'il partait dans 4 jours (même
+      // film, deux badges contradictoires -- signalé par Ben avec
+      // capture à l'appui, "Quand Harry rencontre Sally").
+      .filter((f) => f.statutAcces !== "Bientôt disponible")
       .map((f) => ({ f, days: computeExpiryDays(f) }))
       .filter((x) => x.days != null && x.days >= 0)
       .sort((a, b) => a.days - b.days)
@@ -5331,7 +5328,12 @@ export default function App() {
     const todayKey = new Date().toISOString().slice(0, 10);
     if (getLastNotifDate_() === todayKey) return;
     const seuil = getStoredNotifSeuil_();
+    // CORRECTIF (27/09/2026) -- même exclusion que la liste "Ça part
+    // bientôt" de l'Accueil (voir bientot useMemo plus haut) : une
+    // fiche "Bientôt disponible" ne doit jamais déclencher une
+    // notification "ça part bientôt".
     const urgents = films
+      .filter((f) => f.statutAcces !== "Bientôt disponible")
       .map((f) => ({ f, days: computeExpiryDays(f) }))
       .filter((x) => x.days != null && x.days >= 0 && x.days <= seuil);
     if (urgents.length === 0) { setLastNotifDate_(todayKey); return; }
