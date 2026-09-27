@@ -15,6 +15,10 @@ const CAMEL_TO_HEADER = {
   // NOUVEAU (19/09/2026) -- Phase D, voir get-films.js pour le contexte
   // complet de la séparation Catégorie/Statut.
   statutAcces: "StatutAcces",
+  // NOUVEAU (27/09/2026) -- "Confirmer le Type actuel" (mail "Type
+  // possiblement incohérent" quand c'est la détection qui se trompe,
+  // pas la fiche) pose ce drapeau sans toucher au champ Type lui-même.
+  typeConfirme: "TypeConfirme",
   genrePrincipal: "GenrePrincipal", benoit: "Benoit", romy: "Romy",
   aDeux: "À deux", enFamille: "En famille", vu: "Vu", affiche: "Affiche",
   noteTMDb: "NoteTMDb", casting: "Casting", realisateur: "Réalisateur",
