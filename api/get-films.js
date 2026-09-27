@@ -6,7 +6,7 @@ import { google } from "googleapis";
 // HEADER_TO_CAMEL -- voir tests-get-films.js.
 export const EXPOSED_COLUMNS = [
   "ID", "Titre", "Annee", "Plateforme", "Duree", "DateDisponibilite", "Type",
-  "StatutAcces",
+  "StatutAcces", "TypeConfirme",
   "Genre", "GenrePrincipal", "Benoit", "Romy", "À deux", "En famille", "Vu",
   "Affiche", "NoteTMDb", "Casting", "Réalisateur", "Synopsis",
   "NoteLetterboxd", "VotesLetterboxd", "URLLetterboxd", "DateDisponibiliteAuto",
@@ -25,7 +25,14 @@ export const EXPOSED_COLUMNS = [
 // Film/Série (comparaison avec le contenu réel de la page -- voir
 // estSerie dans prime.js/netflix.js/disney.js). Un seul champ texte
 // de plus, coût négligeable sur le volume déjà transmis en mode léger.
-const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree", "Type"];
+// MODIFIÉ (27/09/2026) -- "TypeConfirme" ajouté : un mail "Type
+// possiblement incohérent" peut se tromper (détection en défaut, pas
+// la fiche -- ex. "Surveillant!"/"Nine Perfect Strangers", confirmées
+// séries à la main par Ben). "Confirmer le Type actuel" (voir
+// api/confirm.js, page=confirmerTypeActuel) pose ce drapeau sans
+// changer Type -- les collecteurs sautent alors la comparaison pour
+// cette fiche, au lieu de re-signaler le même faux positif à chaque run.
+const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree", "Type", "TypeConfirme"];
 
 async function getSheetsClient() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
@@ -97,6 +104,7 @@ export const HEADER_TO_CAMEL = {
   // alors à "Inclus", à traiter comme tel côté App.jsx plutôt que
   // d'écrire "Inclus" partout rétroactivement.
   StatutAcces: "statutAcces",
+  TypeConfirme: "typeConfirme",
   Genre: "genre", GenrePrincipal: "genrePrincipal", Benoit: "benoit",
   Romy: "romy", "À deux": "aDeux", "En famille": "enFamille", Vu: "vu",
   Affiche: "affiche", NoteTMDb: "noteTMDb", Casting: "casting",
