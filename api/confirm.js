@@ -19,6 +19,7 @@ export default function handler(req, res) {
   if (type === "remove") return pageSupprimer(req, res);
   if (type === "letterboxdOk") return pageLetterboxdOk(req, res);
   if (type === "confirmType") return pageConfirmerType(req, res);
+  if (type === "confirmerTypeActuel") return pageConfirmerTypeActuel(req, res);
 
   return res.status(400).send(pageHtml(
     "Lien incomplet",
@@ -533,6 +534,74 @@ function pageConfirmerType(req, res) {
   `;
 
   return res.status(200).send(pageHtml("Corriger le Type", contenu));
+}
+
+// ---- ?page=confirmerTypeActuel : "C'est déjà bon" (mail "Type
+// possiblement incohérent" quand la détection se trompe, pas la
+// fiche -- ex. "Surveillant!"/"Nine Perfect Strangers", confirmées
+// séries à la main par Ben, 27/09/2026). Pose TypeConfirme=true SANS
+// toucher au champ Type -- les collecteurs sautent alors cette fiche
+// dans la comparaison future au lieu de re-signaler le même faux
+// positif à chaque run.
+function pageConfirmerTypeActuel(req, res) {
+  const { id, titre, typeActuel, pw } = req.query || {};
+
+  if (!id || !pw) {
+    return res.status(400).send(pageHtml(
+      "Lien incomplet",
+      "<p>Ce lien est incomplet ou abîmé -- retourne dans l'app pour confirmer le Type à la main.</p>"
+    ));
+  }
+
+  const titreEchappe = echapperHtml(titre || id);
+  const typeEchappe = echapperHtml(typeActuel || "");
+
+  const contenu = `
+    <p style="font-size:15px;color:#3A2E22"><strong>${titreEchappe}</strong></p>
+    <p style="font-size:13px;color:#9A9182">
+      Confirme que le Type actuel${typeEchappe ? " (<strong>" + typeEchappe + "</strong>)" : ""}
+      est le bon -- cette fiche ne sera plus signalée par les prochains contrôles.
+    </p>
+    <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
+      padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%">
+      C'est déjà le bon Type
+    </button>
+    <p id="statut" style="font-size:13px;color:#9A9182;margin-top:12px"></p>
+    <script>
+      const bouton = document.getElementById("btn");
+      const statut = document.getElementById("statut");
+      bouton.addEventListener("click", async () => {
+        bouton.disabled = true;
+        bouton.textContent = "Enregistrement...";
+        try {
+          const reponse = await fetch("/api/update-film", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              password: ${JSON.stringify(pw)},
+              id: ${JSON.stringify(id)},
+              fields: { typeConfirme: true },
+            }),
+          });
+          const corps = await reponse.json().catch(() => ({}));
+          if (reponse.ok) {
+            bouton.textContent = "Confirmé";
+            statut.textContent = "C'est fait, tu peux fermer cette page.";
+          } else {
+            bouton.disabled = false;
+            bouton.textContent = "C'est déjà le bon Type";
+            statut.textContent = "Erreur : " + (corps.error || "inconnue");
+          }
+        } catch (e) {
+          bouton.disabled = false;
+          bouton.textContent = "C'est déjà le bon Type";
+          statut.textContent = "Erreur réseau : " + e.message;
+        }
+      });
+    </script>
+  `;
+
+  return res.status(200).send(pageHtml("Confirmer le Type", contenu));
 }
 
 function echapperHtml(texte) {
