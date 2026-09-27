@@ -389,7 +389,21 @@ function daysUntil(date) {
 
 // Priorité à la date saisie manuellement ; à défaut la date automatique
 function computeExpiryDays(film) {
+  // CORRECTIF (27/09/2026) -- une fiche "Bientôt disponible" (statutAcces)
+  // utilise dateAuto pour stocker sa date d'ARRIVÉE, pas une date de
+  // départ (même champ Sheet des deux côtés, DateDisponibiliteAuto --
+  // voir 11_CONTROLE_PRIME_OFFICIEL.gs). Sans cette exclusion, un film
+  // qui arrive dans 4 jours pouvait aussi ressortir dans "Ça part
+  // bientôt" comme s'il partait dans 4 jours -- même film, deux badges
+  // contradictoires en même temps ("Quand Harry rencontre Sally",
+  // signalé par Ben avec capture à l'appui). dateManuelle reste
+  // toujours valable pour une expiration réelle même sur une fiche
+  // "Bientôt disponible" (rare, mais pas impossible) -- seule dateAuto
+  // est ignorée dans ce cas précis.
   const manuelle = parseDateFR(film.dateManuelle);
+  if (film.statutAcces === "Bientôt disponible") {
+    return daysUntil(manuelle) ?? null;
+  }
   const auto = parseDateFR(film.dateAuto);
   const days = daysUntil(manuelle) ?? daysUntil(auto);
   return days;
