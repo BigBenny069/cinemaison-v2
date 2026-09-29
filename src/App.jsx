@@ -1064,9 +1064,10 @@ function LetterboxdMark({ size = 9 }) {
 /* ------------------------------------------------------------------ */
 /* CARTES                                                              */
 /* ------------------------------------------------------------------ */
-function TicketCard({ film, onOpen }) {
+function TicketCard({ film, onOpen, tousLesFilms }) {
   const expiryDays = computeExpiryDays(film);
   const rating = parseRating(film.noteLetterboxd);
+  const autresPlateformes = autresPlateformesPourFilm_(film, tousLesFilms);
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full"
       style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
@@ -1078,6 +1079,9 @@ function TicketCard({ film, onOpen }) {
           <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>
             {film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}
           </p>
+          {autresPlateformes.length > 0 && (
+            <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
+          )}
           {rating != null && <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600, marginTop: 3 }}>★ {rating.toFixed(1)}</p>}
           {film.synopsis && (
             <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10.5, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{film.synopsis}</p>
@@ -1091,8 +1095,9 @@ function TicketCard({ film, onOpen }) {
   );
 }
 
-function MiniCard({ film, onOpen, sub, showStamp }) {
+function MiniCard({ film, onOpen, sub, showStamp, tousLesFilms }) {
   const expiryDays = computeExpiryDays(film);
+  const autresPlateformes = autresPlateformesPourFilm_(film, tousLesFilms);
   return (
     <button onClick={() => onOpen(film)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
       <div className="relative">
@@ -1101,6 +1106,9 @@ function MiniCard({ film, onOpen, sub, showStamp }) {
       </div>
       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 12, fontWeight: 600, color: T.cream }}>{film.titre}</p>
       <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{film.plateforme}{film.duree ? ` · ${film.duree}` : ""}</p>
+      {autresPlateformes.length > 0 && (
+        <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent }}>+ {autresPlateformes.join(", ")}</p>
+      )}
       <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent }}>{sub}</p>
     </button>
   );
@@ -1456,6 +1464,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
+                    {autresPlateformesPourFilm_(f, films).length > 0 && (
+                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                    )}
                   {rating != null && (
                     <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
                   )}
@@ -1483,6 +1494,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
+                    {autresPlateformesPourFilm_(f, films).length > 0 && (
+                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                    )}
                   {rating != null && (
                     <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
                   )}
@@ -1508,6 +1522,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
+                    {autresPlateformesPourFilm_(f, films).length > 0 && (
+                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                    )}
                   {rating != null && (
                     <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
                   )}
@@ -1571,6 +1588,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
                       )}
                     </p>
+                      {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
+                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
+                      )}
                     {suggestion.synopsis && (
                       <p className="mt-1" style={{ fontFamily: F.serif, fontSize: 9.5, color: "#3f6485", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
                     )}
@@ -1601,6 +1621,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                           <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                         )}
                       </p>
+                        {autresPlateformesPourFilm_(f, films).length > 0 && (
+                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                        )}
                     </button>
                   );
                 })}
@@ -1632,6 +1655,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                           <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                         )}
                       </p>
+                        {autresPlateformesPourFilm_(f, films).length > 0 && (
+                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                        )}
                     </button>
                   );
                 })}
@@ -1657,6 +1683,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                       )}
                     </p>
+                      {autresPlateformesPourFilm_(f, films).length > 0 && (
+                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      )}
                   </button>
                 ))}
               </div>
@@ -1710,6 +1739,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                           <> · ★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</>
                         )}
                       </p>
+                        {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
+                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
+                        )}
                       <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.35, maxHeight: 27, overflow: "hidden" }}>{suggestion.synopsis || ""}</p>
                     </div>
                   </div>
@@ -1740,6 +1772,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                             <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                           )}
                         </p>
+                          {autresPlateformesPourFilm_(f, films).length > 0 && (
+                            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                          )}
                       </div>
                     </button>
                   );
@@ -1772,6 +1807,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                             <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                           )}
                         </p>
+                          {autresPlateformesPourFilm_(f, films).length > 0 && (
+                            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                          )}
                       </div>
                     </button>
                   );
@@ -1798,6 +1836,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                             <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                           )}
                         </p>
+                          {autresPlateformesPourFilm_(f, films).length > 0 && (
+                            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                          )}
                       </div>
                     </button>
                   );
@@ -1829,6 +1870,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       </span>
                     )}
                   </div>
+                  {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
+                    <p style={{ fontFamily: F.mono, fontSize: 9.5, color: "#eee", marginTop: 3, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
+                  )}
                   {suggestion.synopsis && (
                     <p style={{ fontFamily: F.serif, fontSize: 10.5, color: "#eee", lineHeight: 1.4, marginTop: 6, textShadow: "0 1px 4px rgba(0,0,0,0.8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
                   )}
@@ -1864,6 +1908,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                           <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                         )}
                       </p>
+                        {autresPlateformesPourFilm_(f, films).length > 0 && (
+                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                        )}
                     </button>
                   );
                 })}
@@ -1892,6 +1939,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                           <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                         )}
                       </p>
+                        {autresPlateformesPourFilm_(f, films).length > 0 && (
+                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                        )}
                     </button>
                   );
                 })}
@@ -1913,6 +1963,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                       )}
                     </p>
+                      {autresPlateformesPourFilm_(f, films).length > 0 && (
+                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      )}
                   </button>
                 ))}
               </div>
@@ -1936,7 +1989,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           )}
           {suggestion && (
             <div className="px-4 mb-6">
-              <TicketCard film={suggestion} onOpen={onOpen} />
+              <TicketCard film={suggestion} onOpen={onOpen} tousLesFilms={films} />
             </div>
           )}
           {bientot.length > 0 && (
@@ -1944,7 +1997,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
               <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5">
                 {bientot.map((f) => (
-                  <MiniCard key={f.id} film={f} onOpen={onOpen}
+                  <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                     sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
                 ))}
               </div>
@@ -1955,7 +2008,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
               <div className="flex gap-3 px-4 overflow-x-auto mb-5">
                 {bientotDisponible.map((f) => (
-                  <MiniCard key={f.id} film={f} onOpen={onOpen}
+                  <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                     sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
                 ))}
               </div>
@@ -1966,7 +2019,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
               <div className="flex gap-3 px-4 overflow-x-auto mb-5">
                 {derniers.map((f) => (
-                  <MiniCard key={f.id} film={f} onOpen={onOpen}
+                  <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                     sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
                 ))}
               </div>
@@ -1980,7 +2033,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5">
             {bientot.map((f) => (
-              <MiniCard key={f.id} film={f} onOpen={onOpen}
+              <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                 sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
             ))}
           </div>
@@ -1992,7 +2045,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
             {bientotDisponible.map((f) => (
-              <MiniCard key={f.id} film={f} onOpen={onOpen}
+              <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                 sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
             ))}
           </div>
@@ -2057,6 +2110,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.muted, marginTop: 1, fontWeight: 700 }}>
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
+                    {autresPlateformesPourFilm_(f, films).length > 0 && (
+                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                    )}
                   {parseRating(f.noteLetterboxd) != null && (
                     <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.accentSecondary, fontWeight: 900, marginTop: 1 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>
                   )}
@@ -2086,6 +2142,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.muted, marginTop: 1, fontWeight: 700 }}>
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
+                    {autresPlateformesPourFilm_(f, films).length > 0 && (
+                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                    )}
                   {parseRating(f.noteLetterboxd) != null && (
                     <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.accentSecondary, fontWeight: 900, marginTop: 1 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>
                   )}
@@ -2109,7 +2168,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
           <div className="flex gap-3 px-4 overflow-x-auto mb-5" style={CURRENT_THEME === "table" ? { paddingTop: 6, paddingBottom: 6 } : undefined}>
             {derniers.map((f) => (
-              <MiniCard key={f.id} film={f} onOpen={onOpen}
+              <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                 sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
             ))}
           </div>
@@ -2176,6 +2235,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                       )}
                     </p>
+                      {autresPlateformesPourFilm_(f, films).length > 0 && (
+                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      )}
                   </div>
                 </button>
               );
@@ -2206,6 +2268,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                       )}
                     </p>
+                      {autresPlateformesPourFilm_(f, films).length > 0 && (
+                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      )}
                   </div>
                 </button>
               );
@@ -2233,6 +2298,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
                     )}
                   </p>
+                    {autresPlateformesPourFilm_(f, films).length > 0 && (
+                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                    )}
                 </div>
               </button>
             ))}
@@ -2249,7 +2317,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             </button>
           </div>
           <div className="px-4">
-            <TicketCard film={suggestion} onOpen={onOpen} />
+            <TicketCard film={suggestion} onOpen={onOpen} tousLesFilms={films} />
           </div>
         </>
       )}
@@ -2526,7 +2594,7 @@ function FicheLabel({ children, className }) {
     return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
 }
 
-function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onFilmRemoved, onOpenPerson, initialEditing, allFilms }) {
+function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onFilmRemoved, onOpenPerson, onOpenFiche, initialEditing, allFilms }) {
   const [film, setFilm] = useState(filmProp);
   // NOUVEAU (26/09/2026) -- initialEditing permet d'ouvrir la fiche
   // directement en mode édition (lien profond ?film=ID&edit=1, voir
@@ -2535,6 +2603,19 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
   const expiryDays = computeExpiryDays(film);
   const archived = isArchived(film);
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
+  // NOUVEAU (29/09/2026) -- "également disponible sur" (option G) :
+  // fiches sœurs du même film sur une AUTRE plateforme, même logique
+  // de correspondance que handleDelete/handleDeleteLiees plus bas.
+  // Objets complets (pas juste le nom de la plateforme) pour pouvoir
+  // ouvrir directement la fiche sœur au clic.
+  const fichesAutresPlateformes = useMemo(() => {
+    const cleFilm = normalizeSearch(film.titre) + "|" + (film.annee || "");
+    return (allFilms || []).filter((f) =>
+      f.id !== film.id &&
+      f.plateforme !== film.plateforme &&
+      normalizeSearch(f.titre) + "|" + (f.annee || "") === cleFilm
+    );
+  }, [film.id, film.titre, film.annee, film.plateforme, allFilms]);
   const [deleting, setDeleting] = useState(false);
   // NOUVEAU (27/09/2026) -- demandé par Ben : à la suppression d'une
   // fiche, propose aussi de supprimer les AUTRES fiches du même film
@@ -2705,6 +2786,15 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <p style={{ fontFamily: F.mono, fontSize: 12, color: T.muted, letterSpacing: 0.6, fontWeight: 600 }}>
           {(film.type || "").toUpperCase()} · {film.annee} · {film.duree || "—"}
         </p>
+        {fichesAutresPlateformes.length > 0 && (
+          <button
+            onClick={() => onOpenFiche && onOpenFiche(fichesAutresPlateformes[0])}
+            className="text-left"
+            style={{ fontFamily: F.mono, fontSize: 11, color: T.accent, marginTop: 3, textDecoration: "underline", textUnderlineOffset: 3 }}
+          >
+            également disponible sur {fichesAutresPlateformes.map((f) => f.plateforme).join(", ")}
+          </button>
+        )}
         {STATUT_DISPO_BADGE_V1[film.statutAcces] && (
           <div style={{ marginTop: 8 }}>
             <BadgeExplosion type={film.statutAcces} size={44} />
@@ -3000,6 +3090,26 @@ function normalizeSearch(s) {
     .replace(/['’ʼ`]/g, "");
 }
 
+// NOUVEAU (29/09/2026) -- "aussi disponible sur" : repère les AUTRES
+// plateformes suivant le même film (même titre+année normalisés, même
+// logique que le contrôle de doublons de la fiche détail -- voir
+// handleDelete/handleDeleteLiees plus bas), en excluant la plateforme
+// de la fiche elle-même. Retourne un tableau de noms de plateformes
+// (chaîne vide si aucune autre). Prend directement le tableau complet
+// des films (pas de structure pré-calculée à maintenir) -- suffisant
+// vu le nombre de fiches en jeu, appelé une fois par carte affichée.
+function autresPlateformesPourFilm_(film, tousLesFilms) {
+  if (!film || !Array.isArray(tousLesFilms)) return [];
+  const cle = normalizeSearch(film.titre) + "|" + (film.annee || "");
+  const trouvees = new Set();
+  tousLesFilms.forEach((f) => {
+    if (f.id === film.id) return;
+    if (normalizeSearch(f.titre) + "|" + (f.annee || "") !== cle) return;
+    if (f.plateforme && f.plateforme !== film.plateforme) trouvees.add(f.plateforme);
+  });
+  return Array.from(trouvees);
+}
+
 // Devine l'URL Letterboxd la plus probable à partir du titre — Letterboxd
 // n'a pas d'API de recherche publique (contrairement à TMDb), donc pas de
 // vraie autocomplete possible ici. Le format d'URL Letterboxd suit presque
@@ -3036,8 +3146,9 @@ function MatchTag({ match }) {
   );
 }
 
-function SearchResultCard({ film, match, onOpen }) {
+function SearchResultCard({ film, match, onOpen, tousLesFilms }) {
   const statutInfo = STATUT_DISPO_BADGE_V1[film.statutAcces];
+  const autresPlateformes = autresPlateformesPourFilm_(film, tousLesFilms);
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
       <Poster film={film} className="w-20 h-28 flex-shrink-0" />
@@ -3046,6 +3157,9 @@ function SearchResultCard({ film, match, onOpen }) {
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>
           {film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}
         </p>
+        {autresPlateformes.length > 0 && (
+          <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
+        )}
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
           {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
         </p>
@@ -3122,7 +3236,7 @@ function RechercheScreen({ films, onOpen, onBack, onMenu, initialQuery, onQueryC
       {results.length > 0 && (
         <div className="flex flex-col gap-2">
           {results.map(({ film, match }) => (
-            <SearchResultCard key={film.id} film={film} match={match} onOpen={onOpen} />
+            <SearchResultCard key={film.id} film={film} match={match} onOpen={onOpen} tousLesFilms={films} />
           ))}
         </div>
       )}
@@ -3154,7 +3268,7 @@ function PersonScreen({ films, nom, onOpen, onBack, onMenu }) {
         {list.length} FICHE{list.length > 1 ? "S" : ""} DANS TA BIBLIOTHÈQUE{asRealisateur > 0 ? ` · ${asRealisateur} EN TANT QUE RÉALISATEUR` : ""}
       </p>
       <div className="flex flex-col gap-2">
-        {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} />)}
+        {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
         {list.length === 0 && (
           <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>
             Aucune autre fiche avec « {nom} » pour l'instant.
@@ -3268,7 +3382,7 @@ function ScreenHeader({ title, onBack, onMenu, right }) {
   );
 }
 
-function ListResultCard({ film, onOpen, right }) {
+function ListResultCard({ film, onOpen, right, tousLesFilms }) {
   // Pop Art / Ça Cartoon : cadre coloré flashy, stable par film (basé sur
   // son id) pour qu'il ne change pas de couleur selon l'écran ou le tri.
   let borderColor = T.line;
@@ -3311,6 +3425,9 @@ function ListResultCard({ film, onOpen, right }) {
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: isArchived(film) ? T.muted : T.cream }}>{film.titre}</p>
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>{film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}</p>
+        {autresPlateformesPourFilm_(film, tousLesFilms).length > 0 && (
+          <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(film, tousLesFilms).join(", ")}</p>
+        )}
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
           {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
         </p>
@@ -3395,7 +3512,7 @@ function BibliothequeScreen({ films, type, statut, onOpen, onBack, onMenu }) {
       </div>
       <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>{list.length} FICHE{list.length > 1 ? "S" : ""}</p>
       <div className="flex flex-col gap-2">
-        {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} />)}
+        {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
         {list.length === 0 && <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Aucune fiche pour l'instant.</p>}
       </div>
     </div>
@@ -3624,7 +3741,7 @@ function AlertesListe({ films, field, onOpen }) {
           <p className="mb-2" style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream, letterSpacing: 0.5 }}>{g.label}</p>
           <div className="flex flex-col gap-2">
             {g.items.map(({ f, days }) => (
-              <ListResultCard key={f.id} film={f} onOpen={onOpen}
+              <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                 right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft }}>
                   <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.accent, fontWeight: 700 }}>J-{days}</span>
                 </span></div>} />
@@ -4154,7 +4271,7 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
       </div>
       <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>{results.length} RÉSULTAT{results.length > 1 ? "S" : ""}</p>
       <div className="flex flex-col gap-2">
-        {results.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} />)}
+        {results.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
         {results.length === 0 && <p className="text-center mt-6" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Aucune fiche ne correspond à ces critères.</p>}
       </div>
     </div>
@@ -4472,7 +4589,7 @@ function ArchivesScreen({ films, onOpen, onBack, onMenu }) {
       <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>{list.length} FICHE{list.length > 1 ? "S" : ""} ARCHIVÉE{list.length > 1 ? "S" : ""}</p>
       <div className="flex flex-col gap-2">
         {list.map(({ f, days }) => (
-          <ListResultCard key={f.id} film={f} onOpen={onOpen}
+          <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
             right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: "rgba(155,146,132,0.12)" }}>
               <span style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 0.5, color: T.mutedDim, fontWeight: 600 }}>EXPIRÉ IL Y A {days}J</span>
             </span></div>} />
@@ -4510,7 +4627,7 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
         ))}
       </div>
       <div className="flex flex-col gap-2">
-        {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} />)}
+        {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
         {list.length === 0 && <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Aucune fiche taguée « {tag} » pour l'instant.</p>}
       </div>
     </div>
@@ -5492,7 +5609,7 @@ export default function App() {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)}
         initialQuery={screen.params.query} onQueryChange={(q) => updateScreenParams({ query: q })} />;
     } else if (name === "fiche") {
-      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onFilmRemoved={(id) => setFilms((prev) => prev.filter((f) => f.id !== id))} allFilms={films} onOpenPerson={openPerson} initialEditing={params.editRequested} />;
+      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onFilmRemoved={(id) => setFilms((prev) => prev.filter((f) => f.id !== id))} allFilms={films} onOpenPerson={openPerson} onOpenFiche={openFiche} initialEditing={params.editRequested} />;
     } else if (name === "personne") {
       body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "biblio") {
