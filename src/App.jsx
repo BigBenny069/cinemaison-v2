@@ -4630,7 +4630,7 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
   // NOUVEAU (29/09/2026) -- deux boutons de maintenance : relancer le
   // contrôle doublons + son mail à la demande, et renvoyer le mail
   // "Écarts plateformes" sans attendre les déclencheurs automatiques
-  // (voir api/lancer-rapport-admin.js + 09_WEBHOOK.gs). État séparé
+  // (voir api/update-settings.js + 09_WEBHOOK.gs). État séparé
   // par bouton -- même principe que digestSaving/digestSaved, un
   // court retour visuel plutôt qu'une alerte.
   const [rapportEnCours, setRapportEnCours] = useState(null); // "doublons" | "ecarts" | null
@@ -4641,7 +4641,7 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
     setRapportEnCours(type);
     setRapportFait(null);
     setRapportErreur(null);
-    const result = await apiWrite("/api/lancer-rapport-admin", { type });
+    const result = await apiWrite("/api/update-settings", { type });
     setRapportEnCours(null);
     if (result.ok) {
       setRapportFait(type);
