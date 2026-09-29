@@ -4627,6 +4627,30 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
   const [digestSaved, setDigestSaved] = useState(false);
   const [digestError, setDigestError] = useState(null);
 
+  // NOUVEAU (29/09/2026) -- deux boutons de maintenance : relancer le
+  // contrôle doublons + son mail à la demande, et renvoyer le mail
+  // "Écarts plateformes" sans attendre les déclencheurs automatiques
+  // (voir api/lancer-rapport-admin.js + 09_WEBHOOK.gs). État séparé
+  // par bouton -- même principe que digestSaving/digestSaved, un
+  // court retour visuel plutôt qu'une alerte.
+  const [rapportEnCours, setRapportEnCours] = useState(null); // "doublons" | "ecarts" | null
+  const [rapportFait, setRapportFait] = useState(null);
+  const [rapportErreur, setRapportErreur] = useState(null);
+
+  const lancerRapportAdmin = async (type) => {
+    setRapportEnCours(type);
+    setRapportFait(null);
+    setRapportErreur(null);
+    const result = await apiWrite("/api/lancer-rapport-admin", { type });
+    setRapportEnCours(null);
+    if (result.ok) {
+      setRapportFait(type);
+      setTimeout(() => setRapportFait((v) => (v === type ? null : v)), 3000);
+    } else {
+      setRapportErreur(type + " : " + result.error);
+    }
+  };
+
   const enregistrerDigest = async () => {
     setDigestSaving(true);
     setDigestError(null);
@@ -4763,6 +4787,40 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
         <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
           Sépare la liste générale des films tagués Romy et Benoît, chacun dans sa propre section. Envoyé une fois par jour par le script d'enrichissement — indépendant de cet appareil, contrairement aux notifications ci-dessus.
         </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="RAPPORTS À LA DEMANDE">
+        <button
+          onClick={() => lancerRapportAdmin("doublons")}
+          disabled={rapportEnCours === "doublons"}
+          className="w-full rounded-lg py-2.5"
+          style={{ background: rapportFait === "doublons" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "doublons" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "doublons" ? T.accent : T.cream }}>
+            {rapportEnCours === "doublons" ? "EN COURS…" : rapportFait === "doublons" ? "✓ FAIT" : "LANCER CONTRÔLE DOUBLONS"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Cherche les fiches en double sur une même plateforme et envoie le mail correspondant s'il y en a — sans attendre le lundi.
+        </p>
+
+        <button
+          onClick={() => lancerRapportAdmin("ecarts")}
+          disabled={rapportEnCours === "ecarts"}
+          className="w-full rounded-lg py-2.5 mt-3"
+          style={{ background: rapportFait === "ecarts" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "ecarts" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "ecarts" ? T.accent : T.cream }}>
+            {rapportEnCours === "ecarts" ? "EN COURS…" : rapportFait === "ecarts" ? "✓ ENVOYÉ" : "RENVOYER LE MAIL ÉCARTS PLATEFORMES"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Renvoie le mail "CinéMaison - V2 - Écarts plateformes" tout de suite, avec les dernières données — sans attendre le passage automatique de 8h.
+        </p>
+
+        {rapportErreur && (
+          <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>{rapportErreur}</p>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection title="NOMBRE DE FILMS SUR L'ACCUEIL" subtitle={`${nbAccueil} films`}>
