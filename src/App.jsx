@@ -1080,7 +1080,7 @@ function TicketCard({ film, onOpen, tousLesFilms }) {
             {film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}
           </p>
           {autresPlateformes.length > 0 && (
-            <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
+            <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
           )}
           {rating != null && <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600, marginTop: 3 }}>★ {rating.toFixed(1)}</p>}
           {film.synopsis && (
@@ -1465,7 +1465,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
-                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
                   {rating != null && (
                     <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
@@ -1495,7 +1495,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
-                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
                   {rating != null && (
                     <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
@@ -1523,7 +1523,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
-                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
                   {rating != null && (
                     <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
@@ -1589,7 +1589,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       )}
                     </p>
                       {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
-                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
+                        <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
                       )}
                     {suggestion.synopsis && (
                       <p className="mt-1" style={{ fontFamily: F.serif, fontSize: 9.5, color: "#3f6485", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
@@ -1622,7 +1622,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         )}
                       </p>
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
-                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                          <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                         )}
                     </button>
                   );
@@ -1656,7 +1656,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         )}
                       </p>
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
-                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                          <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                         )}
                     </button>
                   );
@@ -1684,7 +1684,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       )}
                     </p>
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
-                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                        <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                       )}
                   </button>
                 ))}
@@ -1740,7 +1740,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         )}
                       </p>
                         {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
-                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
+                          <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
                         )}
                       <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.35, maxHeight: 27, overflow: "hidden" }}>{suggestion.synopsis || ""}</p>
                     </div>
@@ -1773,7 +1773,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                           )}
                         </p>
                           {autresPlateformesPourFilm_(f, films).length > 0 && (
-                            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                            <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                           )}
                       </div>
                     </button>
@@ -1808,7 +1808,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                           )}
                         </p>
                           {autresPlateformesPourFilm_(f, films).length > 0 && (
-                            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                            <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                           )}
                       </div>
                     </button>
@@ -1837,7 +1837,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                           )}
                         </p>
                           {autresPlateformesPourFilm_(f, films).length > 0 && (
-                            <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                            <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                           )}
                       </div>
                     </button>
@@ -1871,7 +1871,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     )}
                   </div>
                   {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
-                    <p style={{ fontFamily: F.mono, fontSize: 9.5, color: "#eee", marginTop: 3, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
+                    <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: "#eee", marginTop: 3, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
                   )}
                   {suggestion.synopsis && (
                     <p style={{ fontFamily: F.serif, fontSize: 10.5, color: "#eee", lineHeight: 1.4, marginTop: 6, textShadow: "0 1px 4px rgba(0,0,0,0.8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
@@ -1909,7 +1909,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         )}
                       </p>
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
-                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                          <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                         )}
                     </button>
                   );
@@ -1940,7 +1940,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         )}
                       </p>
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
-                          <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                          <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                         )}
                     </button>
                   );
@@ -1964,7 +1964,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       )}
                     </p>
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
-                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                        <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                       )}
                   </button>
                 ))}
@@ -2111,7 +2111,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
-                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
                   {parseRating(f.noteLetterboxd) != null && (
                     <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.accentSecondary, fontWeight: 900, marginTop: 1 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>
@@ -2143,7 +2143,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
                   </p>
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
-                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
                   {parseRating(f.noteLetterboxd) != null && (
                     <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.accentSecondary, fontWeight: 900, marginTop: 1 }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</p>
@@ -2236,7 +2236,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       )}
                     </p>
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
-                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                        <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                       )}
                   </div>
                 </button>
@@ -2269,7 +2269,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       )}
                     </p>
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
-                        <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                        <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                       )}
                   </div>
                 </button>
@@ -2299,7 +2299,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     )}
                   </p>
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
-                      <p style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
+                      <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
                 </div>
               </button>
@@ -2684,15 +2684,22 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
     setSuppressionLiees(false);
     setConfirmLiees(false);
     setFichesLiees([]);
+    setConfirmationFinaleLiees(null);
     onBack();
   };
+  // NOUVEAU (30/09/2026) -- second palier de confirmation (voir plus
+  // bas) : null = pas affiché, tableau = fiches à confirmer avant la
+  // vraie suppression.
+  const [confirmationFinaleLiees, setConfirmationFinaleLiees] = useState(null);
   const [posterOpen, setPosterOpen] = useState(false);
-  // Sélection dans l'écran "fiches liées" -- toutes cochées par défaut.
+  // CORRECTIF (30/09/2026) -- décochées par défaut désormais (signalé
+  // par Ben : sélectionner par défaut une action destructrice est
+  // risqué, mieux vaut du "opt-in" explicite).
   const [selectionLiees, setSelectionLiees] = useState({});
   useEffect(() => {
     if (confirmLiees) {
       const initial = {};
-      fichesLiees.forEach((f) => { initial[f.id] = true; });
+      fichesLiees.forEach((f) => { initial[f.id] = false; });
       setSelectionLiees(initial);
     }
   }, [confirmLiees]);
@@ -3058,12 +3065,46 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <div className="flex gap-2">
               <button onClick={() => { setConfirmLiees(false); setFichesLiees([]); onBack(); }} disabled={suppressionLiees} className="flex-1 rounded-lg py-2.5" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>NE PAS TOUCHER</button>
               <button
-                onClick={() => handleDeleteLiees(fichesLiees.filter((f) => selectionLiees[f.id]))}
+                onClick={() => setConfirmationFinaleLiees(fichesLiees.filter((f) => selectionLiees[f.id]))}
                 disabled={suppressionLiees || fichesLiees.every((f) => !selectionLiees[f.id])}
                 className="flex-1 rounded-lg py-2.5"
                 style={{ background: T.alert, fontFamily: F.mono, fontSize: 11, color: T.cream, opacity: suppressionLiees ? 0.7 : 1 }}
               >
                 {suppressionLiees ? "SUPPRESSION…" : "SUPPRIMER LA SÉLECTION"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NOUVEAU (30/09/2026) -- second palier de confirmation avant la
+          suppression réelle des fiches liées, avec le titre de chacune
+          affiché explicitement (signalé par Ben : "SUPPRIMER LA
+          SÉLECTION" agissait tout de suite, sans dernier regard sur ce
+          qui allait vraiment disparaître). */}
+      {confirmationFinaleLiees && (
+        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: "rgba(20,16,12,0.7)" }}>
+          <div className="w-full rounded-t-2xl p-5" style={{ maxWidth: 460, background: T.surfaceRaised, paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+            <p style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>CONFIRMER LA SUPPRESSION</p>
+            <p className="mt-1 mb-3" style={{ fontFamily: F.serif, fontSize: 13, color: T.muted }}>
+              {confirmationFinaleLiees.length > 1 ? "Ces fiches vont être supprimées définitivement :" : "Cette fiche va être supprimée définitivement :"}
+            </p>
+            <div className="mb-4" style={{ maxHeight: 220, overflowY: "auto" }}>
+              {confirmationFinaleLiees.map((f) => (
+                <p key={f.id} className="py-1.5" style={{ fontFamily: F.serif, fontSize: 13, color: T.cream, borderBottom: `1px solid ${T.surface}` }}>
+                  « {film.titre} » — {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
+                </p>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmationFinaleLiees(null)} disabled={suppressionLiees} className="flex-1 rounded-lg py-2.5" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>ANNULER</button>
+              <button
+                onClick={() => handleDeleteLiees(confirmationFinaleLiees)}
+                disabled={suppressionLiees}
+                className="flex-1 rounded-lg py-2.5"
+                style={{ background: T.alert, fontFamily: F.mono, fontSize: 11, color: T.cream, opacity: suppressionLiees ? 0.7 : 1 }}
+              >
+                {suppressionLiees ? "SUPPRESSION…" : "VALIDER"}
               </button>
             </div>
           </div>
@@ -3158,7 +3199,7 @@ function SearchResultCard({ film, match, onOpen, tousLesFilms }) {
           {film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}
         </p>
         {autresPlateformes.length > 0 && (
-          <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
+          <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
         )}
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
           {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
@@ -3426,7 +3467,7 @@ function ListResultCard({ film, onOpen, right, tousLesFilms }) {
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: isArchived(film) ? T.muted : T.cream }}>{film.titre}</p>
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>{film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}</p>
         {autresPlateformesPourFilm_(film, tousLesFilms).length > 0 && (
-          <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(film, tousLesFilms).join(", ")}</p>
+          <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(film, tousLesFilms).join(", ")}</p>
         )}
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
           {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
