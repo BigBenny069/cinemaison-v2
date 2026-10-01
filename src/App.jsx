@@ -1900,6 +1900,19 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         {days != null && (
                           <span className="absolute top-1.5 left-1.5" style={{ background: urgent ? T.accent : "rgba(0,0,0,0.6)", border: urgent ? "none" : `1px solid ${T.accent}`, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4 }}>J-{days}</span>
                         )}
+                        {/* NOUVEAU (01/10/2026) -- pastille de statut d'accès, même ligne
+                            que J-XX mais coin opposé (celui-ci est à gauche sur ce thème).
+                            Réutilise les libellés/couleurs déjà validés de
+                            STATUT_DISPO_BADGE_V1 (INDISPO/VOD/ABO ++) -- rien pour "Inclus"
+                            (pas d'entrée dans la table) ni pour "Bientôt disponible" (déjà
+                            représenté par le J+XX dans la section suivante, inutile ici). */}
+                        {STATUT_DISPO_BADGE_V1[f.statutAcces] && f.statutAcces !== "Bientôt disponible" && (() => {
+                          const info = STATUT_DISPO_BADGE_V1[f.statutAcces];
+                          const couleur = info.couleur(T);
+                          return (
+                            <span className="absolute top-1.5 right-1.5" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${couleur}`, color: couleur, fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4, letterSpacing: 0.2 }}>{info.label}</span>
+                          );
+                        })()}
                       </div>
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
