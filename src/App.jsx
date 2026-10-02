@@ -260,12 +260,47 @@ let CURRENT_THEME = "ticket"; // nom du thème actif — lu directement par les 
 // Applique un thème en mutant T et F en place (voir note ci-dessus).
 // Le composant appelant doit ensuite forcer un nouveau rendu (voir
 // App() plus bas, qui expose ça via onChangeTheme).
+// OPTIMISATION (02/10/2026) -- mêmes familles que l'amorce dans
+// index.html (qui ne couvre que le chargement initial, avant React) --
+// dupliqué ici volontairement plutôt que partagé, pour garder le
+// script d'amorce de index.html totalement autonome (aucune
+// dépendance, aucun ralentissement au tout premier affichage). Sert
+// uniquement au changement de thème EN DIRECT (Réglages > Thèmes),
+// qui ne recharge jamais la page.
+const FAMILLES_POLICES_PAR_THEME_V1 = {
+  ticket: ["Bebas+Neue", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "IBM+Plex+Mono:wght@400;500;600;700"],
+  bleu: ["Sora:wght@500;600;700;800", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "IBM+Plex+Mono:wght@400;500;600;700"],
+  affiche: ["Archivo+Black", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "IBM+Plex+Mono:wght@400;500;600;700"],
+  salle: ["Playfair+Display:wght@600;700;800", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "Inter:wght@400;500;600;700;800"],
+  letterboxd: ["Inter:wght@400;500;600;700;800", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "IBM+Plex+Mono:wght@400;500;600;700"],
+  canalplus: ["Archivo+Black", "Inter:wght@400;500;600;700;800", "IBM+Plex+Mono:wght@400;500;600;700"],
+  springfield: ["Archivo+Black", "Inter:wght@400;500;600;700;800", "IBM+Plex+Mono:wght@400;500;600;700"],
+  cacartoon: ["Archivo+Black", "Inter:wght@400;500;600;700;800", "IBM+Plex+Mono:wght@400;500;600;700"],
+  popbrutal: ["Anton", "Archivo:wght@600;700;800"],
+};
+// Le thème initial est déjà chargé par le script d'amorce de
+// index.html avant même que ce fichier ne s'exécute -- on le
+// pré-marque ici pour ne pas injecter une deuxième balise <link>
+// identique au tout premier rendu.
+const policesDejaChargees_V1 = new Set([getStoredTheme_()]);
+function chargerPolicesDuTheme_(name) {
+  if (policesDejaChargees_V1.has(name)) return; // déjà injectées une fois -- le navigateur garde le fichier en cache de toute façon, mais inutile d'ajouter une balise <link> en double
+  const familles = FAMILLES_POLICES_PAR_THEME_V1[name];
+  if (!familles) return;
+  policesDejaChargees_V1.add(name);
+  const lien = document.createElement("link");
+  lien.rel = "stylesheet";
+  lien.href = "https://fonts.googleapis.com/css2?" + familles.map((f) => "family=" + f).join("&") + "&display=swap";
+  document.head.appendChild(lien);
+}
+
 function applyTheme_(name) {
   const theme = THEMES[name] || THEMES.ticket;
   Object.assign(T, theme.colors);
   Object.assign(F, theme.fonts);
   CURRENT_THEME = THEMES[name] ? name : "ticket";
   try { localStorage.setItem("cinemaison_theme", name); } catch {}
+  chargerPolicesDuTheme_(CURRENT_THEME);
 }
 
 function getStoredTheme_() {
@@ -846,6 +881,8 @@ function Poster({ film, className, style, hideSprockets }) {
     content = (
       <img
         src={film.affiche} alt={film.titre}
+        loading="lazy"
+        decoding="async"
         className={isTable ? "w-full h-full" : className}
         style={{
           ...(isTable ? { border: `2px solid ${T.cream}`, boxSizing: "border-box" } : style),
@@ -1098,22 +1135,11 @@ function TicketCard({ film, onOpen, tousLesFilms }) {
 function MiniCard({ film, onOpen, sub, showStamp, tousLesFilms }) {
   const expiryDays = computeExpiryDays(film);
   const autresPlateformes = autresPlateformesPourFilm_(film, tousLesFilms);
-  // NOUVEAU (01/10/2026) -- pastille de statut d'accès, coin opposé à
-  // DateStamp (top:6,right:6) -- demandé par Ben sur chaque thème,
-  // "Ça part bientôt"/"Bientôt disponible"/"Derniers ajouts". Couvre
-  // d'un coup ticket/bleu/salle (MiniCard partagée par ces 3 thèmes
-  // pour ces 3 sections). Pas de pastille pour "Bientôt disponible"
-  // (déjà représenté par le J+XX de DateStamp -- répéter "BIENTÔT"
-  // serait redondant).
-  const statutInfo = film.statutAcces !== "Bientôt disponible" ? STATUT_DISPO_BADGE_V1[film.statutAcces] : null;
   return (
     <button onClick={() => onOpen(film)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
       <div className="relative">
         <Poster film={film} className="w-full" style={{ height: 152, borderRadius: T.radiusSm }} />
         {showStamp && expiryDays != null && <DateStamp days={expiryDays} arrivee={film.statutAcces === "Bientôt disponible"} />}
-        {statutInfo && (
-          <span className="absolute" style={{ top: 6, left: 6, background: "rgba(0,0,0,0.65)", border: `1px solid ${statutInfo.couleur(T)}`, color: statutInfo.couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4, letterSpacing: 0.2 }}>{statutInfo.label}</span>
-        )}
       </div>
       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 12, fontWeight: 600, color: T.cream }}>{film.titre}</p>
       <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{film.plateforme}{film.duree ? ` · ${film.duree}` : ""}</p>
@@ -1470,9 +1496,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
                     <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
                     {days != null && <span className="absolute" style={{ top: 4, right: 4, background: T.alert, color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3 }}>J-{days}</span>}
-                    {STATUT_DISPO_BADGE_V1[f.statutAcces] && f.statutAcces !== "Bientôt disponible" && (
-                      <span className="absolute" style={{ top: 4, left: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontSize: 7.5, fontWeight: 700, padding: "2px 5px", borderRadius: 3 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                    )}
                   </div>
                   <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, fontWeight: 600, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>
@@ -1531,9 +1554,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
                   <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
                     <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
-                    {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
-                      <span className="absolute" style={{ top: 4, left: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontSize: 7.5, fontWeight: 700, padding: "2px 5px", borderRadius: 3 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                    )}
                   </div>
                   <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, fontWeight: 600, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 1 }}>
@@ -1630,9 +1650,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <div className="relative overflow-hidden" style={{ height: 132, borderRadius: 8, background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
                         <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
                         {days != null && <span className="absolute top-1.5 left-1.5" style={{ background: T.accent, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4, border: "1.5px solid #1A1400" }}>J-{days}</span>}
-                        {STATUT_DISPO_BADGE_V1[f.statutAcces] && f.statutAcces !== "Bientôt disponible" && (
-                          <span className="absolute top-1.5 right-1.5" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                        )}
                       </div>
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#1c3350", fontWeight: 700, marginTop: 2 }}>
@@ -1693,11 +1710,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
                   <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
-                    <div className="relative overflow-hidden" style={{ height: 132, borderRadius: 8, background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
+                    <div className="overflow-hidden" style={{ height: 132, borderRadius: 8, background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
                       <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
-                      {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
-                        <span className="absolute top-1.5 right-1.5" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                      )}
                     </div>
                     <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#1c3350", fontWeight: 700, marginTop: 2 }}>
@@ -1786,9 +1800,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <div className="relative">
                         <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
                         {days != null && <span className="absolute" style={{ top: 4, right: 4, background: frameColor, color: "#fff", fontFamily: F.marquee, fontSize: 11, padding: "1px 6px", borderRadius: 999 }}>J-{days}</span>}
-                        {STATUT_DISPO_BADGE_V1[f.statutAcces] && f.statutAcces !== "Bientôt disponible" && (
-                          <span className="absolute" style={{ top: 4, left: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 999 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                        )}
                       </div>
                       <div className="p-2">
                         <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
@@ -1852,11 +1863,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   const frameColors = [T.accentSecondary, T.gold, T.accentTertiary, T.accent];
                   const frameColor = frameColors[i % frameColors.length];
                   return (
-                    <button key={f.id} onClick={() => onOpen(f)} className="relative flex-shrink-0 text-left overflow-hidden" style={{ width: 108, background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
+                    <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left overflow-hidden" style={{ width: 108, background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
                       <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
-                      {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
-                        <span className="absolute" style={{ top: 4, left: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 999 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                      )}
                       <div className="p-2">
                         <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
                         <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 1 }}>
@@ -1929,19 +1937,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         {days != null && (
                           <span className="absolute top-1.5 left-1.5" style={{ background: urgent ? T.accent : "rgba(0,0,0,0.6)", border: urgent ? "none" : `1px solid ${T.accent}`, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4 }}>J-{days}</span>
                         )}
-                        {/* NOUVEAU (01/10/2026) -- pastille de statut d'accès, même ligne
-                            que J-XX mais coin opposé (celui-ci est à gauche sur ce thème).
-                            Réutilise les libellés/couleurs déjà validés de
-                            STATUT_DISPO_BADGE_V1 (INDISPO/VOD/ABO ++) -- rien pour "Inclus"
-                            (pas d'entrée dans la table) ni pour "Bientôt disponible" (déjà
-                            représenté par le J+XX dans la section suivante, inutile ici). */}
-                        {STATUT_DISPO_BADGE_V1[f.statutAcces] && f.statutAcces !== "Bientôt disponible" && (() => {
-                          const info = STATUT_DISPO_BADGE_V1[f.statutAcces];
-                          const couleur = info.couleur(T);
-                          return (
-                            <span className="absolute top-1.5 right-1.5" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${couleur}`, color: couleur, fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4, letterSpacing: 0.2 }}>{info.label}</span>
-                          );
-                        })()}
                       </div>
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
@@ -1996,11 +1991,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
               <div className="flex gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
-                  <button key={f.id} onClick={() => onOpen(f)} className="relative flex-shrink-0 text-left" style={{ width: 108 }}>
+                  <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
                     <Poster film={f} className="w-full" style={{ height: 152, borderRadius: 8, objectFit: "cover" }} />
-                    {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
-                      <span className="absolute top-1.5 right-1.5" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                    )}
                     <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
                       {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
@@ -2150,9 +2142,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <div className="relative">
                     <Poster film={f} className="w-full" style={{ height: 114, border: `${T.borderWidth}px solid ${T.line}` }} />
                     <span className="absolute" style={{ top: 3, right: 3, background: T.accent, color: "#fff", fontFamily: F.marquee, fontSize: 10, fontWeight: 900, padding: "1px 5px", border: `1px solid ${T.line}` }}>{days != null ? `J-${days}` : ""}</span>
-                    {STATUT_DISPO_BADGE_V1[f.statutAcces] && f.statutAcces !== "Bientôt disponible" && (
-                      <span className="absolute" style={{ top: 3, left: 3, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.marquee, fontSize: 9, fontWeight: 900, padding: "1px 5px" }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                    )}
                   </div>
                   <p className="truncate mt-1.5" style={{ fontFamily: "'Archivo', sans-serif", fontSize: 10, fontWeight: 700, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8.5, color: T.muted, marginTop: 1, fontWeight: 700 }}>
@@ -2274,9 +2263,6 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <div className="relative">
                     <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover", borderBottom: `2px solid ${T.cream}` }} />
                     {days != null && <span className="absolute" style={{ top: -8, right: -8, background: T.accentSoft, color: T.cream, fontFamily: F.marquee, fontSize: 11, padding: "3px 7px", border: `2px solid ${T.cream}`, borderRadius: 999 }}>J-{days}</span>}
-                    {STATUT_DISPO_BADGE_V1[f.statutAcces] && f.statutAcces !== "Bientôt disponible" && (
-                      <span className="absolute" style={{ top: -8, left: -8, background: "rgba(0,0,0,0.75)", color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.marquee, fontSize: 9.5, padding: "3px 7px", border: `2px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, borderRadius: 999 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                    )}
                   </div>
                   <div className="p-2">
                     <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
@@ -2339,11 +2325,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
           <div className="flex gap-4 px-4 overflow-x-auto mb-6 pb-1">
             {derniers.map((f) => (
-              <button key={f.id} onClick={() => onOpen(f)} className="relative flex-shrink-0 text-left" style={{ width: 100, background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
+              <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100, background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
                 <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover", borderBottom: `2px solid ${T.cream}` }} />
-                {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
-                  <span className="absolute" style={{ top: -8, left: -8, background: "rgba(0,0,0,0.75)", color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.marquee, fontSize: 9.5, padding: "3px 7px", border: `2px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, borderRadius: 999 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
-                )}
                 <div className="p-2">
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>
@@ -5151,7 +5134,7 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
   return (
     <div className="fixed inset-0 z-40" style={{ pointerEvents: open ? "auto" : "none" }}>
       <div onClick={onClose} className="absolute inset-0" style={{ background: "rgba(10,8,6,0.7)", opacity: open ? 1 : 0, transition: "opacity 0.25s" }} />
-      <div className="absolute left-0 top-0 bottom-0 overflow-y-auto pull-scroll" style={{ width: 278, background: T.bg, borderRight: `1px solid ${T.line}`, transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s ease" }}>
+      <div className="absolute left-0 top-0 bottom-0 overflow-y-auto pull-scroll" style={{ width: 278, background: T.bg, borderRight: `1px solid ${T.line}`, transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s ease", paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="flex items-center justify-between px-4" style={{ paddingTop: "max(18px, env(safe-area-inset-top))", paddingBottom: 14 }}>
           {CURRENT_THEME === "salle" ? (
             <span style={{ fontFamily: F.serif, fontSize: 18, color: T.cream, letterSpacing: 2, fontStyle: "italic" }}>Le Guichet</span>
@@ -5738,6 +5721,11 @@ export default function App() {
   // un moment après un déploiement, sans qu'aucune erreur ne le
   // signale.
   const [nouvelleVersionDisponible, setNouvelleVersionDisponible] = useState(false);
+  // NOUVEAU (02/10/2026) -- référence stable vers verifierNouvelleVersion,
+  // pour que le geste "tirer pour rafraîchir" plus bas (useEffect séparé)
+  // puisse déclencher exactement la même vérification, sans dupliquer la
+  // logique de comparaison de version.
+  const verifierNouvelleVersionRef = useRef(null);
 
   useEffect(() => {
     const scriptActuel = document.querySelector('script[type="module"]')?.getAttribute("src") || null;
@@ -5755,6 +5743,7 @@ export default function App() {
         // passage, pas la peine de faire quoi que ce soit de plus ici.
       }
     };
+    verifierNouvelleVersionRef.current = verifierNouvelleVersion;
 
     verifierNouvelleVersion();
     const onVisible = () => { if (document.visibilityState === "visible") verifierNouvelleVersion(); };
@@ -5769,6 +5758,50 @@ export default function App() {
       clearInterval(intervalle);
     };
   }, []);
+
+  // NOUVEAU (02/10/2026) -- geste "tirer vers le bas pour rafraîchir",
+  // façon Mail sur iPhone : en haut de la page (scroll à 0), un tirage
+  // franc vers le bas relance la même vérification de nouvelle version
+  // que la bannière automatique, avec un petit retour visuel pendant la
+  // vérification. Ne fait rien si on n'est pas tout en haut, pour ne
+  // jamais interférer avec un défilement normal au milieu d'une liste.
+  const [tirageEnCours, setTirageEnCours] = useState(false);
+  useEffect(() => {
+    let depart = null; // position Y du doigt au moment du toucher, ou null si le geste ne compte pas
+    const SEUIL_DECLENCHEMENT = 70; // px -- tirage franc, pas un petit rebond accidentel
+
+    const onTouchStart = (e) => {
+      if (window.scrollY > 0 || tirageEnCours) { depart = null; return; }
+      depart = e.touches[0].clientY;
+    };
+    const onTouchMove = (e) => {
+      if (depart == null) return;
+      // Si l'utilisateur s'est mis à scroller pendant le geste, on annule --
+      // seul un tirage depuis tout en haut doit compter.
+      if (window.scrollY > 0) { depart = null; return; }
+    };
+    const onTouchEnd = (e) => {
+      if (depart == null) return;
+      const arrivee = (e.changedTouches && e.changedTouches[0] && e.changedTouches[0].clientY) ?? depart;
+      const distance = arrivee - depart;
+      depart = null;
+      if (distance > SEUIL_DECLENCHEMENT && verifierNouvelleVersionRef.current) {
+        setTirageEnCours(true);
+        Promise.resolve(verifierNouvelleVersionRef.current()).finally(() => {
+          setTimeout(() => setTirageEnCours(false), 500); // laisse le retour visuel le temps d'être vu, même si la vérification est quasi instantanée
+        });
+      }
+    };
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [tirageEnCours]);
 
   const activeTab =
     screen.name === "accueil" ? "accueil" :
@@ -5818,6 +5851,14 @@ export default function App() {
         {/* ficelé (ficelle + sceau) sous l'en-tête — décor en surimpression, */}
         {/* visible sur tous les écrans du thème sans repousser le contenu   */}
         {/* existant (pointer-events désactivés, ne gêne jamais le tap).     */}
+
+        {tirageEnCours && (
+          <div className="fixed left-0 right-0 flex justify-center z-50 pointer-events-none" style={{ top: "max(10px, env(safe-area-inset-top))" }}>
+            <div className="rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 10.5, color: T.cream, boxShadow: "0 4px 14px rgba(0,0,0,0.35)" }}>
+              Vérification...
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mx-4 mb-4 rounded-lg p-3" style={{ marginTop: "max(16px, env(safe-area-inset-top))", background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
