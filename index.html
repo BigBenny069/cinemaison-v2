@@ -3,21 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="format-detection" content="telephone=no" />
     <title>CinéMaison</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <meta name="theme-color" content="#14100C" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="CinéMaison" />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@600;700;800&family=Archivo+Black&family=Bebas+Neue&family=Cormorant+Garamond:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Luckiest+Guy&family=Manrope:wght@500;600;700;800&family=Noto+Sans:wght@400;500;600&family=Noto+Serif+Display:wght@500;600&family=Oswald:wght@500;600;700&family=Playfair+Display:wght@600;700;800&family=Sora:wght@500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Special+Elite&display=swap"
-    />
+    <script>
+      // OPTIMISATION (02/10/2026) -- ne charge plus les 17 familles de
+      // police d'un coup (dont 7 ne sont utilisées par AUCUN thème
+      // actuel -- vérifié : Noto Sans, Noto Serif Display, Cormorant
+      // Garamond, Luckiest Guy, Manrope, Oswald, Special Elite, restes
+      // des 10 thèmes supprimés) -- seules les 2-3 polices du thème
+      // réellement actif sont chargées, lu directement dans
+      // localStorage (même clé que THEMES/CURRENT_THEME dans App.jsx)
+      // avant même que React ne démarre, pour éviter tout retard
+      // d'affichage. Un thème non reconnu retombe sur "ticket", comme
+      // côté App.jsx.
+      (function () {
+        var FAMILLES_PAR_THEME = {
+          ticket: ["Bebas+Neue", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "IBM+Plex+Mono:wght@400;500;600;700"],
+          bleu: ["Sora:wght@500;600;700;800", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "IBM+Plex+Mono:wght@400;500;600;700"],
+          affiche: ["Archivo+Black", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "IBM+Plex+Mono:wght@400;500;600;700"],
+          salle: ["Playfair+Display:wght@600;700;800", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "Inter:wght@400;500;600;700;800"],
+          letterboxd: ["Inter:wght@400;500;600;700;800", "Source+Serif+4:opsz,wght@8..60,400;8..60,600", "IBM+Plex+Mono:wght@400;500;600;700"],
+          canalplus: ["Archivo+Black", "Inter:wght@400;500;600;700;800", "IBM+Plex+Mono:wght@400;500;600;700"],
+          springfield: ["Archivo+Black", "Inter:wght@400;500;600;700;800", "IBM+Plex+Mono:wght@400;500;600;700"],
+          cacartoon: ["Archivo+Black", "Inter:wght@400;500;600;700;800", "IBM+Plex+Mono:wght@400;500;600;700"],
+          popbrutal: ["Anton", "Archivo:wght@600;700;800"],
+        };
+        var theme = "ticket";
+        try {
+          var stocke = localStorage.getItem("cinemaison_theme");
+          if (stocke && FAMILLES_PAR_THEME[stocke]) theme = stocke;
+        } catch (e) {}
+        var familles = FAMILLES_PAR_THEME[theme] || FAMILLES_PAR_THEME.ticket;
+        var lien = document.createElement("link");
+        lien.rel = "stylesheet";
+        lien.href = "https://fonts.googleapis.com/css2?" + familles.map(function (f) { return "family=" + f; }).join("&") + "&display=swap";
+        document.head.appendChild(lien);
+      })();
+    </script>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      html, body { background: #14100C; min-height: 100%; }
+      html, body { background: #14100C; min-height: 100%; overscroll-behavior: none; }
       @font-face {
         font-family: 'Simpsonfont';
         src: url('/fonts/Simpsonfont.ttf') format('truetype');
