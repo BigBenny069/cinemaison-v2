@@ -25,6 +25,8 @@ import { appelerWebhookAvecReessai } from "../lib/webhook.js";
 const ACTIONS_RAPPORT = {
   doublons: "lancerControleDoublons",
   ecarts: "renvoyerRapportEcarts",
+  // NOUVEAU (07/10/2026) -- rapport "CANAL+ écarts" (21_CANAL_ECARTS.js).
+  canalEcarts: "rapportCanalEcarts",
 };
 
 export default async function handler(req, res) {
@@ -50,7 +52,7 @@ export default async function handler(req, res) {
   if (type) {
     const action = ACTIONS_RAPPORT[type];
     if (!action) {
-      return res.status(400).json({ error: "type inconnu (attendu : \"doublons\" ou \"ecarts\")" });
+      return res.status(400).json({ error: "type inconnu (attendu : \"doublons\", \"ecarts\" ou \"canalEcarts\")" });
     }
 
     const resultatRapport = await appelerWebhookAvecReessai(url, { secret, action });
