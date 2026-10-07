@@ -5067,6 +5067,20 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
           Renvoie le mail "CinéMaison - V2 - Écarts plateformes" tout de suite, avec les dernières données — sans attendre le passage automatique de 8h.
         </p>
 
+        <button
+          onClick={() => lancerRapportAdmin("canalEcarts")}
+          disabled={rapportEnCours === "canalEcarts"}
+          className="w-full rounded-lg py-2.5 mt-3"
+          style={{ background: rapportFait === "canalEcarts" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "canalEcarts" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "canalEcarts" ? T.accent : T.cream }}>
+            {rapportEnCours === "canalEcarts" ? "EN COURS…" : rapportFait === "canalEcarts" ? "✓ ENVOYÉ" : "CANAL+ : FICHES EN TROP"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Repère les fiches CANAL+ de CinéMaison absentes de "Ma Liste" Canal+ (date de fin dépassée, retirées...) et envoie un mail avec le détail et un lien "Retirer de CinéMaison" par fiche.
+        </p>
+
         {rapportErreur && (
           <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>{rapportErreur}</p>
         )}
