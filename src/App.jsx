@@ -584,6 +584,14 @@ const CANAL_CHAINES_V1 = {
   "50055": { label: "SÉRIE CLUB", slug: "serieclub" },
   "50060": { label: "TÉVA", slug: "teva" },
   "50061": { label: "MYTF1", slug: "mytf1" },
+  // Ajoutés le 09/10/2026 (repérés dans Ma Liste / les fiches Canal+). Pas
+  // encore de logo PNG pour eux : le badge s'affiche en texte seul tant
+  // que /public/logos/chaines/<slug>.png n'existe pas (repli automatique).
+  "50052": { label: "RTL9", slug: "rtl9" },
+  "50071": { label: "W9", slug: "w9" },
+  "50076": { label: "POLAR+", slug: "polarplus" },
+  "50254": { label: "CANAL+ SÉRIES", slug: "canalplusseries" },
+  "50943": { label: "NOVO19", slug: "novo19" },
   "50662": { label: "PARAMOUNT+", slug: "paramountchaine" },
   "50696": { label: "APPLE TV", slug: "appletv" },
   "50780": { label: "INSOMNIA", slug: "insomnia" },
