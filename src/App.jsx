@@ -465,7 +465,12 @@ function isArchived(film) {
   const manuelle = parseDateFR(film.dateManuelle);
   if (manuelle && daysUntil(manuelle) < 0) return true;
   const auto = parseDateFR(film.dateAuto);
-  if (auto && daysUntil(auto) < 0) return true;
+  // 09/10/2026 -- une date automatique périmée ne compte pas pour une
+  // fiche passée en Abonnement complémentaire / VOD (le film n'est plus
+  // dans l'abonnement, la vieille date de fin n'a plus de sens) : sans
+  // ça elle partait en Archives et n'apparaissait jamais dans son menu.
+  const dateAutoSansObjet = film.statutAcces === "Abonnement complémentaire" || film.statutAcces === "VOD";
+  if (auto && daysUntil(auto) < 0 && !dateAutoSansObjet) return true;
   return false;
 }
 
