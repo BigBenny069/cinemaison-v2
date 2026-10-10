@@ -20,6 +20,7 @@ export default function handler(req, res) {
   if (type === "letterboxdOk") return pageLetterboxdOk(req, res);
   if (type === "confirmType") return pageConfirmerType(req, res);
   if (type === "confirmerTypeActuel") return pageConfirmerTypeActuel(req, res);
+  if (type === "horsListeCanal") return pageHorsListeCanal(req, res);
 
   return res.status(400).send(pageHtml(
     "Lien incomplet",
@@ -623,4 +624,70 @@ function pageHtml(titre, contenu) {
 CINÉ<span style="color:#B5622B">MAISON</span></div>
 ${contenu}
 </div></div></body></html>`;
+}
+
+
+// ---- ?page=horsListeCanal : "Garder hors de Ma Liste Canal+" (mail "CANAL+
+// écarts avec Ma Liste", 21_CANAL_ECARTS.js) -- NOUVEAU (10/10/2026) ----
+// Écrit "oui" dans la colonne HorsListeCanal de la fiche : elle passe alors
+// dans la section grisée du mail suivant. Écriture uniquement sur clic
+// humain (le GET du lien est sans danger).
+function pageHorsListeCanal(req, res) {
+  const { id, titre, pw } = req.query || {};
+
+  if (!id || !pw) {
+    return res.status(400).send(pageHtml(
+      "Lien incomplet",
+      "<p>Ce lien est incomplet ou abîmé -- écris « oui » dans la colonne HorsListeCanal du Sheet à la main.</p>"
+    ));
+  }
+
+  const titreEchappe = echapperHtml(titre || id);
+
+  const contenu = `
+    <p style="font-size:15px;color:#3A2E22"><strong>${titreEchappe}</strong></p>
+    <p style="font-size:13px;color:#9A9182">
+      Cette fiche reste dans CinéMaison et le contrôle des dates continue de la suivre.
+      Elle ne sera simplement plus signalée comme « absente de Ma Liste » Canal+.
+    </p>
+    <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
+      padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%">
+      Garder hors de Ma Liste Canal+
+    </button>
+    <p id="statut" style="font-size:13px;color:#9A9182;margin-top:12px"></p>
+    <script>
+      const bouton = document.getElementById("btn");
+      const statut = document.getElementById("statut");
+      bouton.addEventListener("click", async () => {
+        bouton.disabled = true;
+        bouton.textContent = "Enregistrement...";
+        try {
+          const reponse = await fetch("/api/update-film", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              password: ${JSON.stringify(pw)},
+              id: ${JSON.stringify(id)},
+              fields: { horsListeCanal: "oui" },
+            }),
+          });
+          const corps = await reponse.json().catch(() => ({}));
+          if (reponse.ok) {
+            bouton.textContent = "Noté";
+            statut.textContent = "C'est fait, tu peux fermer cette page.";
+          } else {
+            bouton.disabled = false;
+            bouton.textContent = "Garder hors de Ma Liste Canal+";
+            statut.textContent = "Erreur : " + (corps.error || "inconnue");
+          }
+        } catch (e) {
+          bouton.disabled = false;
+          bouton.textContent = "Garder hors de Ma Liste Canal+";
+          statut.textContent = "Erreur réseau : " + e.message;
+        }
+      });
+    </script>
+  `;
+
+  return res.status(200).send(pageHtml("Hors de Ma Liste Canal+", contenu));
 }
