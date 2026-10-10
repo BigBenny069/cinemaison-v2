@@ -40,6 +40,10 @@ const CAMEL_TO_HEADER = {
   // réel signalé par Ben (12 fiches Canal+ ajoutées manuellement,
   // jamais mises à jour malgré plusieurs contrôles Canal+ réussis).
   canalContentId: "CanalContentId",
+  // NOUVEAU (10/10/2026) -- "Garder hors de Ma Liste Canal+" (mail "CANAL+
+  // écarts avec Ma Liste", 21_CANAL_ECARTS.js) : écrit "oui" dans la
+  // colonne HorsListeCanal du Sheet (à créer à la main, sinon ignoré).
+  horsListeCanal: "HorsListeCanal",
   // Ajoutés pour "Redemander une vérification" (remplace Mode Vacances) :
   // vider ces deux champs fait sortir la fiche du lot "complet" au sens
   // du script d'enrichissement (05_ENRICHISSEMENT.gs), qui la reprend
