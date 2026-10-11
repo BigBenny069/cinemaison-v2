@@ -2535,6 +2535,18 @@ function nettoyerEtValiderImdbId_(brut) {
   return { valeur: nettoye, erreur: null };
 }
 
+// NOUVEAU (11/10/2026) -- écran MODIFIER : identifiant de la fiche (lecture
+// seule) + lien de la plateforme modifiable, pour corriger une fiche depuis
+// le téléphone sans ouvrir le Sheet. Pour CANAL+, ce qui compte est le
+// CanalContentId (<numéro>_<code chaîne>) : on l'extrait du lien collé
+// (".../h/41998099_50889") ou d'un identifiant collé tel quel.
+function extraireCanalContentId_(texte) {
+  const t = String(texte || "").trim();
+  if (!t) return "";
+  const m = t.match(/\/h\/(\d+_\d+)/) || t.match(/^(\d+_\d+)$/);
+  return m ? m[1] : null;
+}
+
 function EditFilmScreen({ film, onCancel, onSaved }) {
   const [titre, setTitre] = useState(film.titre || "");
   const [annee, setAnnee] = useState(film.annee || "");
@@ -2546,10 +2558,34 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
   const [tmdbId, setTmdbId] = useState(film.tmdbId || "");
   const [imdbId, setImdbId] = useState(film.imdbId || "");
   const [tag, setTag] = useState(() => activeTag(film));
+  const estCanal = (plateforme || "").toUpperCase() === "CANAL+";
+  const [lienPlateforme, setLienPlateforme] = useState(
+    (film.plateforme || "").toUpperCase() === "CANAL+"
+      ? (film.urlPlateforme || urlCanalPlusFiche_(film.canalContentId, film.type) || "")
+      : (film.urlPlateforme || "")
+  );
+  const [idCopie, setIdCopie] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const canSave = titre.trim() && annee.trim() && plateforme;
+  const lienTexte = lienPlateforme.trim();
+  const lienCanalId = estCanal ? extraireCanalContentId_(lienTexte) : "";
+  const lienErreur = !lienTexte ? null
+    : estCanal
+      ? (lienCanalId === null ? "Lien Canal+ non reconnu : colle l'adresse de la page du film (elle contient « /h/12345678_50889 »)." : null)
+      : (/^https?:\/\//i.test(lienTexte) ? null : "Le lien doit commencer par http:// ou https://");
+
+  const copierId = async () => {
+    try {
+      await navigator.clipboard.writeText(String(film.id));
+      setIdCopie(true);
+      setTimeout(() => setIdCopie(false), 2000);
+    } catch (e) {
+      /* copie impossible : l'ID reste lisible à l'écran */
+    }
+  };
+
+  const canSave = titre.trim() && annee.trim() && plateforme && !lienErreur;
 
   const tmdbIdInfo = nettoyerEtValiderTmdbId_(tmdbId);
   const imdbIdInfo = nettoyerEtValiderImdbId_(imdbId);
@@ -2576,6 +2612,19 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       enFamille: tag === "En famille",
     };
 
+    // Lien de la plateforme : n'écrit que si modifié et non vide (jamais
+    // d'effacement par erreur ; les collecteurs le réécrivent de toute façon).
+    if (lienTexte) {
+      if (estCanal) {
+        if (lienCanalId && lienCanalId !== String(film.canalContentId || "").trim()) {
+          fields.canalContentId = lienCanalId;
+          fields.urlPlateforme = /^https?:\/\//i.test(lienTexte) ? lienTexte : urlCanalPlusFiche_(lienCanalId, type);
+        }
+      } else if (lienTexte !== String(film.urlPlateforme || "").trim()) {
+        fields.urlPlateforme = lienTexte;
+      }
+    }
+
     const result = await apiWrite("/api/update-film", { id: film.id, fields });
     setSaving(false);
     if (!result.ok) {
@@ -2590,6 +2639,13 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       <ScreenHeader title="MODIFIER" onBack={onCancel} />
 
       <SectionLabel>IDENTIFICATION</SectionLabel>
+      <div className="mb-4">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>N° DE FICHE (non modifiable)</span>
+        <button type="button" onClick={copierId} className="w-full mt-1.5 rounded-lg px-3 py-2.5 text-left"
+          style={{ background: T.surfaceRaised, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.muted }}>
+          {film.id}{idCopie ? "  ✓ copié" : ""}
+        </button>
+      </div>
       <label className="block mb-4">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE *</span>
         <input value={titre} onChange={(e) => setTitre(e.target.value)} className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }} />
@@ -2628,6 +2684,24 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
           </button>
         ))}
       </div>
+
+      <label className="block mb-5">
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>
+          {estCanal ? "LIEN CANAL+ DE LA FICHE (page du film)" : "LIEN DE LA FICHE SUR LA PLATEFORME"}
+        </span>
+        <input value={lienPlateforme} onChange={(e) => setLienPlateforme(e.target.value)}
+          placeholder={estCanal ? "https://www.canalplus.com/cinema/…/h/41998099_50889" : "https://…"}
+          className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
+          style={{ background: T.surface, border: `1px solid ${lienErreur ? T.alert : T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
+        {lienErreur && (
+          <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 10.5, color: T.alert }}>{lienErreur}</p>
+        )}
+        {estCanal && lienCanalId && (
+          <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 10.5, color: T.mutedDim }}>
+            Identifiant lu : {lienCanalId}. Relance ensuite le contrôle des dates Canal+ pour mettre la date à jour.
+          </p>
+        )}
+      </label>
 
       <SectionLabel>À VOIR</SectionLabel>
       <div className="flex gap-2 flex-wrap mb-5">
