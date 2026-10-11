@@ -4972,15 +4972,18 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
   const [rapportEnCours, setRapportEnCours] = useState(null); // "doublons" | "ecarts" | null
   const [rapportFait, setRapportFait] = useState(null);
   const [rapportErreur, setRapportErreur] = useState(null);
+  const [rapportInfo, setRapportInfo] = useState(null);
 
   const lancerRapportAdmin = async (type) => {
     setRapportEnCours(type);
     setRapportFait(null);
     setRapportErreur(null);
+    setRapportInfo(null);
     const result = await apiWrite("/api/update-settings", { type });
     setRapportEnCours(null);
     if (result.ok) {
       setRapportFait(type);
+      if (result.data && result.data.message) setRapportInfo(result.data.message);
       setTimeout(() => setRapportFait((v) => (v === type ? null : v)), 3000);
     } else {
       setRapportErreur(type + " : " + result.error);
@@ -5171,6 +5174,108 @@ function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, on
         {rapportErreur && (
           <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.alert }}>{rapportErreur}</p>
         )}
+      </CollapsibleSection>
+
+
+      <CollapsibleSection title="CONTRÔLE CANAL+">
+        <button
+          onClick={() => lancerRapportAdmin("canalRecontrolerAVerifier")}
+          disabled={rapportEnCours === "canalRecontrolerAVerifier"}
+          className="w-full rounded-lg py-2.5"
+          style={{ background: rapportFait === "canalRecontrolerAVerifier" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "canalRecontrolerAVerifier" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "canalRecontrolerAVerifier" ? T.accent : T.cream }}>
+            {rapportEnCours === "canalRecontrolerAVerifier" ? "EN COURS…" : rapportFait === "canalRecontrolerAVerifier" ? "✓ LANCÉ" : "RECONTRÔLER LES FICHES À VÉRIFIER"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Refait le contrôle des dates des seules fiches CANAL+ « à vérifier » (avec réessais), puis envoie le résultat fiche par fiche par mail.
+        </p>
+        <button
+          onClick={() => lancerRapportAdmin("canalControleComplet")}
+          disabled={rapportEnCours === "canalControleComplet"}
+          className="w-full rounded-lg py-2.5 mt-3"
+          style={{ background: rapportFait === "canalControleComplet" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "canalControleComplet" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "canalControleComplet" ? T.accent : T.cream }}>
+            {rapportEnCours === "canalControleComplet" ? "EN COURS…" : rapportFait === "canalControleComplet" ? "✓ LANCÉ" : "LANCER LE CONTRÔLE COMPLET DES DATES"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Démarre le contrôle des dates de toutes les fiches CANAL+, par lots toutes les 5 minutes. Un mail de bilan arrive à la fin.
+        </p>
+        <button
+          onClick={() => lancerRapportAdmin("canalReclasserVod")}
+          disabled={rapportEnCours === "canalReclasserVod"}
+          className="w-full rounded-lg py-2.5 mt-3"
+          style={{ background: rapportFait === "canalReclasserVod" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "canalReclasserVod" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "canalReclasserVod" ? T.accent : T.cream }}>
+            {rapportEnCours === "canalReclasserVod" ? "EN COURS…" : rapportFait === "canalReclasserVod" ? "✓ LANCÉ" : "RECLASSER LES VOD SANS DATE"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Les fiches CANAL+ « à vérifier » qui sont en réalité de la VOD (location/achat, pas de date de fin) passent en « VOD sans date » et ne sont plus signalées. Résultat par mail.
+        </p>
+        <button
+          onClick={() => lancerRapportAdmin("canalEtatControle")}
+          disabled={rapportEnCours === "canalEtatControle"}
+          className="w-full rounded-lg py-2.5 mt-3"
+          style={{ background: rapportFait === "canalEtatControle" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "canalEtatControle" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "canalEtatControle" ? T.accent : T.cream }}>
+            {rapportEnCours === "canalEtatControle" ? "EN COURS…" : rapportFait === "canalEtatControle" ? "✓ ENVOYÉ" : "ÉTAT DU CONTRÔLE (PAR MAIL)"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Envoie par mail l'avancement du contrôle complet en cours (ou du dernier).
+        </p>
+        <button
+          onClick={() => window.confirm("Arrêter le contrôle complet en cours ?") && lancerRapportAdmin("canalArreterControle")}
+          disabled={rapportEnCours === "canalArreterControle"}
+          className="w-full rounded-lg py-2.5 mt-3"
+          style={{ background: rapportFait === "canalArreterControle" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "canalArreterControle" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "canalArreterControle" ? T.accent : T.cream }}>
+            {rapportEnCours === "canalArreterControle" ? "EN COURS…" : rapportFait === "canalArreterControle" ? "✓ ARRÊTÉ" : "ARRÊTER LE CONTRÔLE COMPLET"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          À utiliser seulement si le contrôle complet semble bloqué ou lancé par erreur.
+        </p>
+
+        {rapportInfo && (
+          <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent }}>{rapportInfo}</p>
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="NETTOYAGE DATES PRIME">
+        <button
+          onClick={() => lancerRapportAdmin("primeNettoyageApercu")}
+          disabled={rapportEnCours === "primeNettoyageApercu"}
+          className="w-full rounded-lg py-2.5"
+          style={{ background: rapportFait === "primeNettoyageApercu" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "primeNettoyageApercu" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "primeNettoyageApercu" ? T.accent : T.cream }}>
+            {rapportEnCours === "primeNettoyageApercu" ? "EN COURS…" : rapportFait === "primeNettoyageApercu" ? "✓ LANCÉ" : "APERÇU DU NETTOYAGE (RIEN N'EST MODIFIÉ)"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Liste par mail les fiches Prime en Abonnement complémentaire ou VOD qui ont encore une date de fin automatique périmée. Ne modifie rien.
+        </p>
+        <button
+          onClick={() => window.confirm("Effacer les dates de fin périmées des fiches Prime en Abonnement complémentaire / VOD ?") && lancerRapportAdmin("primeNettoyageAppliquer")}
+          disabled={rapportEnCours === "primeNettoyageAppliquer"}
+          className="w-full rounded-lg py-2.5 mt-3"
+          style={{ background: rapportFait === "primeNettoyageAppliquer" ? T.accentSoft : T.surface, border: `1px solid ${T.line}`, opacity: rapportEnCours === "primeNettoyageAppliquer" ? 0.7 : 1 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: rapportFait === "primeNettoyageAppliquer" ? T.accent : T.cream }}>
+            {rapportEnCours === "primeNettoyageAppliquer" ? "EN COURS…" : rapportFait === "primeNettoyageAppliquer" ? "✓ LANCÉ" : "APPLIQUER LE NETTOYAGE"}
+          </span>
+        </button>
+        <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, lineHeight: 1.5 }}>
+          Efface ces dates de fin pour que les films apparaissent dans le bon menu (Abonnement complémentaire / VOD) au lieu des Archives. À lancer après avoir regardé l'aperçu.
+        </p>
       </CollapsibleSection>
 
       <CollapsibleSection title="NOMBRE DE FILMS SUR L'ACCUEIL" subtitle={`${nbAccueil} films`}>
