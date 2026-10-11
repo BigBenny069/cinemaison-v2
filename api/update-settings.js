@@ -27,6 +27,15 @@ const ACTIONS_RAPPORT = {
   ecarts: "renvoyerRapportEcarts",
   // NOUVEAU (07/10/2026) -- rapport "CANAL+ écarts" (21_CANAL_ECARTS.js).
   canalEcarts: "rapportCanalEcarts",
+  // NOUVEAU (11/10/2026) -- section Réglages "CONTRÔLE CANAL+"
+  // (22_ACTIONS_CANAL_APP.js côté Apps Script).
+  canalRecontrolerAVerifier: "canalRecontrolerAVerifier",
+  canalControleComplet: "canalControleComplet",
+  canalEtatControle: "canalEtatControle",
+  canalArreterControle: "canalArreterControle",
+  canalReclasserVod: "canalReclasserVod",
+  primeNettoyageApercu: "primeNettoyageApercu",
+  primeNettoyageAppliquer: "primeNettoyageAppliquer",
 };
 
 export default async function handler(req, res) {
@@ -52,7 +61,7 @@ export default async function handler(req, res) {
   if (type) {
     const action = ACTIONS_RAPPORT[type];
     if (!action) {
-      return res.status(400).json({ error: "type inconnu (attendu : \"doublons\", \"ecarts\" ou \"canalEcarts\")" });
+      return res.status(400).json({ error: "type inconnu (attendu : \"doublons\", \"ecarts\", \"canalEcarts\", \"canalRecontrolerAVerifier\", \"canalControleComplet\", \"canalEtatControle\", \"canalArreterControle\", \"canalReclasserVod\", \"primeNettoyageApercu\" ou \"primeNettoyageAppliquer\")" });
     }
 
     const resultatRapport = await appelerWebhookAvecReessai(url, { secret, action });
