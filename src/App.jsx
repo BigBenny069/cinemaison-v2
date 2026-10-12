@@ -3393,8 +3393,37 @@ function SearchResultCard({ film, match, onOpen, tousLesFilms }) {
   );
 }
 
+/* NOUVEAU (12/10/2026) -- historique des recherches, façon Google.   */
+/* Stocké sur l'appareil (localStorage), 10 entrées max, commun à tous */
+/* les thèmes (un seul écran de recherche).                            */
+const CLE_HISTORIQUE_RECHERCHE_V1 = "cinemaison_historique_recherche_v1";
+function lireHistoriqueRecherche_() {
+  try {
+    const v = JSON.parse(localStorage.getItem(CLE_HISTORIQUE_RECHERCHE_V1) || "[]");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 10) : [];
+  } catch (e) { return []; }
+}
+function ecrireHistoriqueRecherche_(liste) {
+  try { localStorage.setItem(CLE_HISTORIQUE_RECHERCHE_V1, JSON.stringify(liste)); } catch (e) { /* stockage indisponible : on ignore */ }
+}
+
 function RechercheScreen({ films, onOpen, onBack, onMenu, initialQuery, onQueryChange }) {
   const [query, setQuery] = useState(initialQuery || "");
+  const [historique, setHistorique] = useState(lireHistoriqueRecherche_);
+
+  const memoriser = (texte) => {
+    const t = String(texte || "").trim();
+    if (t.length < 2) return;
+    const nouvelle = [t, ...historique.filter((h) => h.toLowerCase() !== t.toLowerCase())].slice(0, 10);
+    setHistorique(nouvelle);
+    ecrireHistoriqueRecherche_(nouvelle);
+  };
+  const oublier = (texte) => {
+    const nouvelle = historique.filter((h) => h !== texte);
+    setHistorique(nouvelle);
+    ecrireHistoriqueRecherche_(nouvelle);
+  };
+  const toutOublier = () => { setHistorique([]); ecrireHistoriqueRecherche_([]); };
 
   // Répercute chaque frappe dans les params de l'écran courant, pour que
   // la recherche survive au passage par une fiche puis au retour.
@@ -3429,6 +3458,8 @@ function RechercheScreen({ films, onOpen, onBack, onMenu, initialQuery, onQueryC
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { memoriser(query); e.currentTarget.blur(); } }}
+          enterKeyHint="search"
           placeholder="Titre, réalisateur, acteur…"
           className="w-full rounded-xl pl-10 pr-9 py-3 outline-none"
           style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }}
@@ -3440,7 +3471,27 @@ function RechercheScreen({ films, onOpen, onBack, onMenu, initialQuery, onQueryC
         )}
       </div>
 
-      {!query.trim() && (
+      {!query.trim() && historique.length > 0 && (
+        <div className="mb-2">
+          <div className="flex items-center justify-between mb-1">
+            <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>RECHERCHES RÉCENTES</span>
+            <button onClick={toutOublier} style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, letterSpacing: 1 }}>TOUT EFFACER</button>
+          </div>
+          {historique.map((h) => (
+            <div key={h} className="flex items-center" style={{ borderBottom: `1px solid ${T.surface}` }}>
+              <button onClick={() => setQuery(h)} className="flex-1 flex items-center gap-3 py-3 text-left">
+                <Clock size={15} color={T.mutedDim} />
+                <span style={{ fontFamily: F.serif, fontSize: 15, color: T.cream }}>{h}</span>
+              </button>
+              <button onClick={() => oublier(h)} className="p-2" aria-label="Supprimer de l'historique">
+                <X size={15} color={T.mutedDim} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!query.trim() && historique.length === 0 && (
         <p className="text-center mt-16 px-6" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.mutedDim, fontStyle: "italic", lineHeight: 1.5 }}>
           Tapez un titre, un nom de réalisateur, ou un acteur pour retrouver une fiche.
         </p>
@@ -3455,7 +3506,7 @@ function RechercheScreen({ films, onOpen, onBack, onMenu, initialQuery, onQueryC
       {results.length > 0 && (
         <div className="flex flex-col gap-2">
           {results.map(({ film, match }) => (
-            <SearchResultCard key={film.id} film={film} match={match} onOpen={onOpen} tousLesFilms={films} />
+            <SearchResultCard key={film.id} film={film} match={match} onOpen={(f) => { memoriser(query); onOpen(f); }} tousLesFilms={films} />
           ))}
         </div>
       )}
