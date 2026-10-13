@@ -496,6 +496,9 @@ const PLATFORM_SLUGS = {
   // hors du contrôle streaming automatique pour l'instant (~10 fiches,
   // ajout manuel uniquement) -- à revoir si le volume grandit.
   "Paramount+": "paramount",
+  // NOUVEAU (13/10/2026) -- Shadowz (abonnement de Ben), ajout manuel comme Paramount+.
+  // Logo attendu : public/logos/shadowz.png (repli automatique sur une pastille sinon).
+  "Shadowz": "shadowz",
 };
 const PLATFORM_SLUGS_UPPER = Object.fromEntries(Object.entries(PLATFORM_SLUGS).map(([k, v]) => [k.toUpperCase(), v]));
 
@@ -510,6 +513,7 @@ const PLATFORM_URLS_UPPER = {
   "PRIME VIDEO": "https://www.primevideo.com/",
   "DISNEY+": "https://www.disneyplus.com/",
   "PARAMOUNT+": "https://www.paramountplus.com/",
+  "SHADOWZ": "https://www.shadowz.fr/",
 };
 
 // Constat en usage réel (11/09/2026) : Canal+ et Disney+ s'ouvrent
@@ -4328,7 +4332,7 @@ function BadgeTampon({ days, couleur }) {
   );
 }
 
-const PLATFORMS_LIST = ["Canal+", "Netflix", "Prime Video", "Disney+", "Paramount+"];
+const PLATFORMS_LIST = ["Canal+", "Netflix", "Prime Video", "Disney+", "Paramount+", "Shadowz"];
 const DUREE_BUCKETS = [
   { id: "court", label: "Court", hint: "-60min", min: 0, max: 59 },
   { id: "standard", label: "Standard", hint: "60-110", min: 60, max: 110 },
