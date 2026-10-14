@@ -1225,6 +1225,30 @@ function LeaderCountdown({ onDone }) {
 // pour l'écran Explorer.
 let accueilDureeFiltre_ = null;
 let accueilSuggestionId_ = null;
+// NOUVEAU (14/10/2026) -- mémorise la position de défilement VERTICALE d'un
+// écran pour la retrouver au retour depuis une fiche (le composant est
+// démonté puis remonté à chaque navigation). Même principe qu'Explorer,
+// Bibliothèque et Alertes (qui ont leur propre mécanisme), généralisé ici à
+// l'Accueil, Recherche, Personne, Tags et Archives -- signalé par Ben :
+// "je fais retour et je reviens au début de la liste".
+const scrollMemoire_ = {};
+function useScrollMemoire_(cle) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const cible = scrollMemoire_[cle] || 0;
+    if (!cible || !ref.current) return;
+    ref.current.scrollTop = cible;
+    // 2e passage : si le contenu s'affiche une image plus tard, la hauteur
+    // n'était pas encore suffisante au 1er passage.
+    const t = setTimeout(() => {
+      if (ref.current && Math.abs(ref.current.scrollTop - cible) > 2) ref.current.scrollTop = cible;
+    }, 120);
+    return () => clearTimeout(t);
+  }, [cle]);
+  const onScroll = () => { if (ref.current) scrollMemoire_[cle] = ref.current.scrollTop; };
+  return { ref, onScroll };
+}
+
 // Position de défilement horizontal du rail "Ça part bientôt" — quel que
 // soit le thème actif (un seul rail ".bientot-rail" existe à la fois dans
 // le DOM, celui du thème en cours). Sans ça, ouvrir une fiche en fin de
@@ -1233,6 +1257,7 @@ let accueilSuggestionId_ = null;
 let accueilBientotScrollLeft_ = 0;
 
 function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbAccueil }) {
+  const scrollM = useScrollMemoire_("accueil");
 
   // Restaure la position horizontale du rail "Ça part bientôt" au montage,
   // et la mémorise en continu pendant le défilement (écoute en phase de
@@ -1359,7 +1384,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
   const dureeActiveLabel = DUREE_FILTRE_OPTIONS.find((o) => o.id === dureeFiltre)?.label || "Tous";
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-4 relative" style={CURRENT_THEME === "springfield" ? { background: "linear-gradient(180deg, #3F9BDB 0%, #6EC0EA 45%, #A9DCF2 100%)" } : undefined}>
+    <div {...scrollM} className="flex-1 overflow-y-auto pull-scroll pb-4 relative" style={CURRENT_THEME === "springfield" ? { background: "linear-gradient(180deg, #3F9BDB 0%, #6EC0EA 45%, #A9DCF2 100%)" } : undefined}>
       <div className="sticky top-0 z-20 flex items-center justify-between px-4 pb-4" style={{ background: CURRENT_THEME === "springfield" ? "transparent" : T.bg, paddingTop: "max(16px, env(safe-area-inset-top))" }}>
         <button onClick={onMenu} className="w-9 h-9 rounded-full flex items-center justify-center"
           style={{ background: T.surface, border: `1px solid ${T.accentSecondary}55` }}>
@@ -3416,6 +3441,7 @@ function ecrireHistoriqueRecherche_(liste) {
 }
 
 function RechercheScreen({ films, onOpen, onBack, onMenu, initialQuery, onQueryChange }) {
+  const scrollM = useScrollMemoire_("recherche");
   const [query, setQuery] = useState(initialQuery || "");
   const [historique, setHistorique] = useState(lireHistoriqueRecherche_);
 
@@ -3445,7 +3471,7 @@ function RechercheScreen({ films, onOpen, onBack, onMenu, initialQuery, onQueryC
   }, [films, query]);
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+    <div {...scrollM} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <div className="sticky top-0 z-20 -mx-5 px-5 flex items-center justify-between" style={{ background: T.bg, paddingTop: "max(16px, env(safe-area-inset-top))", paddingBottom: 16 }}>
         <div className="flex items-center gap-2">
           <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
@@ -3533,6 +3559,7 @@ function personneMatch_(film, nomNormalise) {
 }
 
 function PersonScreen({ films, nom, onOpen, onBack, onMenu }) {
+  const scrollM = useScrollMemoire_("personne|" + nom);
   const list = useMemo(() => {
     const q = normalizeSearch(nom);
     return films.filter((f) => personneMatch_(f, q));
@@ -3540,7 +3567,7 @@ function PersonScreen({ films, nom, onOpen, onBack, onMenu }) {
   const asRealisateur = useMemo(() => list.filter((f) => normalizeSearch(f.realisateur || "") === normalizeSearch(nom)).length, [list, nom]);
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+    <div {...scrollM} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title={nom} onBack={onBack} onMenu={onMenu} />
       <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>
         {list.length} FICHE{list.length > 1 ? "S" : ""} DANS TA BIBLIOTHÈQUE{asRealisateur > 0 ? ` · ${asRealisateur} EN TANT QUE RÉALISATEUR` : ""}
@@ -4851,6 +4878,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
 /* ECRAN ARCHIVES                                                       */
 /* ------------------------------------------------------------------ */
 function ArchivesScreen({ films, onOpen, onBack, onMenu }) {
+  const scrollM = useScrollMemoire_("archives");
   const [sortRecent, setSortRecent] = useState(true);
   const list = useMemo(() => {
     const arr = films.filter((f) => isArchived(f)).map((f) => ({ f, days: Math.abs(daysUntil(parseDateFR(f.dateManuelle))) }));
@@ -4859,7 +4887,7 @@ function ArchivesScreen({ films, onOpen, onBack, onMenu }) {
   }, [films, sortRecent]);
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+    <div {...scrollM} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="ARCHIVES" onBack={onBack} onMenu={onMenu}
         right={<button onClick={() => setSortRecent((v) => !v)} className="flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
           <span style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, letterSpacing: 0.4 }}>{sortRecent ? "PLUS RÉCENT" : "PLUS ANCIEN"}</span>
@@ -4890,11 +4918,12 @@ function tagMatches(film, tag) {
 }
 
 function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
+  const scrollM = useScrollMemoire_("tags");
   const [tag, setTag] = useState(initialTag || "Romy");
   const list = films.filter((f) => tagMatches(f, tag) && !isArchived(f));
 
   return (
-    <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+    <div {...scrollM} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="TAGS" onBack={onBack} onMenu={onMenu} />
       <div className="flex gap-2 flex-wrap mb-4">
         {TAG_LIST().map((t) => (
@@ -6163,7 +6192,7 @@ export default function App() {
       <div
         className="flex flex-col w-full relative max-w-[460px] lg:max-w-[900px] xl:max-w-[1100px] 2xl:max-w-[1700px]"
         style={{
-          height: "100%", background: T.bg,
+          height: "100%", background: T.bg, overflowX: "clip",
         }}
       >
         {/* Kanso Héritage : reliure cousue sur le bord gauche + paquet      */}
