@@ -525,6 +525,10 @@ const PLATFORM_URLS_UPPER = {
 const PLATFORM_SCHEMES_UPPER = {
   "NETFLIX": "nflx://",
   "PRIME VIDEO": "aiv://aiv/home",
+  // NOUVEAU (14/10/2026) -- Shadowz : le lien web (shadowz.fr) ne bascule pas
+  // vers l'app, mais le schéma shadowz:// l'ouvre (testé par Ben le 14/10/2026).
+  // Ouvre l'accueil de l'app (pas la fiche précise) ; repli sur l'URL https si rien ne se passe.
+  "SHADOWZ": "shadowz://",
 };
 
 /**
