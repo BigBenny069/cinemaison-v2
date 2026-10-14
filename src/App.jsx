@@ -599,7 +599,7 @@ const CANAL_CHAINES_V1 = {
   "50052": { label: "RTL9", slug: "rtl9" },
   "50071": { label: "W9", slug: "w9" },
   "50076": { label: "POLAR+", slug: "polarplus" },
-  "50254": { label: "CANAL+ SÉRIES", slug: "canalplusseries" },
+  "50254": { label: "CANAL+ SÉRIES", slug: "canalseries" },
   "50943": { label: "NOVO19", slug: "novo19" },
   "50662": { label: "PARAMOUNT+", slug: "paramountchaine" },
   "50696": { label: "APPLE TV", slug: "appletv" },
