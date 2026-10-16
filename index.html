@@ -58,6 +58,8 @@
          gardent leur propre défilement. */
       html, body { overflow-x: hidden; width: 100%; max-width: 100%; overscroll-behavior-x: none; }
       #root { overflow-x: clip; max-width: 100%; }
+      /* Les écrans à défilement vertical ne doivent jamais glisser de côté. */
+      .pull-scroll { overflow-x: hidden; overscroll-behavior-x: none; }
       @font-face {
         font-family: 'Simpsonfont';
         src: url('/fonts/Simpsonfont.ttf') format('truetype');
