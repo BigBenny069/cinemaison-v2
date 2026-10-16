@@ -4764,6 +4764,11 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     }
     setTmdbOpen(false);
     setTitreTouchedByUser(false);
+    // NOUVEAU (16/10/2026) -- ferme le clavier : sur iPhone, le champ Titre
+    // restait actif après le choix dans la liste et l'écran pouvait ensuite
+    // être décalé à gauche/droite (signalé par Ben).
+    try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}
+    setTimeout(() => { try { window.scrollTo(0, 0); } catch (e) {} }, 80);
   };
 
   const handleSubmit = async () => {
@@ -6055,6 +6060,19 @@ export default function App() {
   // état (texte tapé, filtres…) directement dans les params de l'écran
   // courant — pour que ce texte survive au passage par une fiche puis au
   // retour, au lieu d'être perdu à chaque remontage du composant.
+  // NOUVEAU (16/10/2026) -- quand un champ de saisie perd le focus (le clavier
+  // se ferme), iOS peut laisser la page décalée latéralement. L'appli a une
+  // hauteur fixe et ne doit jamais défiler au niveau de la page : on la
+  // remet donc à sa place juste après.
+  useEffect(() => {
+    const remettre = (e) => {
+      const t = e.target;
+      if (!t || !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      setTimeout(() => { try { if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0); } catch (err) {} }, 120);
+    };
+    document.addEventListener("focusout", remettre, true);
+    return () => document.removeEventListener("focusout", remettre, true);
+  }, []);
   const updateScreenParams = (patch) => setScreen((s) => ({ ...s, params: { ...s.params, ...patch } }));
   const backFromFiche = () => setScreen(screen.params.from || { name: "accueil", params: {} });
   const openPerson = (nom) => setScreen({ name: "personne", params: { nom, from: screen } });
