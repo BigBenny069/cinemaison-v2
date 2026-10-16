@@ -1276,24 +1276,56 @@ function useScrollMemoire_(cle) {
 // le DOM, celui du thème en cours). Sans ça, ouvrir une fiche en fin de
 // rail puis revenir en arrière remontait tout en haut de la liste, ce qui
 // devient très pénible maintenant que ce rail peut contenir 60 fiches.
-let accueilBientotScrollLeft_ = 0;
+let accueilBientotScrollLeft_ = 0; // (ancien, remplacé par accueilRailsScrollLeft_)
+let accueilRailsScrollLeft_ = {}; // { "thème|rang du rail": scrollLeft }
 
 function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbAccueil }) {
   const scrollM = useScrollMemoire_("accueil");
 
-  // Restaure la position horizontale du rail "Ça part bientôt" au montage,
-  // et la mémorise en continu pendant le défilement (écoute en phase de
-  // capture car l'événement "scroll" ne remonte pas naturellement en DOM).
-  useEffect(() => {
-    const rail = document.querySelector(".bientot-rail");
-    if (rail) rail.scrollLeft = accueilBientotScrollLeft_;
+  // MODIFIÉ (16/10/2026) -- restaure la position horizontale de TOUS les rails
+  // de l'accueil (Ça part bientôt, Derniers ajouts, etc.), pas seulement du
+  // rail "Ça part bientôt" : ouvrir une fiche au milieu de "Derniers ajouts"
+  // puis revenir remettait ce rail tout à gauche (signalé par Ben, thème
+  // Chaîne Cryptée). Chaque rail est repéré par son rang dans l'écran (et le
+  // thème actif). Écoute en phase de capture car "scroll" ne remonte pas en DOM.
+  useLayoutEffect(() => {
+    const racine = scrollM.ref.current;
+    if (!racine) return;
+    const rails = () => Array.from(racine.querySelectorAll(".overflow-x-auto"));
+    const cle = (n) => CURRENT_THEME + "|" + n;
+    let arret = false;
+    let restauration = true;
+    const debut = Date.now();
+    const appliquer = () => {
+      if (arret) return;
+      let tousOk = true;
+      rails().forEach((r, n) => {
+        const cible = accueilRailsScrollLeft_[cle(n)] || 0;
+        if (cible && Math.abs(r.scrollLeft - cible) > 2) {
+          r.scrollLeft = cible;
+          if (Math.abs(r.scrollLeft - cible) > 2) tousOk = false;
+        }
+      });
+      if (tousOk || Date.now() - debut > 2000) { restauration = false; return; }
+      requestAnimationFrame(appliquer);
+    };
+    appliquer();
+    const stopper = () => { arret = true; restauration = false; };
+    racine.addEventListener("touchstart", stopper, { passive: true });
     const handler = (e) => {
-      if (e.target && e.target.classList && e.target.classList.contains("bientot-rail")) {
-        accueilBientotScrollLeft_ = e.target.scrollLeft;
+      if (restauration) return;
+      const t = e.target;
+      if (t && t.classList && t.classList.contains("overflow-x-auto")) {
+        const n = rails().indexOf(t);
+        if (n >= 0) accueilRailsScrollLeft_[cle(n)] = t.scrollLeft;
       }
     };
     document.addEventListener("scroll", handler, true);
-    return () => document.removeEventListener("scroll", handler, true);
+    return () => {
+      arret = true;
+      racine.removeEventListener("touchstart", stopper);
+      document.removeEventListener("scroll", handler, true);
+    };
   }, []);
 
   const bientot = useMemo(() => {
