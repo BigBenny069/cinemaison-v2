@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, FileText, Maximize2, Volume2, VolumeX } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -1234,18 +1234,40 @@ let accueilSuggestionId_ = null;
 const scrollMemoire_ = {};
 function useScrollMemoire_(cle) {
   const ref = useRef(null);
-  useEffect(() => {
+  const restaure = useRef(false); // true pendant la restauration automatique
+  // Restaure AVANT l'affichage (useLayoutEffect) puis réessaie pendant ~2 s :
+  // si le contenu (rails, images) n'a pas encore sa hauteur définitive, la
+  // position demandée est plafonnée par le navigateur -- on redemande jusqu'à
+  // l'obtenir, ou jusqu'à ce que l'utilisateur touche l'écran.
+  useLayoutEffect(() => {
     const cible = scrollMemoire_[cle] || 0;
-    if (!cible || !ref.current) return;
-    ref.current.scrollTop = cible;
-    // 2e passage : si le contenu s'affiche une image plus tard, la hauteur
-    // n'était pas encore suffisante au 1er passage.
-    const t = setTimeout(() => {
-      if (ref.current && Math.abs(ref.current.scrollTop - cible) > 2) ref.current.scrollTop = cible;
-    }, 120);
-    return () => clearTimeout(t);
+    const el = ref.current;
+    if (!cible || !el) return;
+    restaure.current = true;
+    let arret = false;
+    const debut = Date.now();
+    const appliquer = () => {
+      if (arret || !ref.current) return;
+      if (Math.abs(ref.current.scrollTop - cible) > 2) ref.current.scrollTop = cible;
+      if (Math.abs(ref.current.scrollTop - cible) <= 2 || Date.now() - debut > 2000) {
+        restaure.current = false;
+        return;
+      }
+      requestAnimationFrame(appliquer);
+    };
+    appliquer();
+    const stopper = () => { arret = true; restaure.current = false; };
+    el.addEventListener("touchstart", stopper, { passive: true });
+    el.addEventListener("wheel", stopper, { passive: true });
+    return () => {
+      arret = true;
+      el.removeEventListener("touchstart", stopper);
+      el.removeEventListener("wheel", stopper);
+    };
   }, [cle]);
-  const onScroll = () => { if (ref.current) scrollMemoire_[cle] = ref.current.scrollTop; };
+  // Pendant la restauration automatique, on ne mémorise pas : sinon une
+  // position plafonnée écraserait la vraie position à retrouver.
+  const onScroll = () => { if (ref.current && !restaure.current) scrollMemoire_[cle] = ref.current.scrollTop; };
   return { ref, onScroll };
 }
 
