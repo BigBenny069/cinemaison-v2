@@ -5056,6 +5056,144 @@ function ThemesScreen({ theme, onChangeTheme, onBack, onMenu, leaderEnabled, onT
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* ECRAN POUR TOI — suggestions quotidiennes (JustWatch)                */
+/* Alimenté par l'onglet SUGGESTIONS (Apps Script 25_SUGGESTIONS_...).  */
+/* ------------------------------------------------------------------ */
+function SuggestionsScreen({ onBack, onMenu, onAdded }) {
+  const scrollM = useScrollMemoire_("suggestions");
+  const [items, setItems] = useState(null);
+  const [erreur, setErreur] = useState(null);
+  const [filtre, setFiltre] = useState("Toutes");
+  const [parPlateforme, setParPlateforme] = useState(10);
+  const [saisie, setSaisie] = useState("10");
+  const [occupe, setOccupe] = useState({}); // cle -> true pendant un envoi
+  const [message, setMessage] = useState(null);
+
+  const charger = () => {
+    fetch("/api/get-films?suggestions=1")
+      .then((r) => { if (!r.ok) throw new Error("Erreur " + r.status); return r.json(); })
+      .then((d) => { setItems(d.items || []); setParPlateforme(d.parPlateforme || 10); setSaisie(String(d.parPlateforme || 10)); })
+      .catch((e) => setErreur(e.message));
+  };
+  useEffect(() => { charger(); }, []);
+
+  const retirer = (cle) => setItems((prev) => (prev || []).filter((i) => i.Cle !== cle));
+  const flash = (t) => { setMessage(t); setTimeout(() => setMessage(null), 2500); };
+
+  const envoyerRetour = async (it, verdict) => {
+    const r = await apiWrite("/api/add-film", {
+      action: "suggestionRetour", cle: it.Cle, verdict,
+      titreSugg: it.Titre, typeSugg: it.Type, genres: it.Genres,
+    });
+    return r;
+  };
+
+  const refuser = async (it, verdict) => {
+    setOccupe((o) => ({ ...o, [it.Cle]: true }));
+    const r = await envoyerRetour(it, verdict);
+    setOccupe((o) => ({ ...o, [it.Cle]: false }));
+    if (!r.ok) { flash(r.error || "Échec"); return; }
+    retirer(it.Cle);
+    flash(verdict === "N_AIME_PAS" ? "Noté : je proposerai moins de ça" : "Masqué");
+  };
+
+  const ajouter = async (it) => {
+    if (!window.confirm("Ajouter « " + it.Titre + " » à CinéMaison (" + it.Plateforme + ") ?")) return;
+    setOccupe((o) => ({ ...o, [it.Cle]: true }));
+    const r = await apiWrite("/api/add-film", {
+      titre: it.Titre, annee: String(it.Annee || ""), plateforme: it.Plateforme, type: it.Type || "Film",
+    });
+    if (!r.ok) { setOccupe((o) => ({ ...o, [it.Cle]: false })); flash(r.error || "Ajout impossible"); return; }
+    await envoyerRetour(it, "AJOUTE");
+    setOccupe((o) => ({ ...o, [it.Cle]: false }));
+    retirer(it.Cle);
+    flash("Ajouté à CinéMaison");
+    if (onAdded) onAdded();
+  };
+
+  const validerNombre = async () => {
+    const v = parseInt(saisie, 10);
+    if (!Number.isFinite(v) || v < 1 || v > 30) { setSaisie(String(parParPlateformeSafe(parPlateforme))); return; }
+    if (v === parPlateforme) return;
+    const r = await apiWrite("/api/add-film", { action: "suggestionReglage", parPlateforme: v });
+    if (r.ok) { setParPlateforme(v); flash("Pris en compte au prochain passage (demain matin)"); }
+    else { setSaisie(String(parPlateforme)); flash(r.error || "Échec"); }
+  };
+  function parParPlateformeSafe(x) { return x || 10; }
+
+  const plateformes = useMemo(() => ["Toutes", ...Array.from(new Set((items || []).map((i) => i.Plateforme)))], [items]);
+  const liste = useMemo(() => (items || []).filter((i) => filtre === "Toutes" || i.Plateforme === filtre), [items, filtre]);
+
+  const bouton = (label, onClick, couleur, desactive) => (
+    <button onClick={onClick} disabled={desactive} className="rounded-full px-3 py-1.5"
+      style={{ background: "transparent", border: `1px solid ${couleur}`, opacity: desactive ? 0.4 : 1 }}>
+      <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.4, color: couleur, fontWeight: 600 }}>{label}</span>
+    </button>
+  );
+
+  return (
+    <div {...scrollM} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
+      <ScreenHeader title="POUR TOI" onBack={onBack} onMenu={onMenu} />
+
+      {message && (
+        <div className="mb-3 rounded-xl px-4 py-2" style={{ background: T.surfaceRaised, border: `1px solid ${T.accent}55` }}>
+          <span style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>{message}</span>
+        </div>
+      )}
+
+      <div className="flex gap-2 overflow-x-auto mb-3 pb-1">
+        {plateformes.map((p) => (
+          <button key={p} onClick={() => setFiltre(p)} className="rounded-full px-3 py-1.5 flex-shrink-0"
+            style={{ background: filtre === p ? T.accent : T.surface, border: `1px solid ${filtre === p ? T.accent : T.line}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.4, color: filtre === p ? T.bg : T.muted, fontWeight: 600 }}>{p.toUpperCase()}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 mb-4">
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>PAR PLATEFORME</span>
+        <input value={saisie} onChange={(e) => setSaisie(e.target.value.replace(/[^\d]/g, ""))} onBlur={validerNombre}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} inputMode="numeric"
+          className="rounded-lg text-center" style={{ width: 52, padding: "4px 0", background: T.surface, border: `1px solid ${T.line}`, color: T.cream, fontFamily: F.mono, fontSize: 12 }} />
+      </div>
+
+      {erreur && <p style={{ fontFamily: F.serif, fontSize: 13, color: T.accent }}>Impossible de charger : {erreur}</p>}
+      {!items && !erreur && <p style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Chargement…</p>}
+
+      <div className="flex flex-col gap-3">
+        {liste.map((it) => (
+          <div key={it.Cle + it.Plateforme} className="rounded-xl p-3" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+            <div className="flex gap-3">
+              <Poster film={{ affiche: it.Affiche, titre: it.Titre }} className="w-20 h-28 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="truncate" style={{ fontFamily: F.serif, fontSize: 15, color: T.cream, fontWeight: 600 }}>{it.Titre}</p>
+                <p style={{ fontFamily: F.mono, fontSize: 10, color: T.muted, letterSpacing: 0.3 }}>
+                  {it.Annee || "—"} · {it.Type} · {it.Plateforme}{it.DisponibleJusqua ? " · jusqu'au " + it.DisponibleJusqua : ""}
+                </p>
+                {it.Genres && <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{it.Genres}</p>}
+                {it.Raison && <p className="mt-1" style={{ fontFamily: F.serif, fontSize: 12, color: T.accentSecondary, fontStyle: "italic" }}>{it.Raison}</p>}
+                {it.Synopsis && <p className="mt-1" style={{ fontFamily: F.serif, fontSize: 12, color: T.muted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.Synopsis}</p>}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3">
+              {bouton("AJOUTER", () => ajouter(it), T.accent, occupe[it.Cle])}
+              {bouton("PAS INTÉRESSÉ", () => refuser(it, "PAS_INTERESSE"), T.muted, occupe[it.Cle])}
+              {bouton("N'AIME PAS", () => refuser(it, "N_AIME_PAS"), T.mutedDim, occupe[it.Cle])}
+              {it.URL && <a href={it.URL} target="_blank" rel="noreferrer" className="rounded-full px-3 py-1.5" style={{ border: `1px solid ${T.line}` }}>
+                <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.muted }}>VOIR ↗</span></a>}
+            </div>
+          </div>
+        ))}
+        {items && liste.length === 0 && (
+          <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Aucune suggestion pour le moment.</p>
+        )}
+      </div>
+      <p className="mt-6 text-center" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim }}>Données : JustWatch</p>
+    </div>
+  );
+}
+
 function ReglagesScreen({ nbAccueil, onChangeNbAccueil, onRefresh, filmCount, onBack, onMenu, theme, onOpenThemes }) {
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = () => { setRefreshing(true); onRefresh(); setTimeout(() => setRefreshing(false), 900); };
@@ -5529,6 +5667,7 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
       { id: "recherche", title: "Recherche", nav: { name: "recherche", params: {} } },
       { id: "explorer", title: "Explorer", nav: { name: "explorer", params: {} } },
       { id: "genres", title: "Genres", nav: { name: "genres", params: {} } },
+      { id: "suggestions", title: "Pour toi", nav: { name: "suggestions", params: {} } },
     ]},
     { label: "TAGS", items: [
       { id: "tag_romy", title: "Romy", nav: { name: "tags", params: { tag: "Romy" } } },
@@ -6124,6 +6263,8 @@ export default function App() {
       body = <ArchivesScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "tags") {
       body = <TagsScreen films={films} tag={params.tag} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
+    } else if (name === "suggestions") {
+      body = <SuggestionsScreen onBack={goAccueil} onMenu={() => setMenuOpen(true)} onAdded={loadFilms} />;
     } else if (name === "reglages") {
       body = <ReglagesScreen nbAccueil={nbAccueil} onChangeNbAccueil={setNbAccueil} onRefresh={loadFilms} filmCount={films.length} onBack={goAccueil} onMenu={() => setMenuOpen(true)} theme={theme} onOpenThemes={() => navigate({ name: "themes", params: {} })} />;
     } else if (name === "themes") {
