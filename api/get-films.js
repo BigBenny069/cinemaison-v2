@@ -52,6 +52,32 @@ export default async function handler(req, res) {
     const sheets = await getSheetsClient();
     const sheetId = process.env.GOOGLE_SHEET_ID;
 
+    // NOUVEAU (18/10/2026) -- suggestions quotidiennes ("Pour toi") :
+    // servies par ce même point d'entrée (?suggestions=1) car Vercel Hobby
+    // plafonne à 12 fonctions et le projet est déjà au maximum.
+    if (req.query.suggestions === "1") {
+      const rep = await sheets.spreadsheets.values.batchGet({
+        spreadsheetId: sheetId,
+        ranges: ["SUGGESTIONS!A1:Z", "SUGGESTIONS_RETOURS!A1:F", "CONFIG!A1:C"],
+      });
+      const [sug, ret, conf] = (rep.data.valueRanges || []).map((v) => v.values || []);
+      // Cartes déjà traitées (pas intéressé / n'aime pas / ajouté) : cachées
+      // tout de suite, sans attendre le prochain passage d'Apps Script.
+      const traitees = new Set((ret || []).slice(1).map((r) => String(r[0] || "")));
+      const entetes = (sug && sug[0]) || [];
+      const items = (sug || []).slice(1).map((r) => {
+        const o = {};
+        entetes.forEach((h, i) => { o[h] = r[i] !== undefined ? r[i] : ""; });
+        return o;
+      }).filter((o) => o.Titre && !traitees.has(String(o.Cle)));
+      let parPlateforme = 10;
+      (conf || []).forEach((r) => {
+        if (String(r[0]).trim() === "SuggestionsParPlateforme") parPlateforme = parseInt(r[1], 10) || 10;
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ items, parPlateforme });
+    }
+
     // On lit toute la feuille "Films" (en-têtes + lignes)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
