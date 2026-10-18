@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { lireLetterboxd } from "../lib/letterboxd.js";
 
 // Colonnes qu'on expose au front pour l'instant (sous-ensemble des 53
 // colonnes du Sheet — on élargira au fil du développement des écrans).
@@ -38,7 +39,10 @@ async function getSheetsClient() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    // MODIFIÉ (18/10/2026) : droit d'écriture ajouté UNIQUEMENT pour mémoriser
+    // les notes Letterboxd des suggestions (onglet SUGGESTIONS). La lecture
+    // des fiches (Films) reste inchangée.
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
   return google.sheets({ version: "v4", auth });
 }
@@ -65,11 +69,50 @@ export default async function handler(req, res) {
       // tout de suite, sans attendre le prochain passage d'Apps Script.
       const traitees = new Set((ret || []).slice(1).map((r) => String(r[0] || "")));
       const entetes = (sug && sug[0]) || [];
-      const items = (sug || []).slice(1).map((r) => {
-        const o = {};
+      const items = (sug || []).slice(1).map((r, n) => {
+        const o = { _ligne: n + 2 };
         entetes.forEach((h, i) => { o[h] = r[i] !== undefined ? r[i] : ""; });
         return o;
       }).filter((o) => o.Titre && !traitees.has(String(o.Cle)));
+
+      // Notes Letterboxd : cherchées ici (Vercel) car Apps Script est bloqué
+      // par Letterboxd, puis mémorisées dans l'onglet pour ne pas les relire.
+      // Films uniquement (Letterboxd ne gère pas les séries). Quelques fiches
+      // par ouverture, les mieux classées d'abord, avec un temps limité.
+      const colNote = entetes.indexOf("NoteLetterboxd");
+      if (colNote >= 0) {
+        const aChercher = items
+          .filter((o) => o.Type === "Film" && o.TMDbID && !String(o.NoteLetterboxd || "").trim())
+          .sort((a, b) => (parseFloat(b.Score) || 0) - (parseFloat(a.Score) || 0))
+          .slice(0, 8);
+        if (aChercher.length) {
+          const trouvees = [];
+          const lecture = Promise.all(aChercher.map(async (o) => {
+            try {
+              const r = await lireLetterboxd(`https://letterboxd.com/tmdb/${String(o.TMDbID).trim()}/`);
+              if (r && r.ok && r.note) { o.NoteLetterboxd = String(r.note); trouvees.push(o); }
+            } catch (e) { /* on réessaiera à la prochaine ouverture */ }
+          }));
+          await Promise.race([lecture, new Promise((ok) => setTimeout(ok, 6500))]);
+          if (trouvees.length) {
+            const lettre = (i) => { let n = i + 1, t = ""; while (n > 0) { const m = (n - 1) % 26; t = String.fromCharCode(65 + m) + t; n = Math.floor((n - 1) / 26); } return t; };
+            try {
+              await sheets.spreadsheets.values.batchUpdate({
+                spreadsheetId: sheetId,
+                requestBody: {
+                  valueInputOption: "RAW",
+                  // une même fiche peut figurer sur plusieurs plateformes : on remplit toutes ses lignes
+                  data: items.filter((o) => trouvees.some((t) => t.Cle === o.Cle)).map((o) => {
+                    const t = trouvees.find((x) => x.Cle === o.Cle);
+                    o.NoteLetterboxd = t.NoteLetterboxd;
+                    return { range: `SUGGESTIONS!${lettre(colNote)}${o._ligne}`, values: [[t.NoteLetterboxd]] };
+                  }),
+                },
+              });
+            } catch (e) { console.error("[suggestions] mémorisation des notes impossible :", e.message); }
+          }
+        }
+      }
       let parPlateforme = 10;
       (conf || []).forEach((r) => {
         if (String(r[0]).trim() === "SuggestionsParPlateforme") parPlateforme = parseInt(r[1], 10) || 10;

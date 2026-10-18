@@ -5208,6 +5208,13 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
                 <p style={{ fontFamily: F.mono, fontSize: 10, color: T.muted, letterSpacing: 0.3 }}>
                   {it.Annee || "—"} · {it.Type} · {it.Plateforme}{it.DisponibleJusqua ? " · jusqu'au " + it.DisponibleJusqua : ""}
                 </p>
+                {(parseRating(it.NoteLetterboxd) != null || parseRating(it.NoteTMDb) != null) && (
+                  <p style={{ fontFamily: F.mono, fontSize: 10, color: T.gold || T.accentSecondary }}>
+                    {parseRating(it.NoteLetterboxd) != null
+                      ? <>★ {parseRating(it.NoteLetterboxd).toFixed(1)} <span style={{ color: T.mutedDim }}>Letterboxd</span></>
+                      : <>★ {parseRating(it.NoteTMDb).toFixed(1)}/10 <span style={{ color: T.mutedDim }}>TMDb</span></>}
+                  </p>
+                )}
                 {it.Genres && <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{it.Genres}</p>}
                 {it.Raison && <p className="mt-1" style={{ fontFamily: F.serif, fontSize: 12, color: T.accentSecondary, fontStyle: "italic" }}>{it.Raison}</p>}
                 {it.Synopsis && <p className="mt-1" style={{ fontFamily: F.serif, fontSize: 12, color: T.muted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.Synopsis}</p>}
