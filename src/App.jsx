@@ -4837,7 +4837,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
                 )}
                 <span className="min-w-0">
                   <span className="block truncate" style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>{r.titre}</span>
-                  <span className="block" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{r.annee || "—"}</span>
+                  <span className="block truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{r.annee || "—"}{r.realisateur ? " · " + r.realisateur : ""}</span>
                 </span>
               </button>
             ))}
