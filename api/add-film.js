@@ -87,6 +87,54 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
   }
 
+  // NOUVEAU (18/10/2026) -- suggestions quotidiennes : deux actions légères
+  // portées par ce point d'entrée (Vercel Hobby = 12 fonctions max, déjà
+  // atteint). "suggestionRetour" note le clic de Ben (Pas intéressé /
+  // N'aime pas / Ajouté) dans l'onglet SUGGESTIONS_RETOURS, lu ensuite par
+  // Apps Script pour apprendre ses goûts. "suggestionReglage" règle le
+  // nombre de suggestions par plateforme (CONFIG).
+  if (req.body && (req.body.action === "suggestionRetour" || req.body.action === "suggestionReglage")) {
+    try {
+      const sheets = await getSheetsClient();
+      const sheetId = process.env.GOOGLE_SHEET_ID;
+      if (req.body.action === "suggestionRetour") {
+        const { cle, verdict, titreSugg, typeSugg, genres } = req.body;
+        if (!cle || !["PAS_INTERESSE", "N_AIME_PAS", "AJOUTE"].includes(verdict)) {
+          return res.status(400).json({ error: "Retour de suggestion invalide" });
+        }
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: sheetId,
+          range: "SUGGESTIONS_RETOURS!A:F",
+          valueInputOption: "RAW",
+          requestBody: { values: [[String(cle), verdict, new Date().toISOString().slice(0, 10), titreSugg || "", typeSugg || "", genres || ""]] },
+        });
+        return res.status(200).json({ ok: true });
+      }
+      const n = parseInt(req.body.parPlateforme, 10);
+      if (!Number.isFinite(n) || n < 1 || n > 30) {
+        return res.status(400).json({ error: "Nombre entre 1 et 30" });
+      }
+      const conf = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: "CONFIG!A1:C" });
+      const lignes = conf.data.values || [];
+      const i = lignes.findIndex((r) => String(r[0]).trim() === "SuggestionsParPlateforme");
+      if (i >= 0) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId, range: `CONFIG!B${i + 1}`, valueInputOption: "RAW",
+          requestBody: { values: [[n]] },
+        });
+      } else {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: sheetId, range: "CONFIG!A:C", valueInputOption: "RAW",
+          requestBody: { values: [["SuggestionsParPlateforme", n, "Ajouté depuis l'app"]] },
+        });
+      }
+      return res.status(200).json({ ok: true, parPlateforme: n });
+    } catch (e) {
+      console.error("[add-film/suggestions]", e);
+      return res.status(500).json({ error: "Écriture impossible : " + e.message });
+    }
+  }
+
   if (!titre || !annee || !plateforme || !type) {
     return res.status(400).json({ error: "Titre, année, plateforme et type sont obligatoires" });
   }
