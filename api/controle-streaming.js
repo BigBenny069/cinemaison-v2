@@ -17,7 +17,7 @@
 import { google } from "googleapis";
 import { appelerWebhookAvecReessai } from "../lib/webhook.js";
 
-const PLATEFORMES_AUTORISEES = ["NETFLIX", "DISNEY", "SHADOWZ"];
+const PLATEFORMES_AUTORISEES = ["NETFLIX", "DISNEY", "SHADOWZ", "PARAMOUNT"];
 
 function nomOngletControle(plateforme) {
   return "CONTROLE_" + plateforme;
