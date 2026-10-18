@@ -2512,7 +2512,44 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           </div>
         </>
       )}
+
+      <AccueilSuggestionsRail onNavigate={onNavigate} />
     </div>
+  );
+}
+
+// NOUVEAU (18/10/2026) -- bandeau "POUR TOI" tout en bas de l'accueil, dans
+// tous les thèmes : un aperçu des meilleures suggestions du jour (les
+// boutons Ajouter / Pas intéressé / N'aime pas sont dans l'écran dédié).
+function AccueilSuggestionsRail({ onNavigate }) {
+  const [items, setItems] = useState(null);
+  useEffect(() => {
+    let vivant = true;
+    fetch("/api/get-films?suggestions=1")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (vivant && d && d.items) setItems(d.items); })
+      .catch(() => {});
+    return () => { vivant = false; };
+  }, []);
+  const apercu = useMemo(() => {
+    if (!items) return [];
+    return [...items].sort((a, b) => (parseFloat(b.Score) || 0) - (parseFloat(a.Score) || 0)).slice(0, 12);
+  }, [items]);
+  if (apercu.length === 0) return null;
+  return (
+    <>
+      <SectionTitle icon={Star} onMore={() => onNavigate({ name: "suggestions", params: {} })}>POUR TOI</SectionTitle>
+      <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
+        {apercu.map((it) => (
+          <button key={it.Cle + it.Plateforme} onClick={() => onNavigate({ name: "suggestions", params: {} })}
+            className="flex-shrink-0 text-left" style={{ width: 96 }}>
+            <Poster film={{ affiche: it.Affiche, titre: it.Titre }} className="flex-shrink-0" style={{ width: 96, height: 136, borderRadius: 6 }} />
+            <p className="truncate mt-1" style={{ fontFamily: F.serif, fontSize: 12, color: T.cream }}>{it.Titre}</p>
+            <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim }}>{it.Plateforme}</p>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 
