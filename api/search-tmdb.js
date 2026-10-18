@@ -21,6 +21,32 @@
 // recherche TMDb en lecture seule, aucun mot de passe n'est donc requis
 // (contrairement à add-film/update-film/delete-film).
 
+// Mémoire pendant la vie de l'instance : évite de redemander le même film
+// à TMDb à chaque lettre tapée.
+const CACHE_REALISATEUR = new Map();
+
+async function lireRealisateur(id, estSerie, apiKey) {
+  const cle = (estSerie ? "tv" : "movie") + ":" + id;
+  if (CACHE_REALISATEUR.has(cle)) return CACHE_REALISATEUR.get(cle);
+  try {
+    const url = estSerie
+      ? `https://api.themoviedb.org/3/tv/${id}?api_key=${apiKey}&language=fr-FR`
+      : `https://api.themoviedb.org/3/movie/${id}/credits?api_key=${apiKey}&language=fr-FR`;
+    const rep = await fetch(url);
+    if (!rep.ok) return null;
+    const d = await rep.json();
+    const noms = estSerie
+      ? (d.created_by || []).map((p) => p.name)
+      : (d.crew || []).filter((p) => p.job === "Director").map((p) => p.name);
+    const texte = noms.filter(Boolean).slice(0, 2).join(", ") || null;
+    if (CACHE_REALISATEUR.size > 500) CACHE_REALISATEUR.clear();
+    CACHE_REALISATEUR.set(cle, texte);
+    return texte;
+  } catch (e) {
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey) {
@@ -58,11 +84,20 @@ export default async function handler(req, res) {
     // /search/tv renvoie "name"/"first_air_date" au lieu de
     // "title"/"release_date" (mêmes noms de champs que l'app attend
     // dans les deux cas, une fois passés dans .map ci-dessous).
-    const results = (data.results || []).slice(0, 8).map((r) => ({
+    // NOUVEAU (18/10/2026) -- ajoute le réalisateur à côté de l'année
+    // (demandé par Ben, pour distinguer les films de même titre). La
+    // recherche TMDb ne le fournit pas : un appel de détail par résultat,
+    // en parallèle. Film -> réalisateur(s) (crédits) ; série -> créateur(s).
+    // Un échec sur un résultat n'empêche jamais d'afficher la liste
+    // (realisateur = null).
+    const brut = (data.results || []).slice(0, 8);
+    const realisateurs = await Promise.all(brut.map((r) => lireRealisateur(r.id, estSerie, apiKey)));
+    const results = brut.map((r, i) => ({
       titre: estSerie ? r.name : r.title,
       annee: (estSerie ? r.first_air_date : r.release_date) ? (estSerie ? r.first_air_date : r.release_date).slice(0, 4) : null,
       affiche: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
       tmdbId: r.id,
+      realisateur: realisateurs[i],
     }));
     return res.status(200).json({ results });
   } catch (e) {
