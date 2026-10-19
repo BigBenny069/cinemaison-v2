@@ -5102,6 +5102,8 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
   const [items, setItems] = useState(null);
   const [erreur, setErreur] = useState(null);
   const [filtre, setFiltre] = useState("Toutes");
+  const [onglet, setOnglet] = useState("jour"); // "jour" = Nouveautés du jour, "hebdo" = Liste hebdo
+  const [aujourdhui, setAujourdhui] = useState("");
   const [parPlateforme, setParPlateforme] = useState(10);
   const [saisie, setSaisie] = useState("10");
   const [occupe, setOccupe] = useState({}); // cle -> true pendant un envoi
@@ -5110,7 +5112,7 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
   const charger = () => {
     fetch("/api/get-films?suggestions=1")
       .then((r) => { if (!r.ok) throw new Error("Erreur " + r.status); return r.json(); })
-      .then((d) => { setItems(d.items || []); setParPlateforme(d.parPlateforme || 10); setSaisie(String(d.parPlateforme || 10)); })
+      .then((d) => { setItems(d.items || []); setAujourdhui(d.aujourdhui || ""); setParPlateforme(d.parPlateforme || 10); setSaisie(String(d.parPlateforme || 10)); })
       .catch((e) => setErreur(e.message));
   };
   useEffect(() => { charger(); }, []);
@@ -5159,8 +5161,20 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
   };
   function parParPlateformeSafe(x) { return x || 10; }
 
-  const plateformes = useMemo(() => ["Toutes", ...Array.from(new Set((items || []).map((i) => i.Plateforme)))], [items]);
-  const liste = useMemo(() => (items || []).filter((i) => filtre === "Toutes" || i.Plateforme === filtre), [items, filtre]);
+  const estDuJour = (i) => !!aujourdhui && i.PremiereVue === aujourdhui;
+  const nbJour = useMemo(() => (items || []).filter(estDuJour).length, [items, aujourdhui]);
+  const nbHebdo = (items || []).length - nbJour;
+  const ongletItems = useMemo(
+    () => (items || []).filter((i) => (onglet === "jour" ? estDuJour(i) : !estDuJour(i))),
+    [items, onglet, aujourdhui]
+  );
+  const plateformes = useMemo(() => ["Toutes", ...Array.from(new Set(ongletItems.map((i) => i.Plateforme)))], [ongletItems]);
+  const liste = useMemo(
+    () => ongletItems
+      .filter((i) => filtre === "Toutes" || i.Plateforme === filtre)
+      .sort((a, b) => (parseFloat(b.Score) || 0) - (parseFloat(a.Score) || 0)),
+    [ongletItems, filtre]
+  );
 
   const bouton = (label, onClick, couleur, desactive) => (
     <button onClick={onClick} disabled={desactive} className="rounded-full px-3 py-1.5"
@@ -5179,6 +5193,15 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
         </div>
       )}
 
+      <div className="flex gap-2 mb-3">
+        {[["jour", "NOUVEAUTÉS DU JOUR", nbJour], ["hebdo", "LISTE HEBDO", nbHebdo]].map(([id, titre, n]) => (
+          <button key={id} onClick={() => { setOnglet(id); setFiltre("Toutes"); }} className="flex-1 rounded-xl py-2"
+            style={{ background: onglet === id ? T.accent : T.surface, border: `1px solid ${onglet === id ? T.accent : T.line}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 0.4, fontWeight: 700, color: onglet === id ? T.bg : T.muted }}>{titre} ({n})</span>
+          </button>
+        ))}
+      </div>
+
       <div className="flex gap-2 overflow-x-auto mb-3 pb-1">
         {plateformes.map((p) => (
           <button key={p} onClick={() => setFiltre(p)} className="rounded-full px-3 py-1.5 flex-shrink-0"
@@ -5189,7 +5212,7 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
       </div>
 
       <div className="flex items-center gap-2 mb-4">
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>PAR PLATEFORME</span>
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>DANS LE MAIL : PAR PLATEFORME ET PAR PARTIE</span>
         <input value={saisie} onChange={(e) => setSaisie(e.target.value.replace(/[^\d]/g, ""))} onBlur={validerNombre}
           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} inputMode="numeric"
           className="rounded-lg text-center" style={{ width: 52, padding: "4px 0", background: T.surface, border: `1px solid ${T.line}`, color: T.cream, fontFamily: F.mono, fontSize: 12 }} />
@@ -5204,7 +5227,10 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
             <div className="flex gap-3">
               <Poster film={{ affiche: it.Affiche, titre: it.Titre }} className="w-20 h-28 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="truncate" style={{ fontFamily: F.serif, fontSize: 15, color: T.cream, fontWeight: 600 }}>{it.Titre}</p>
+                <p className="truncate" style={{ fontFamily: F.serif, fontSize: 15, color: T.cream, fontWeight: 600 }}>
+                  {estDuJour(it) && <span className="rounded-full px-1.5 py-0.5 mr-1.5" style={{ background: T.accent, color: T.bg, fontFamily: F.mono, fontSize: 8.5, letterSpacing: 0.4, verticalAlign: "middle" }}>NOUVEAU</span>}
+                  {it.Titre}
+                </p>
                 <p style={{ fontFamily: F.mono, fontSize: 10, color: T.muted, letterSpacing: 0.3 }}>
                   {it.Annee || "—"} · {it.Type} · {it.Plateforme}{it.DisponibleJusqua ? " · jusqu'au " + it.DisponibleJusqua : ""}
                 </p>
@@ -5230,7 +5256,7 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
           </div>
         ))}
         {items && liste.length === 0 && (
-          <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Aucune suggestion pour le moment.</p>
+          <p className="text-center mt-8" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>{onglet === "jour" ? "Aucune nouveauté aujourd'hui pour l'instant." : "Rien de plus cette semaine."}</p>
         )}
       </div>
       <p className="mt-6 text-center" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim }}>Données : JustWatch</p>
@@ -6103,7 +6129,15 @@ export default function App() {
   const [, setThemeTick] = useState(0);
   // screen = { name, params }. "fiche" a un champ params.film et params.from
   // (l'écran précédent) pour que le bouton retour ramène au bon endroit.
-  const [screen, setScreen] = useState({ name: "accueil", params: {} });
+  const [screen, setScreen] = useState(() => {
+    // Lien « Voir toute la liste » du mail : /?vue=suggestions ouvre « Pour toi ».
+    try {
+      if (new URLSearchParams(window.location.search).get("vue") === "suggestions") {
+        return { name: "suggestions", params: {} };
+      }
+    } catch {}
+    return { name: "accueil", params: {} };
+  });
   // Écran d'ouverture (marquee + rideau) — reste monté jusqu'à ce que le
   // rideau ait fini de s'ouvrir, PAS juste tant que films est vide, pour
   // avoir une vraie transition au lieu d'un cut brutal dès l'arrivée des
