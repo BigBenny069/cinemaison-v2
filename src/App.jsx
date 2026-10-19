@@ -2547,7 +2547,16 @@ function AccueilSuggestionsRail({ onNavigate }) {
             className="flex-shrink-0 text-left" style={{ width: 96 }}>
             <Poster film={{ affiche: it.Affiche, titre: it.Titre }} className="flex-shrink-0" style={{ width: 96, height: 136, borderRadius: 6 }} />
             <p className="truncate mt-1" style={{ fontFamily: F.serif, fontSize: 12, color: T.cream }}>{it.Titre}</p>
-            <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim }}>{it.Plateforme}</p>
+            <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim }}>
+              {it.Plateforme}
+              {(() => {
+                // Note Letterboxd (sur 5) si on l'a, sinon note TMDb (sur 10)
+                const lb = parseRating(it.NoteLetterboxd);
+                if (lb != null) return " · ★ " + lb.toFixed(1);
+                const tm = parseFloat(String(it.NoteTMDb || "").replace(",", "."));
+                return !isNaN(tm) ? " · ★ " + tm.toFixed(1) + "/10" : "";
+              })()}
+            </p>
           </button>
         ))}
       </div>
