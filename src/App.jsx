@@ -592,6 +592,8 @@ const CANAL_CHAINES_V1 = {
   "50008": { label: "ARTE", slug: "arte" },
   "50016": { label: "COMÉDIE+", slug: "comedieplus" },
   "50026": { label: "FRANCE.TV", slug: "francetv" },
+  // Ajouté le 19/10/2026 (signalé par le mail "écarts avec Ma Liste" : FILM1363).
+  "50027": { label: "FRANCE.TV", slug: "francetv" },
   "50035": { label: "M6/M6+", slug: "m6" },
   "50049": { label: "PARIS PREMIÈRE", slug: "parispremiere" },
   "50055": { label: "SÉRIE CLUB", slug: "serieclub" },
