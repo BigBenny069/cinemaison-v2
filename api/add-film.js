@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { lireLetterboxd } from "../lib/letterboxd.js";
 import { declencherWorkflowLetterboxdV1_ } from "../lib/github-actions.js";
+import { avisValide, enregistrerAvis, trouverFilm } from "../lib/avis.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -93,6 +94,25 @@ export default async function handler(req, res) {
   // N'aime pas / Ajouté) dans l'onglet SUGGESTIONS_RETOURS, lu ensuite par
   // Apps Script pour apprendre ses goûts. "suggestionReglage" règle le
   // nombre de suggestions par plateforme (CONFIG).
+  // NOUVEAU (19/10/2026) -- "avisFilm" : avis (1 à 5) donné depuis le bouton
+  // "Mon avis" d'une fiche gardée. Voir lib/avis.js.
+  if (req.body && req.body.action === "avisFilm") {
+    try {
+      if (!avisValide(req.body.avis) || !req.body.id) {
+        return res.status(400).json({ error: "Avis ou fiche invalide" });
+      }
+      const sheets = await getSheetsClient();
+      const sheetId = process.env.GOOGLE_SHEET_ID;
+      const film = await trouverFilm(sheets, sheetId, req.body.id);
+      if (!film) return res.status(404).json({ error: "Fiche introuvable" });
+      await enregistrerAvis(sheets, sheetId, film, req.body.avis, "fiche");
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error("[add-film/avis]", e);
+      return res.status(500).json({ error: "Écriture impossible : " + e.message });
+    }
+  }
+
   if (req.body && (req.body.action === "suggestionRetour" || req.body.action === "suggestionReglage")) {
     try {
       const sheets = await getSheetsClient();

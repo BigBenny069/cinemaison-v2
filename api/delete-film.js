@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { avisValide, enregistrerAvis, filmDepuisLigne } from "../lib/avis.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -16,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { password, id } = req.body || {};
+  const { password, id, avis } = req.body || {};
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
@@ -38,6 +39,20 @@ export default async function handler(req, res) {
 
     if (rowIndex === -1) {
       return res.status(404).json({ error: `Aucune fiche avec l'ID ${id}` });
+    }
+
+    // 1 bis) NOUVEAU (19/10/2026) -- avis de Ben (1 à 5) donné au moment de
+    // supprimer : on le garde, avec les genres/réalisateur/acteurs du film,
+    // dans l'onglet AVIS AVANT d'effacer la ligne (sinon ses goûts
+    // disparaîtraient avec la fiche). Un échec ici ne bloque pas la suppression.
+    let avisEnregistre = false;
+    if (avisValide(avis)) {
+      try {
+        await enregistrerAvis(sheets, spreadsheetId, filmDepuisLigne(headers, rows[rowIndex]), avis, "suppression");
+        avisEnregistre = true;
+      } catch (e) {
+        console.error("[delete-film/avis]", e.message);
+      }
     }
 
     // 2) Retrouver le sheetId interne (numérique) de l'onglet "Films"
@@ -62,7 +77,7 @@ export default async function handler(req, res) {
       },
     });
 
-    return res.status(200).json({ id, deleted: true });
+    return res.status(200).json({ id, deleted: true, avisEnregistre });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: "Impossible de supprimer la fiche", details: e.message });
