@@ -27,6 +27,8 @@ const CAMEL_TO_HEADER = {
   dateAuto: "DateDisponibiliteAuto",
   tmdbId: "TMDbID", imdbId: "IMDbID",
   urlPlateforme: "URLPlateforme",
+  // NOUVEAU : langue de lecture (VF / VOST / VF + VOST / VO), écrite par langues.js
+  langue: "Langue",
   // CORRECTIF (22/09/2026) -- champ manquant depuis toujours (pas une
   // régression récente, vérifié) : canal.js écrit canalContentId ET
   // urlPlateforme dans le même appel en lot depuis le début, mais SEUL
