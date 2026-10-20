@@ -3177,6 +3177,11 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <div className="flex items-center gap-2.5 mt-2 flex-wrap">
           <PlatformIcon label={film.plateforme} canalContentId={film.canalContentId} urlPlateforme={film.urlPlateforme} type={film.type} />
           {(film.plateforme || "").toUpperCase() === "CANAL+" && <ChaineCanalBadge canalContentId={film.canalContentId} />}
+          {film.langue && (
+            <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: T.muted, border: `1px solid ${T.line}`, borderRadius: 6, padding: "3px 8px" }}>
+              {film.langue}
+            </span>
+          )}
           {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
         </div>
 
