@@ -2902,6 +2902,35 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
 }
 
 // Petit label de section dans la fiche détail (SYNOPSIS, DISTRIBUTION...).
+/* NOUVEAU (19/10/2026) -- avis de Ben sur un film : 5 niveaux, utilisés pour
+   affiner les suggestions ("Pour toi"). Donné à la suppression d'une fiche
+   ou depuis le bouton "Mon avis" d'une fiche gardée. 2 = Neutre, sans effet. */
+const AVIS_NIVEAUX = [
+  { v: 1, emoji: "👎", label: "J'aime pas" },
+  { v: 2, emoji: "😐", label: "Neutre" },
+  { v: 3, emoji: "🙂", label: "J'aime bien" },
+  { v: 4, emoji: "😍", label: "J'adore" },
+  { v: 5, emoji: "🤩", label: "J'adore++" },
+];
+
+function AvisChoix({ value, onChange, disabled }) {
+  return (
+    <div className="flex gap-1.5 justify-between">
+      {AVIS_NIVEAUX.map((n) => {
+        const actif = value === n.v;
+        return (
+          <button key={n.v} type="button" disabled={disabled} onClick={() => onChange(n.v)}
+            className="flex-1 flex flex-col items-center justify-center rounded-lg py-2"
+            style={{ background: actif ? T.accentSoft : T.surface, border: `1px solid ${actif ? T.accent : T.line}`, opacity: disabled ? 0.6 : 1, minHeight: 58 }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>{n.emoji}</span>
+            <span className="mt-1" style={{ fontFamily: F.mono, fontSize: 8.5, color: actif ? T.accent : T.muted, letterSpacing: 0.2, textAlign: "center" }}>{n.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // En Minitel, préfixe "▸" bleu au lieu des petites majuscules grises.
 function FicheLabel({ children, className }) {
     return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
@@ -2940,6 +2969,31 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
   const [confirmLiees, setConfirmLiees] = useState(false);
   const [suppressionLiees, setSuppressionLiees] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // NOUVEAU (19/10/2026) -- avis (1 à 5) : celui demandé à la suppression
+  // (Neutre par défaut) et celui d'une fiche gardée (bouton "Mon avis").
+  const [avisSuppression, setAvisSuppression] = useState(2);
+  const [avisFiche, setAvisFiche] = useState(null);
+  const [avisOuvert, setAvisOuvert] = useState(false);
+  const [avisEnvoi, setAvisEnvoi] = useState(false);
+  useEffect(() => {
+    let vivant = true;
+    fetch("/api/get-films?avis=1&id=" + encodeURIComponent(film.id))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (vivant && d && d.avis) setAvisFiche(d.avis); })
+      .catch(() => {});
+    return () => { vivant = false; };
+  }, [film.id]);
+  const handleAvisFiche = async (v) => {
+    setAvisEnvoi(true);
+    const result = await apiWrite("/api/add-film", { action: "avisFilm", id: film.id, avis: v });
+    setAvisEnvoi(false);
+    if (!result.ok) {
+      window.alert(result.error || "Impossible d'enregistrer l'avis");
+      return;
+    }
+    setAvisFiche(v);
+    setAvisOuvert(false);
+  };
   const [revising, setRevising] = useState(false);
   const [revised, setRevised] = useState(false);
 
@@ -2961,7 +3015,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
 
   const handleDelete = async () => {
     setDeleting(true);
-    const result = await apiWrite("/api/delete-film", { id: film.id });
+    const result = await apiWrite("/api/delete-film", { id: film.id, avis: avisSuppression });
     setDeleting(false);
     if (!result.ok) {
       window.alert(result.error || "Impossible de supprimer cette fiche");
@@ -3294,7 +3348,29 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <p className="mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
           Si l'affiche, le synopsis ou la note te semblent faux — le script les recalculera d'ici quelques minutes.
         </p>
+
+        <button onClick={() => setAvisOuvert(true)} className="flex items-center justify-center gap-2 w-full rounded-lg py-3 mt-6"
+          style={{ background: T.surface, border: `1px solid ${avisFiche ? T.accent : T.line}` }}>
+          <span style={{ fontSize: 16 }}>{avisFiche ? AVIS_NIVEAUX[avisFiche - 1].emoji : "⭐"}</span>
+          <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 0.5, color: T.accent, fontWeight: 600 }}>
+            {avisFiche ? "MON AVIS : " + AVIS_NIVEAUX[avisFiche - 1].label.toUpperCase() : "DONNER MON AVIS"}
+          </span>
+        </button>
+        <p className="mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
+          Ton avis aide à mieux choisir les suggestions « Pour toi ».
+        </p>
       </div>
+
+      {avisOuvert && (
+        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: "rgba(20,16,12,0.7)" }} onClick={() => !avisEnvoi && setAvisOuvert(false)}>
+          <div className="w-full rounded-t-2xl p-5" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460, background: T.surfaceRaised, paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+            <p style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>TON AVIS</p>
+            <p className="mt-1 mb-4" style={{ fontFamily: F.serif, fontSize: 13, color: T.muted }}>« {film.titre} »</p>
+            <AvisChoix value={avisFiche} onChange={handleAvisFiche} disabled={avisEnvoi} />
+            <button onClick={() => setAvisOuvert(false)} disabled={avisEnvoi} className="w-full rounded-lg py-2.5 mt-4" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>FERMER</button>
+          </div>
+        </div>
+      )}
 
       {posterOpen && (
         <div onClick={() => setPosterOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(10,8,6,0.92)", padding: 20 }}>
@@ -3338,6 +3414,8 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <p className="mt-1 mb-4" style={{ fontFamily: F.serif, fontSize: 13, color: T.muted }}>
               « {film.titre} » sera retiré définitivement du Sheet. Cette action est irréversible.
             </p>
+            <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: T.mutedDim }}>TON AVIS SUR CE FILM (AFFINE LES SUGGESTIONS)</p>
+            <div className="mb-4"><AvisChoix value={avisSuppression} onChange={setAvisSuppression} disabled={deleting} /></div>
             <div className="flex gap-2">
               <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 rounded-lg py-2.5" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>ANNULER</button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 rounded-lg py-2.5" style={{ background: T.alert, fontFamily: F.mono, fontSize: 11, color: T.cream, opacity: deleting ? 0.7 : 1 }}>

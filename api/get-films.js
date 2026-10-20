@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { traiterSuggestions } from "../lib/suggestions.js";
+import { lireAvis, trouverFilm } from "../lib/avis.js";
 
 // Colonnes qu'on expose au front pour l'instant (sous-ensemble des 53
 // colonnes du Sheet — on élargira au fil du développement des écrans).
@@ -48,6 +49,21 @@ async function getSheetsClient() {
 }
 
 export default async function handler(req, res) {
+  // NOUVEAU (19/10/2026) -- ?avis=1&id=FILM123 : avis actuel (1 à 5, ou null)
+  // d'une fiche gardée, pour le bouton "Mon avis" de la fiche détaillée.
+  if (req.method === "GET" && req.query && req.query.avis === "1" && req.query.id) {
+    try {
+      const sheets = await getSheetsClient();
+      const sheetId = process.env.GOOGLE_SHEET_ID;
+      const film = await trouverFilm(sheets, sheetId, String(req.query.id));
+      const avis = film ? await lireAvis(sheets, sheetId, film) : null;
+      return res.status(200).json({ avis });
+    } catch (e) {
+      console.error("[avis]", e);
+      return res.status(500).json({ error: "Avis indisponible", details: e.message });
+    }
+  }
+
   // NOUVEAU (19/10/2026) -- suggestions quotidiennes ("Pour toi") : servies
   // par ce même point d'entrée car Vercel Hobby plafonne à 12 fonctions et le
   // projet est déjà au maximum. Toute la logique est dans lib/suggestions.js
