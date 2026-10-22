@@ -8,7 +8,7 @@
 // 11_CONTROLE_PRIME_OFFICIEL.gs puisse mettre à jour Type
 // automatiquement (Indispo/VOD/Bientôt disponible/restauration).
 // séparés. Même fichier, dispatch par body.action.
-import { google } from "googleapis";
+import { google } from "../lib/google.js";
 import { appelerWebhookAvecReessai } from "../lib/webhook.js";
 
 // Doit rester identique à PRIME_CONTROLE_FEUILLE_V110 dans

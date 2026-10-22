@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { google } from "../lib/google.js";
 import { lireLetterboxd, estUrlLetterboxdExploitable } from "../lib/letterboxd.js";
 import { declencherWorkflowLetterboxdV1_ } from "../lib/github-actions.js";
 import { appelerWebhookAvecReessai } from "../lib/webhook.js";

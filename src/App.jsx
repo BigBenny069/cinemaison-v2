@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, FileText, Maximize2, Volume2, VolumeX } from "lucide-react";
+import { Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* THÈMES — deux palettes disponibles, sélectionnables dans Réglages.  */
@@ -2598,48 +2598,6 @@ function activeTag(film) {
   return null;
 }
 
-function TagSelector({ film, onSaved }) {
-  const [tag, setTag] = useState(() => activeTag(film));
-  const [saving, setSaving] = useState(false);
-
-  const handlePick = async (t) => {
-    const newTag = tag === t.id ? null : t.id;
-    setTag(newTag); // optimiste
-    setSaving(true);
-    const fields = { benoit: false, romy: false, aDeux: false, enFamille: false };
-    if (newTag) {
-      const key = newTag === "Romy" ? "romy" : newTag === "Benoit" ? "benoit" : newTag === "À deux" ? "aDeux" : "enFamille";
-      fields[key] = true;
-    }
-    const result = await apiWrite("/api/update-film", { id: film.id, fields });
-    setSaving(false);
-    if (!result.ok) {
-      setTag(tag); // on annule si ça a échoué
-      window.alert(result.error || "Impossible d'enregistrer le tag");
-    } else if (onSaved) {
-      onSaved(film.id, fields);
-    }
-  };
-
-  return (
-    <div className="mt-5">
-      <h4 className="mb-2" style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>À VOIR</h4>
-      <div className="flex gap-2 flex-wrap">
-        {TAG_LIST().map((t) => {
-          const active = tag === t.id;
-          return (
-            <button key={t.id} onClick={() => handlePick(t)} disabled={saving}
-              className="rounded-full px-3 py-2"
-              style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "66" : T.line}`, fontFamily: F.serif, fontSize: 12.5, color: active ? T.accent : T.muted, opacity: saving ? 0.6 : 1 }}>
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 /**
  * Nettoie (tolère une URL complète, cf correctif du 11/09/2026) ET
  * valide le format d'un ID TMDb -- corrige le 12/09/2026 : un caractère
@@ -3545,20 +3503,6 @@ function autresPlateformesPourFilm_(film, tousLesFilms) {
     if (f.plateforme && f.plateforme !== film.plateforme) trouvees.add(f.plateforme);
   });
   return Array.from(trouvees);
-}
-
-// Devine l'URL Letterboxd la plus probable à partir du titre — Letterboxd
-// n'a pas d'API de recherche publique (contrairement à TMDb), donc pas de
-// vraie autocomplete possible ici. Le format d'URL Letterboxd suit presque
-// toujours ce schéma (titre en minuscules, sans accents, espaces -> tirets),
-// donc cette estimation tombe juste la plupart du temps, mais reste une
-// estimation — d'où le bouton "Vérifier sur Letterboxd" à côté pour corriger
-// en un clic si besoin.
-function slugifyLetterboxd_(titre) {
-  return normalizeSearch(titre)
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-");
 }
 
 function matchFilm(film, query) {
