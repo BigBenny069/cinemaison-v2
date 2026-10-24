@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { google } from "../lib/google.js";
 import { avisValide, enregistrerAvis, filmDepuisLigne } from "../lib/avis.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";

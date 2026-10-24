@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { google } from "../lib/google.js";
 import { traiterSuggestions } from "../lib/suggestions.js";
 import { lireAvis, trouverFilm } from "../lib/avis.js";
 

@@ -14,7 +14,7 @@
 // déjà (utile pour valider que les collecteurs envoient bien des
 // données), mais action="apply" échouera proprement (502) tant que ce
 // pendant n'est pas construit.
-import { google } from "googleapis";
+import { google } from "../lib/google.js";
 import { appelerWebhookAvecReessai } from "../lib/webhook.js";
 
 const PLATEFORMES_AUTORISEES = ["NETFLIX", "DISNEY", "SHADOWZ", "PARAMOUNT"];
