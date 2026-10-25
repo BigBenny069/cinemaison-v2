@@ -47,6 +47,24 @@ async function lireRealisateur(id, estSerie, apiKey) {
   }
 }
 
+// Caractères d'écritures non latines (grec, cyrillique, arabe, hébreu, thaï,
+// chinois/japonais/coréen...). Les accents et la ponctuation typographique
+// (’ – …) ne comptent pas.
+const NON_LATIN = /[\u0370-\u1DFF\u2E80-\uA4CF\uAC00-\uD7FF\uF900-\uFAFF]/;
+
+/** Titre anglais d'un film/série (TMDb en-US), ou null si indisponible. */
+async function lireTitreAnglais(id, estSerie, apiKey) {
+  try {
+    const url = `https://api.themoviedb.org/3/${estSerie ? "tv" : "movie"}/${id}?api_key=${apiKey}&language=en-US`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (estSerie ? d.name : d.title) || null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey) {
@@ -92,8 +110,20 @@ export default async function handler(req, res) {
     // (realisateur = null).
     const brut = (data.results || []).slice(0, 8);
     const realisateurs = await Promise.all(brut.map((r) => lireRealisateur(r.id, estSerie, apiKey)));
+    // NOUVEAU (25/10/2026) -- TMDb renvoie le titre ORIGINAL (japonais,
+    // coréen, russe...) quand il n'existe pas de titre français. Cas réel :
+    // "House of Sayuri" ajouté sous son titre japonais (FILM1388). Pour
+    // chaque résultat dont le titre est en caractères non latins, on prend
+    // le titre ANGLAIS de TMDb (un appel de détail en en-US) ; s'il échoue
+    // ou reste non latin, on garde le titre d'origine.
+    const titresAffiches = await Promise.all(brut.map(async (r) => {
+      const titre = estSerie ? r.name : r.title;
+      if (!NON_LATIN.test(titre || "")) return titre;
+      const anglais = await lireTitreAnglais(r.id, estSerie, apiKey);
+      return anglais && !NON_LATIN.test(anglais) ? anglais : titre;
+    }));
     const results = brut.map((r, i) => ({
-      titre: estSerie ? r.name : r.title,
+      titre: titresAffiches[i],
       annee: (estSerie ? r.first_air_date : r.release_date) ? (estSerie ? r.first_air_date : r.release_date).slice(0, 4) : null,
       affiche: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
       tmdbId: r.id,
