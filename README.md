@@ -15,6 +15,22 @@ côté Sheet exactement comme avant ; cette app est une nouvelle "vitrine" par-d
 - `src/App.jsx` — écran minimal qui affiche les films récupérés, pour valider que
   toute la chaîne fonctionne (Sheet → API → navigateur)
 
+## Adresses de contrôle des plateformes (fusion du 25/10/2026)
+
+Pour rester sous la limite de 12 fonctions de Vercel Hobby, deux paires de fichiers
+ont été fusionnées. Sans champ `plateforme` (ou avec `PRIME`), on retrouve le
+comportement Prime historique ; avec une autre plateforme (NETFLIX, DISNEY...),
+le comportement générique.
+
+- `/api/controle-streaming` (POST) — écrit le brouillon `CONTROLE_<PLATEFORME>` ou
+  lance l'application (`action: "apply"`). Code dans `lib/controle-prime-handler.js`
+  et `lib/controle-streaming-handler.js`.
+- `/api/streaming-ignores` (GET/POST) — liste/ajoute les titres ignorés
+  (`PRIME_IGNORES` ou `STREAMING_IGNORES`). Code dans `lib/prime-ignores-handler.js`
+  et `lib/streaming-ignores-handler.js`.
+- Les anciennes adresses `/api/controle-prime` et `/api/prime-ignores` sont
+  redirigées par `vercel.json` (le collecteur `prime.js` n'a pas changé).
+
 ## Ce qu'il reste à faire
 
 - Porter les écrans complets de `CineMaisonApp.jsx` (Accueil, Bibliothèques par type,
