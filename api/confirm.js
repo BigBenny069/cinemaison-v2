@@ -221,7 +221,7 @@ function pageAjouter(req, res) {
 
 // ---- ?page=ignore : "Ignorer" (suggestions) / "Validé, c'est normal" (ambiguïtés) ----
 // plateforme absente ou "PRIME" -> comportement historique inchangé
-// (api/prime-ignores.js) ; toute autre plateforme (NETFLIX, DISNEY...)
+// (lib/prime-ignores-handler.js, via api/streaming-ignores.js) ; toute autre plateforme (NETFLIX, DISNEY...)
 // -> nouveau système générique (api/streaming-ignores.js). Garde les
 // liens Prime déjà envoyés dans des mails existants valides.
 function pageIgnorer(req, res) {
@@ -235,7 +235,7 @@ function pageIgnorer(req, res) {
   }
 
   const estPrimeHistorique = !plateforme || plateforme === "PRIME";
-  const endpoint = estPrimeHistorique ? "/api/prime-ignores" : "/api/streaming-ignores";
+  const endpoint = "/api/streaming-ignores";
 
   const titreEchappe = echapperHtml(titre);
   const estAmbiguite = type === "AMBIGUITE";
@@ -293,7 +293,7 @@ function pageIgnorer(req, res) {
 
 // ---- ?page=apply : "VALIDER ET APPLIQUER" (CONTROLE_<PLATEFORME>) ----
 // plateforme absente ou "PRIME" -> comportement historique inchangé
-// (api/controle-prime.js) ; toute autre plateforme -> nouveau système
+// (lib/controle-prime-handler.js, via api/controle-streaming.js) ; toute autre plateforme -> nouveau système
 // générique (api/controle-streaming.js).
 function pageAppliquer(req, res) {
   const { pw, plateforme } = req.query || {};
@@ -306,7 +306,7 @@ function pageAppliquer(req, res) {
   }
 
   const estPrimeHistorique = !plateforme || plateforme === "PRIME";
-  const endpoint = estPrimeHistorique ? "/api/controle-prime" : "/api/controle-streaming";
+  const endpoint = "/api/controle-streaming";
   const nomPlateforme = plateforme || "Prime";
 
   const contenu = `
@@ -379,7 +379,7 @@ function pageFusionner(req, res) {
   }
 
   const estPrimeHistorique = !plateforme || plateforme === "PRIME";
-  const endpoint = estPrimeHistorique ? "/api/prime-ignores" : "/api/streaming-ignores";
+  const endpoint = "/api/streaming-ignores";
 
   const titreEchappe = echapperHtml(titre);
 

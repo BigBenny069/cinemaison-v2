@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/controle-prime", "destination": "/api/controle-streaming" },
+    { "source": "/api/prime-ignores", "destination": "/api/streaming-ignores" }
+  ]
+}
