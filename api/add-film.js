@@ -82,7 +82,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { password, titre, annee, plateforme, type, statutAcces, dateManuelle, urlLetterboxd } = req.body || {};
+  const { password, titre, annee, plateforme, type, statutAcces, dateManuelle, urlLetterboxd, tmdbId } = req.body || {};
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
@@ -193,6 +193,15 @@ export default async function handler(req, res) {
       console.error("[add-film] Erreur inattendue lors de la lecture Letterboxd :", e.message);
     }
   }
+
+  // NOUVEAU (26/10/2026) -- l'app envoie maintenant l'ID TMDb choisi dans la
+  // recherche. Il est écrit tel quel dans la fiche : l'enrichissement
+  // s'appuie dessus EN PRIORITÉ, donc le titre affiché peut rester celui de
+  // la plateforme même s'il diffère du titre TMDb. Prioritaire sur celui
+  // déduit d'un lien Letterboxd (même film de toute façon). Format vérifié :
+  // chiffres uniquement.
+  const tmdbIdFourni = /^\d{1,9}$/.test(String(tmdbId == null ? "" : tmdbId).trim()) ? String(tmdbId).trim() : "";
+  if (tmdbIdFourni) tmdbIdExtrait = tmdbIdFourni;
 
   // MODIFIÉ (16/09/2026) : auparavant, le déclenchement du workflow
   // GitHub Actions de secours (résolution par déduction du slug, voir
