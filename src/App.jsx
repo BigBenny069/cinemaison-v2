@@ -4773,7 +4773,6 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [justAdded, setJustAdded] = useState(null); // titre du film ajouté, pour le toast — null = pas de toast affiché
-  const canSubmit = titre.trim() && annee.trim() && plateforme;
 
   // Recherche TMDb en direct (autocomplete) — évite de taper le titre/année
   // à l'aveugle et de devoir attendre le prochain passage du script
@@ -4786,6 +4785,14 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   const [tmdbOpen, setTmdbOpen] = useState(false);
   const [tmdbError, setTmdbError] = useState(null);
   const [titreTouchedByUser, setTitreTouchedByUser] = useState(false);
+  // NOUVEAU (26/10/2026) -- titre affiché dans l'appli, distinct du texte
+  // tapé pour la recherche TMDb. Cas réel (FILM1393) : le titre de la
+  // plateforme ne remontait rien sur TMDb, Ben cherchait donc le nom TMDb
+  // et la fiche gardait ce nom. Après le choix d'un résultat, un 2e champ
+  // permet de remettre le titre de la plateforme ; l'ID TMDb choisi est
+  // envoyé à l'ajout, donc l'enrichissement reste sur le bon film.
+  const [titreAffiche, setTitreAffiche] = useState("");
+  const [rechercheElargie, setRechercheElargie] = useState(null);
   useEffect(() => {
     if (!titreTouchedByUser || titre.trim().length < 2) { setTmdbResults([]); setTmdbError(null); return; }
     const controller = new AbortController();
@@ -4804,6 +4811,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
           return;
         }
         setTmdbResults(Array.isArray(data.results) ? data.results.slice(0, 6) : []);
+        setRechercheElargie(data.requeteUtilisee || null);
         setTmdbOpen(true);
       } catch (e) {
         if (e.name !== "AbortError") setTmdbError("Recherche indisponible (connexion ou route /api/search-tmdb manquante)");
@@ -4821,9 +4829,12 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   // ci s'appuie sur l'ID exact déjà récupéré côté TMDb : fiable à 100%, pas
   // une supposition — donc le pré-remplissage automatique redevient sûr.
   const [tmdbIdPicked, setTmdbIdPicked] = useState(null);
+  const titreFinal = (tmdbIdPicked && titreAffiche.trim()) ? titreAffiche.trim() : titre.trim();
+  const canSubmit = titreFinal && annee.trim() && plateforme;
 
   const pickTmdbResult = (r) => {
     setTitre(r.titre);
+    setTitreAffiche(r.titre);
     if (r.annee) setAnnee(String(r.annee));
     setTmdbIdPicked(r.tmdbId || null);
     if (!urlLetterboxd.trim() && r.tmdbId) {
@@ -4850,7 +4861,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
-    const result = await apiWrite("/api/add-film", { titre: titre.trim(), annee: annee.trim(), plateforme, type, statutAcces: statutAcces !== "Inclus" ? statutAcces : undefined, dateManuelle: dateManuelle.trim() || undefined, urlLetterboxd: urlLetterboxd.trim() || undefined });
+    const result = await apiWrite("/api/add-film", { titre: titreFinal, tmdbId: tmdbIdPicked || undefined, annee: annee.trim(), plateforme, type, statutAcces: statutAcces !== "Inclus" ? statutAcces : undefined, dateManuelle: dateManuelle.trim() || undefined, urlLetterboxd: urlLetterboxd.trim() || undefined });
     setSaving(false);
     if (!result.ok) {
       setError(result.error || "Impossible d'ajouter ce film");
@@ -4861,7 +4872,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     // remplace l'ancien écran "TICKET ÉMIS" + bouton manuel, qui obligeait
     // à taper pour revenir. Fonctionne sur tous les thèmes (couleurs T/F
     // génériques, pas de variante par thème nécessaire).
-    setJustAdded(titre.trim());
+    setJustAdded(titreFinal);
     setTimeout(() => { onBack(); }, 2500);
   };
 
@@ -4888,7 +4899,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE *</span>
         <input
           value={titre}
-          onChange={(e) => { setTitre(e.target.value); setTitreTouchedByUser(true); setTmdbIdPicked(null); }}
+          onChange={(e) => { setTitre(e.target.value); setTitreTouchedByUser(true); setTmdbIdPicked(null); setTitreAffiche(""); }}
           onFocus={() => { if (tmdbResults.length > 0) setTmdbOpen(true); }}
           className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
           style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }}
@@ -4897,6 +4908,9 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
           <span className="absolute" style={{ right: 12, top: 38 }}>
             <RefreshCw size={14} color={T.mutedDim} style={{ animation: "spin 0.8s linear infinite" }} />
           </span>
+        )}
+        {tmdbOpen && tmdbResults.length > 0 && rechercheElargie && (
+          <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, fontStyle: "italic" }}>Rien sous ce titre exact — résultats pour « {rechercheElargie} ».</p>
         )}
         {tmdbOpen && tmdbResults.length > 0 && (
           <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg overflow-hidden" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}`, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
@@ -4925,6 +4939,21 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
           <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, fontStyle: "italic" }}>Aucun résultat TMDb pour « {titre.trim()} ».</p>
         )}
       </label>
+      {!tmdbIdPicked && (
+        <p className="-mt-2 mb-4" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim }}>
+          Astuce : si le titre de la plateforme ne donne rien, colle un lien TMDb ou IMDb à la place.
+        </p>
+      )}
+      {tmdbIdPicked && (
+        <label className="block mb-4">
+          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE AFFICHÉ DANS L'APPLI</span>
+          <input value={titreAffiche} onChange={(e) => setTitreAffiche(e.target.value)} className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
+            style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }} />
+          <span className="block mt-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim }}>
+            Film TMDb retenu. Tu peux mettre ici le titre exact de la plateforme : les infos du film restent celles de TMDb.
+          </span>
+        </label>
+      )}
       <label className="block mb-4">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>ANNÉE *</span>
         <input value={annee} onChange={(e) => setAnnee(e.target.value)} className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />

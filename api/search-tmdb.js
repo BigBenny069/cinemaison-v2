@@ -1,5 +1,11 @@
 // api/search-tmdb.js
 //
+// MODIFIÉ (26/10/2026) -- (1) recherche élargie : si le titre exact ne donne
+// rien, essaie des titres plus courts (sans "#1", après un tiret ou deux-
+// points...) ; (2) accepte aussi un identifiant ou un lien TMDb / IMDb collé
+// à la place du titre ; (3) renvoie requeteUtilisee quand la recherche a été
+// élargie, pour que l'app le dise.
+//
 // Nouvelle route à ajouter dans ton projet Vercel, dans le dossier /api à
 // côté de tes autres routes existantes (add-film.js, update-film.js,
 // delete-film.js, get-films.js). Elle interroge TMDb en direct pour la
@@ -65,6 +71,56 @@ async function lireTitreAnglais(id, estSerie, apiKey) {
   }
 }
 
+// NOUVEAU (26/10/2026) -- recherche élargie. Cas réel (FILM1393) : le titre
+// de la plateforme Shadowz, "Les Dossiers Paranormaux - #1 La Femme à la
+// Bouche Fendue", ne remontait rien sur TMDb (qui l'appelle autrement) ;
+// Ben devait chercher le nom TMDb pour pouvoir ajouter le film.
+
+/** Variantes plus courtes d'un titre de plateforme, de la plus probable à la
+ *  moins probable (sans doublon, sans la requête d'origine). */
+function genererVariantes(q) {
+  const base = String(q || "").trim();
+  const vus = new Set([base.toLowerCase()]);
+  const sortie = [];
+  const ajouter = (t) => {
+    const v = String(t || "")
+      .replace(/#\s*\d+/g, " ")                 // "#1"
+      .replace(/\[[^\]]*\]|\([^)]*\)/g, " ")    // [Director's Cut], (2021)
+      .replace(/\s+/g, " ")
+      .replace(/^[\s\-–—:·.,]+|[\s\-–—:·.,]+$/g, "")
+      .trim();
+    if (v.length < 3 || vus.has(v.toLowerCase())) return;
+    vus.add(v.toLowerCase());
+    sortie.push(v);
+  };
+  // 1. même titre sans "#1", sans crochets/parenthèses
+  ajouter(base);
+  // 2. morceaux séparés par " - ", " – ", " : " (le plus long d'abord pour la
+  //    fin, car le vrai titre du film vient souvent après la série/collection)
+  const morceaux = base.split(/\s+[-–—]\s+|\s*:\s+/).map((m) => m.trim()).filter(Boolean);
+  if (morceaux.length > 1) {
+    ajouter(morceaux[morceaux.length - 1]);
+    ajouter(morceaux[0]);
+    morceaux.slice(1, -1).forEach(ajouter);
+  }
+  return sortie.slice(0, 4);
+}
+
+/** Reconnaît un identifiant ou un lien TMDb / IMDb collé dans la recherche. */
+function lireIdentifiantColle(q) {
+  const t = String(q || "").trim();
+  let m = t.match(/themoviedb\.org\/(movie|tv)\/(\d{1,9})/i);
+  if (m) return { source: "tmdb", id: m[2], type: m[1].toLowerCase() };
+  m = t.match(/\b(tt\d{6,10})\b/i);
+  if (m) return { source: "imdb", id: m[1].toLowerCase() };
+  // Nombre seul : au moins 5 chiffres (sinon "1984" ou "1941", qui sont de
+  // vrais titres de films, seraient pris pour un identifiant). Pour un petit
+  // identifiant, écrire "tmdb:550".
+  m = t.match(/^(?:tmdb\s*[:#]?\s*)(\d{1,9})$/i) || t.match(/^(\d{5,9})$/);
+  if (m) return { source: "tmdb", id: m[1], type: null };
+  return null;
+}
+
 export default async function handler(req, res) {
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey) {
@@ -88,17 +144,50 @@ export default async function handler(req, res) {
   // (Film/Documentaire/Spectacle -- des films au sens TMDb) reste sur
   // /search/movie comme avant.
   const type = (req.query.type || "").toString().trim();
-  const estSerie = type === "Série";
+  let estSerie = type === "Série";
 
   try {
-    const url = estSerie
-      ? `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(q)}&include_adult=false`
-      : `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(q)}&include_adult=false`;
-    const tmdbRes = await fetch(url);
-    if (!tmdbRes.ok) {
-      return res.status(502).json({ error: `TMDb a répondu ${tmdbRes.status}` });
+    const cherche = async (texte) => {
+      const url = estSerie
+        ? `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(texte)}&include_adult=false`
+        : `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(texte)}&include_adult=false`;
+      const rep = await fetch(url);
+      if (!rep.ok) throw new Error(`TMDb a répondu ${rep.status}`);
+      const d = await rep.json();
+      return (d.results || []).slice(0, 8);
+    };
+
+    // NOUVEAU (26/10/2026) -- identifiant ou lien TMDb/IMDb collé : on va
+    // directement à la fiche, sans passer par le titre.
+    let brut = [];
+    let requeteUtilisee = q;
+    const colle = lireIdentifiantColle(q);
+    if (colle) {
+      if (colle.type) estSerie = colle.type === "tv";
+      let fiche = null;
+      if (colle.source === "tmdb") {
+        const rep = await fetch(`https://api.themoviedb.org/3/${estSerie ? "tv" : "movie"}/${colle.id}?api_key=${apiKey}&language=fr-FR`);
+        if (rep.ok) fiche = await rep.json();
+      } else {
+        const rep = await fetch(`https://api.themoviedb.org/3/find/${colle.id}?api_key=${apiKey}&language=fr-FR&external_source=imdb_id`);
+        if (rep.ok) {
+          const d = await rep.json();
+          const liste = estSerie ? d.tv_results : d.movie_results;
+          fiche = (liste && liste[0]) || null;
+        }
+      }
+      if (fiche && fiche.id) brut = [fiche];
+    } else {
+      brut = await cherche(q);
+      // Rien trouvé : on retente avec des titres plus courts (voir
+      // genererVariantes) jusqu'à avoir au moins un résultat.
+      if (brut.length === 0) {
+        for (const variante of genererVariantes(q)) {
+          brut = await cherche(variante);
+          if (brut.length > 0) { requeteUtilisee = variante; break; }
+        }
+      }
     }
-    const data = await tmdbRes.json();
     // /search/tv renvoie "name"/"first_air_date" au lieu de
     // "title"/"release_date" (mêmes noms de champs que l'app attend
     // dans les deux cas, une fois passés dans .map ci-dessous).
@@ -108,7 +197,6 @@ export default async function handler(req, res) {
     // en parallèle. Film -> réalisateur(s) (crédits) ; série -> créateur(s).
     // Un échec sur un résultat n'empêche jamais d'afficher la liste
     // (realisateur = null).
-    const brut = (data.results || []).slice(0, 8);
     const realisateurs = await Promise.all(brut.map((r) => lireRealisateur(r.id, estSerie, apiKey)));
     // NOUVEAU (25/10/2026) -- TMDb renvoie le titre ORIGINAL (japonais,
     // coréen, russe...) quand il n'existe pas de titre français. Cas réel :
@@ -129,8 +217,9 @@ export default async function handler(req, res) {
       tmdbId: r.id,
       realisateur: realisateurs[i],
     }));
-    return res.status(200).json({ results });
+    return res.status(200).json({ results, requeteUtilisee: requeteUtilisee !== q ? requeteUtilisee : null });
   } catch (e) {
-    return res.status(500).json({ error: e.message || "Erreur de recherche TMDb" });
+    const msg = e.message || "Erreur de recherche TMDb";
+    return res.status(/^TMDb a répondu/.test(msg) ? 502 : 500).json({ error: msg });
   }
 }
