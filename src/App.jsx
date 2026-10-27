@@ -2897,7 +2897,7 @@ function AvisEtoiles({ niveau, color }) {
 /* Jauge d'avis (rendu "D1", 27/10/2026) : 5 visages au-dessus d'une barre dont
    chaque segment a la largeur de sa tranche Letterboxd ; sous la barre, les notes
    de la tranche choisie ressortent en gras. */
-function AvisChoix({ value, onChange, disabled }) {
+function AvisChoix({ value, onChange, disabled, pasVu }) {
   const couleurs = { 1: T.alert, 2: T.muted, 3: T.accentSecondary, 4: T.accent, 5: T.gold };
   const colonnes = "3fr 2fr 2fr 2fr 1fr";
   const choisi = value ? AVIS_NIVEAUX[value - 1] : null;
@@ -2932,9 +2932,9 @@ function AvisChoix({ value, onChange, disabled }) {
         })}
       </div>
       <div className="flex items-center justify-between gap-2" style={{ borderTop: `1px dashed ${T.line}`, paddingTop: 10, marginTop: 12 }}>
-        <span style={{ fontFamily: F.serif, fontSize: 17, fontWeight: 600, color: choisi ? T.cream : T.mutedDim }}>{choisi ? choisi.label : "Choisis un avis"}</span>
+        <span style={{ fontFamily: F.serif, fontSize: 17, fontWeight: 600, color: choisi ? T.cream : T.mutedDim }}>{choisi ? choisi.label : pasVu ? "Pas vu" : "Choisis un avis"}</span>
         {choisi && <AvisEtoiles niveau={choisi} color="#3DBE7A" />}
-        <span style={{ fontFamily: F.mono, fontSize: 13, fontWeight: 700, color: couleurChoisie }}>{choisi ? choisi.plage : ""}</span>
+        <span style={{ fontFamily: F.mono, fontSize: 13, fontWeight: 700, color: couleurChoisie }}>{choisi ? choisi.plage : pasVu ? "sans effet" : ""}</span>
       </div>
     </div>
   );
@@ -3429,7 +3429,18 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
               « {film.titre} » sera retiré définitivement du Sheet. Cette action est irréversible.
             </p>
             <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: T.mutedDim }}>TON AVIS SUR CE FILM (AFFINE LES SUGGESTIONS)</p>
-            <div className="mb-4"><AvisChoix value={avisSuppression} onChange={setAvisSuppression} disabled={deleting} /></div>
+            <AvisChoix value={avisSuppression} onChange={setAvisSuppression} disabled={deleting} pasVu={avisSuppression == null} />
+            {/* NOUVEAU (27/10/2026) -- "Pas vu" : aucun avis n'est enregistré
+                (api/delete-film ignore un avis absent), donc ce film
+                n'influence pas les futures suggestions. */}
+            <button type="button" onClick={() => setAvisSuppression(avisSuppression == null ? 2 : null)} disabled={deleting} aria-pressed={avisSuppression == null}
+              className="w-full rounded-lg py-2.5 mt-3 mb-4 flex items-center justify-center gap-2"
+              style={{ background: avisSuppression == null ? T.accentSoft : T.surface, border: `1px solid ${avisSuppression == null ? T.accent : T.line}` }}>
+              <span style={{ fontSize: 15 }}>🚫</span>
+              <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 0.5, fontWeight: avisSuppression == null ? 700 : 400, color: avisSuppression == null ? T.accent : T.muted }}>
+                PAS VU : NE PAS INFLUENCER LES SUGGESTIONS
+              </span>
+            </button>
             <div className="flex gap-2">
               <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 rounded-lg py-2.5" style={{ background: T.surface, fontFamily: F.mono, fontSize: 11, color: T.muted }}>ANNULER</button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 rounded-lg py-2.5" style={{ background: T.alert, fontFamily: F.mono, fontSize: 11, color: T.cream, opacity: deleting ? 0.7 : 1 }}>
