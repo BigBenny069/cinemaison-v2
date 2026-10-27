@@ -2863,28 +2863,79 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
 /* NOUVEAU (19/10/2026) -- avis de Ben sur un film : 5 niveaux, utilisés pour
    affiner les suggestions ("Pour toi"). Donné à la suppression d'une fiche
    ou depuis le bouton "Mon avis" d'une fiche gardée. 2 = Neutre, sans effet. */
+/* MODIFIÉ (27/10/2026) -- chaque avis reprend une tranche de notes Letterboxd
+   (choix de Ben) : 0,5-1,5 / 2-2,5 / 3-3,5 / 4-4,5 / 5. "notes" = les demi-étoiles
+   de la tranche (la largeur de la barre en dépend : 3, 2, 2, 2, 1). Doit rester
+   identique à conversionNoteLetterboxdV1_ (Apps Script, 28_IMPORT_LETTERBOXD.js). */
 const AVIS_NIVEAUX = [
-  { v: 1, emoji: "👎", label: "J'aime pas" },
-  { v: 2, emoji: "😐", label: "Neutre" },
-  { v: 3, emoji: "🙂", label: "J'aime bien" },
-  { v: 4, emoji: "😍", label: "J'adore" },
-  { v: 5, emoji: "🤩", label: "J'adore++" },
+  { v: 1, emoji: "👎", label: "J'aime pas", notes: [0.5, 1, 1.5], plage: "0,5 – 1,5 ★" },
+  { v: 2, emoji: "😐", label: "Neutre", notes: [2, 2.5], plage: "2 – 2,5 ★" },
+  { v: 3, emoji: "🙂", label: "J'aime bien", notes: [3, 3.5], plage: "3 – 3,5 ★" },
+  { v: 4, emoji: "😍", label: "J'adore", notes: [4, 4.5], plage: "4 – 4,5 ★" },
+  { v: 5, emoji: "🤩", label: "J'adore++", notes: [5], plage: "5 ★" },
 ];
 
-function AvisChoix({ value, onChange, disabled }) {
+// Étoiles Letterboxd d'une tranche : partie basse pleine, reste de la tranche pâle.
+function AvisEtoiles({ niveau, color }) {
+  const lo = niveau.notes[0], hi = niveau.notes[niveau.notes.length - 1];
+  const fr = (x) => Math.max(0, Math.min(1, x)) * 100;
   return (
-    <div className="flex gap-1.5 justify-between">
-      {AVIS_NIVEAUX.map((n) => {
-        const actif = value === n.v;
+    <span aria-hidden="true" style={{ display: "inline-flex", fontSize: 16, lineHeight: 1, letterSpacing: 1 }}>
+      {[0, 1, 2, 3, 4].map((i) => {
+        const b = fr(lo - i), s2 = fr(hi - i);
         return (
-          <button key={n.v} type="button" disabled={disabled} onClick={() => onChange(n.v)}
-            className="flex-1 flex flex-col items-center justify-center rounded-lg py-2"
-            style={{ background: actif ? T.accentSoft : T.surface, border: `1px solid ${actif ? T.accent : T.line}`, opacity: disabled ? 0.6 : 1, minHeight: 58 }}>
-            <span style={{ fontSize: 22, lineHeight: 1 }}>{n.emoji}</span>
-            <span className="mt-1" style={{ fontFamily: F.mono, fontSize: 8.5, color: actif ? T.accent : T.muted, letterSpacing: 0.2, textAlign: "center" }}>{n.label}</span>
-          </button>
+          <span key={i} style={{
+            background: `linear-gradient(90deg, ${color} ${b}%, ${color}60 ${b}%, ${color}60 ${s2}%, ${"#8884"} ${s2}%)`,
+            WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+          }}>★</span>
         );
       })}
+    </span>
+  );
+}
+
+/* Jauge d'avis (rendu "D1", 27/10/2026) : 5 visages au-dessus d'une barre dont
+   chaque segment a la largeur de sa tranche Letterboxd ; sous la barre, les notes
+   de la tranche choisie ressortent en gras. */
+function AvisChoix({ value, onChange, disabled }) {
+  const couleurs = { 1: T.alert, 2: T.muted, 3: T.accentSecondary, 4: T.accent, 5: T.gold };
+  const colonnes = "3fr 2fr 2fr 2fr 1fr";
+  const choisi = value ? AVIS_NIVEAUX[value - 1] : null;
+  const couleurChoisie = choisi ? couleurs[choisi.v] : T.mutedDim;
+  return (
+    <div style={{ opacity: disabled ? 0.6 : 1 }}>
+      <div style={{ display: "grid", gridTemplateColumns: colonnes, gap: 4, alignItems: "start" }}>
+        {AVIS_NIVEAUX.map((n) => {
+          const actif = value === n.v, rempli = value != null && n.v <= value;
+          return (
+            <button key={n.v} type="button" disabled={disabled} onClick={() => onChange(n.v)} aria-pressed={actif}
+              aria-label={n.label + ", " + n.plage}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "transparent", border: "none", padding: 0, minWidth: 0 }}>
+              <span style={{ fontSize: actif ? 26 : 22, lineHeight: 1, opacity: actif ? 1 : 0.6 }}>{n.emoji}</span>
+              <span style={{ display: "block", width: "100%", height: 16, borderRadius: 4, background: rempli ? couleurs[n.v] : T.line,
+                boxShadow: actif ? `0 0 0 2px ${T.surfaceRaised}, 0 0 0 3.5px ${couleurs[n.v]}` : "none" }} />
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: colonnes, gap: 4, marginTop: 8 }}>
+        {AVIS_NIVEAUX.map((n) => {
+          const actif = value === n.v;
+          return (
+            <button key={n.v} type="button" disabled={disabled} onClick={() => onChange(n.v)} tabIndex={-1} aria-hidden="true"
+              style={{ display: "grid", gridAutoFlow: "column", gridAutoColumns: "1fr", textAlign: "center", minWidth: 0, background: "transparent", border: "none",
+                borderTop: `3px solid ${actif ? couleurs[n.v] : T.line}`, padding: "6px 0 2px", fontFamily: F.mono,
+                fontSize: actif ? 12 : 10, fontWeight: actif ? 700 : 400, color: actif ? couleurs[n.v] : T.mutedDim }}>
+              {n.notes.map((x) => <span key={x}>{String(x).replace(".", ",")}</span>)}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between gap-2" style={{ borderTop: `1px dashed ${T.line}`, paddingTop: 10, marginTop: 12 }}>
+        <span style={{ fontFamily: F.serif, fontSize: 17, fontWeight: 600, color: choisi ? T.cream : T.mutedDim }}>{choisi ? choisi.label : "Choisis un avis"}</span>
+        {choisi && <AvisEtoiles niveau={choisi} color="#3DBE7A" />}
+        <span style={{ fontFamily: F.mono, fontSize: 13, fontWeight: 700, color: couleurChoisie }}>{choisi ? choisi.plage : ""}</span>
+      </div>
     </div>
   );
 }
