@@ -1,7 +1,7 @@
 // Page de confirmation UNIQUE pour les boutons envoyés par mail --
 // fusionnée (06/09/2026, correctif limite Vercel Hobby : 12 fonctions
 // serverless max par déploiement, on l'avait dépassée avec une page
-// par action). Dispatch par ?page=add|ignore|apply|merge|remove.
+// par action). Dispatch par ?page=add|ignore|apply|merge|remove|canalApply...
 //
 // Toujours le même principe de sécurité : le lien du mail est un
 // simple GET (sans danger même pré-visité par un scanner de client
@@ -21,6 +21,7 @@ export default function handler(req, res) {
   if (type === "confirmType") return pageConfirmerType(req, res);
   if (type === "confirmerTypeActuel") return pageConfirmerTypeActuel(req, res);
   if (type === "horsListeCanal") return pageHorsListeCanal(req, res);
+  if (type === "canalApply") return pageCanalApply(req, res);
 
   return res.status(400).send(pageHtml(
     "Lien incomplet",
@@ -720,4 +721,116 @@ function pageHorsListeCanal(req, res) {
   `;
 
   return res.status(200).send(pageHtml("Hors de Ma Liste Canal+", contenu));
+}
+
+// ---- ?page=canalApply : "CHOISIR LES LIGNES ET APPLIQUER" (mail "CANAL+ changements
+// de statut à valider", 31_CANAL_PROPOSITIONS_STATUTS.js) -- NOUVEAU (27/10/2026) ----
+// La page charge les propositions en attente, toutes cochées ; le clic sur le bouton
+// applique les lignes cochées et marque les autres comme refusées (pas reproposées
+// avant 30 jours). Écriture uniquement sur clic humain.
+function pageCanalApply(req, res) {
+  const { pw } = req.query || {};
+
+  if (!pw) {
+    return res.status(400).send(pageHtml(
+      "Lien incomplet",
+      "<p>Ce lien est incomplet ou abîmé.</p>"
+    ));
+  }
+
+  const contenu = `
+    <p style="font-size:14px;color:#3A2E22">
+      Décoche les changements que tu <strong>refuses</strong>, puis valide : les lignes cochées
+      sont écrites dans la colonne Statut d'accès de l'onglet Films.
+    </p>
+    <div id="liste" style="margin:12px 0;font-family:Arial,sans-serif;font-size:13px;color:#9A9182">Chargement...</div>
+    <button id="btn" disabled style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
+      padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%;opacity:0.5">
+      Appliquer la sélection
+    </button>
+    <p id="statut" style="font-size:13px;color:#9A9182;margin-top:12px"></p>
+    <script>
+      const PW = ${JSON.stringify(pw)};
+      const liste = document.getElementById("liste");
+      const bouton = document.getElementById("btn");
+      const statut = document.getElementById("statut");
+      let propositions = [];
+
+      function echapper(t) {
+        return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+
+      function majBouton() {
+        const n = document.querySelectorAll("input[data-cle]:checked").length;
+        bouton.textContent = n > 0 ? "Appliquer la sélection (" + n + ")" : "Tout refuser";
+      }
+
+      async function appeler(canalPropositions) {
+        const reponse = await fetch("/api/update-film", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: PW, canalPropositions }),
+        });
+        const corps = await reponse.json().catch(() => ({}));
+        return { ok: reponse.ok, corps };
+      }
+
+      async function charger() {
+        try {
+          const r = await appeler({ mode: "lister" });
+          if (!r.ok) { liste.textContent = "Erreur : " + (r.corps.error || "inconnue"); return; }
+          propositions = r.corps.propositions || [];
+          if (propositions.length === 0) {
+            liste.textContent = "Plus aucune proposition en attente : tout est déjà traité. Tu peux fermer cette page.";
+            return;
+          }
+          liste.innerHTML = propositions.map((p) =>
+            '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #EFE7D6;cursor:pointer">' +
+            '<input type="checkbox" checked data-cle="' + echapper(p.cle) + '" style="margin-top:3px;width:18px;height:18px">' +
+            '<span style="color:#3A2E22;line-height:1.5"><strong>' + echapper(p.filmId) + '</strong> &middot; ' + echapper(p.titre) +
+            (p.annee ? ' (' + echapper(p.annee) + ')' : '') + '<br>' +
+            '<span style="display:inline-block;margin:3px 0;padding:2px 8px;border-radius:10px;background:#F6E7D3;color:#7A4A1E;font-weight:bold">' +
+            echapper(p.statutActuel || "vide") + ' &rarr; ' + echapper(p.statutPropose) + '</span><br>' +
+            '<span style="color:#9A9182;font-size:12px">' + echapper(p.raison) + '</span></span></label>'
+          ).join("");
+          liste.querySelectorAll("input").forEach((c) => c.addEventListener("change", majBouton));
+          bouton.disabled = false;
+          bouton.style.opacity = "1";
+          majBouton();
+        } catch (e) {
+          liste.textContent = "Erreur réseau : " + e.message;
+        }
+      }
+
+      bouton.addEventListener("click", async () => {
+        const cochees = [...document.querySelectorAll("input[data-cle]:checked")].map((c) => c.dataset.cle);
+        const decochees = [...document.querySelectorAll("input[data-cle]:not(:checked)")].map((c) => c.dataset.cle);
+        bouton.disabled = true;
+        bouton.textContent = "Application en cours...";
+        try {
+          const r = await appeler({ mode: "appliquer", appliquer: cochees, refuser: decochees });
+          if (r.ok) {
+            const x = r.corps.resume || {};
+            bouton.textContent = "Terminé";
+            statut.textContent = "C'est fait, tu peux fermer cette page. Appliquées : " + (x.appliquees || 0) +
+              " · Refusées : " + (x.refusees || 0) +
+              (x.dejaModifiees ? " · Déjà modifiées entre-temps (ignorées) : " + x.dejaModifiees : "");
+            liste.querySelectorAll("input").forEach((c) => { c.disabled = true; });
+          } else {
+            bouton.disabled = false;
+            majBouton();
+            statut.textContent = "Erreur : " + (r.corps.error || "inconnue");
+          }
+        } catch (e) {
+          bouton.disabled = false;
+          majBouton();
+          statut.textContent = "Erreur réseau : " + e.message;
+        }
+      });
+
+      charger();
+    </script>
+  `;
+
+  return res.status(200).send(pageHtml("Changements de statut Canal+", contenu));
 }

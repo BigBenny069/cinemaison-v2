@@ -209,6 +209,42 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, detail: resultatWebhook.corps });
   }
 
+  // Mode propositions de statut Canal+ (27/10/2026) :
+  // { canalPropositions: { mode: "lister" } } ou
+  // { canalPropositions: { mode: "appliquer", appliquer: [cle...], refuser: [cle...] } }
+  // -- fusionné ici (limite de 12 fonctions Vercel Hobby). Relaie vers le webhook
+  // Apps Script (31_CANAL_PROPOSITIONS_STATUTS.js) ; la page de choix est
+  // api/confirm.js?page=canalApply.
+  if (req.body && req.body.canalPropositions) {
+    const { mode, appliquer, refuser } = req.body.canalPropositions;
+    if (mode !== "lister" && mode !== "appliquer") {
+      return res.status(400).json({ error: "mode inconnu (lister ou appliquer)" });
+    }
+
+    const url = process.env.ENRICH_WEBHOOK_URL;
+    const secret = process.env.ENRICH_WEBHOOK_SECRET;
+    if (!url || !secret) {
+      return res.status(500).json({ error: "ENRICH_WEBHOOK_URL/SECRET non configurés côté Vercel" });
+    }
+
+    const corpsWebhook = mode === "lister"
+      ? { secret, action: "canalPropositionsLister" }
+      : {
+          secret,
+          action: "canalPropositionsAppliquer",
+          appliquer: Array.isArray(appliquer) ? appliquer.map(String) : [],
+          refuser: Array.isArray(refuser) ? refuser.map(String) : [],
+        };
+
+    // Application : un seul essai (pas de risque de doublon, mais inutile de
+    // rejouer une écriture qui a pu réussir) ; liste : réessais autorisés.
+    const resultatWebhook = await appelerWebhookAvecReessai(url, corpsWebhook, { tentatives: mode === "lister" ? 3 : 1 });
+    if (!resultatWebhook.ok) {
+      return res.status(502).json({ error: "Échec de l'appel vers Apps Script", details: resultatWebhook.error });
+    }
+    return res.status(200).json({ ok: true, ...resultatWebhook.corps });
+  }
+
   // Mode lot (11/09/2026) : { updates: [{ id, fields }, ...] } -- une
   // seule lecture + une seule écriture Sheets pour tout le lot, plutôt
   // qu'un aller-retour par fiche. Utilisé par les collecteurs
