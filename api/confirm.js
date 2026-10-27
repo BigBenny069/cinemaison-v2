@@ -48,6 +48,29 @@ function pageSupprimer(req, res) {
       pour la retirer définitivement de CinéMaison. Cette action ne peut pas être
       annulée automatiquement.
     </p>
+    <!-- NOUVEAU (27/10/2026) -- avis sur le film avant de le retirer (affine les
+         suggestions). "Pas vu" (par défaut) n'enregistre aucun avis : le film
+         n'influence pas les suggestions. Mêmes 5 niveaux et mêmes tranches
+         Letterboxd que l'app (App.jsx, AVIS_NIVEAUX). -->
+    <style>
+      .avis-b{background:#F5EFE0;border:1px solid #DDD0B6;border-radius:8px;padding:8px 2px;cursor:pointer;
+        font-family:Arial,sans-serif;color:#9A9182;display:flex;flex-direction:column;align-items:center;gap:3px}
+      .avis-b[aria-pressed="true"]{background:#F1E0B8;border-color:#B5622B;color:#B5622B;font-weight:bold}
+      .avis-b .e{font-size:24px;line-height:1}.avis-b .l{font-size:10px;text-align:center}.avis-b .r{font-size:9px}
+    </style>
+    <p style="font-size:11px;letter-spacing:1px;color:#9A9182;margin:18px 0 8px;font-family:Arial,sans-serif">
+      TON AVIS SUR CE FILM (AFFINE LES SUGGESTIONS)
+    </p>
+    <div id="avis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+      <button type="button" class="avis-b" data-v="1" aria-pressed="false"><span class="e">👎</span><span class="l">J'aime pas</span><span class="r">0,5 – 1,5 ★</span></button>
+      <button type="button" class="avis-b" data-v="2" aria-pressed="false"><span class="e">😐</span><span class="l">Neutre</span><span class="r">2 – 2,5 ★</span></button>
+      <button type="button" class="avis-b" data-v="3" aria-pressed="false"><span class="e">🙂</span><span class="l">J'aime bien</span><span class="r">3 – 3,5 ★</span></button>
+      <button type="button" class="avis-b" data-v="4" aria-pressed="false"><span class="e">😍</span><span class="l">J'adore</span><span class="r">4 – 4,5 ★</span></button>
+      <button type="button" class="avis-b" data-v="5" aria-pressed="false"><span class="e">🤩</span><span class="l">J'adore++</span><span class="r">5 ★</span></button>
+    </div>
+    <button type="button" class="avis-b" id="pasvu" data-v="0" aria-pressed="true" style="width:100%;flex-direction:row;justify-content:center;gap:8px;margin:8px 0 18px;padding:10px">
+      <span class="e" style="font-size:16px">🚫</span><span class="l" style="font-size:12px">Pas vu : ne pas influencer les suggestions</span>
+    </button>
     <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
       padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%">
       Retirer de CinéMaison
@@ -56,6 +79,13 @@ function pageSupprimer(req, res) {
     <script>
       const bouton = document.getElementById("btn");
       const statut = document.getElementById("statut");
+      let avis = null; // null = pas vu : aucun avis enregistré
+      const boutonsAvis = document.querySelectorAll(".avis-b");
+      boutonsAvis.forEach((b) => b.addEventListener("click", () => {
+        if (bouton.disabled) return;
+        avis = Number(b.dataset.v) || null;
+        boutonsAvis.forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      }));
       bouton.addEventListener("click", async () => {
         bouton.disabled = true;
         bouton.textContent = "Suppression en cours...";
@@ -63,7 +93,7 @@ function pageSupprimer(req, res) {
           const reponse = await fetch("/api/delete-film", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password: ${JSON.stringify(pw)}, id: ${JSON.stringify(id)} }),
+            body: JSON.stringify({ password: ${JSON.stringify(pw)}, id: ${JSON.stringify(id)}, avis: avis }),
           });
           const corps = await reponse.json().catch(() => ({}));
           if (reponse.ok) {
