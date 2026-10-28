@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { SlidersHorizontal, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
+import { SlidersHorizontal, Moon, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
 import { looksLikeLetterboxdLink, pickBestTmdbMatch } from "../lib/letterboxd-lien.js";
+import { poidsCeSoir, tirerPondere, vuesNettoyer, vuesAjouter } from "../lib/explorer-outils.js";
 
 /* ------------------------------------------------------------------ */
 /* THÈMES — deux palettes disponibles, sélectionnables dans Réglages.  */
@@ -3764,7 +3765,7 @@ function personneMatch_(film, nomNormalise) {
   return (film.casting || "").split(",").map((c) => normalizeSearch(c.trim())).includes(nomNormalise);
 }
 
-function PersonScreen({ films, nom, onOpen, onBack, onMenu }) {
+function PersonScreen({ films, nom, onOpen, onBack, onMenu, onExplorer }) {
   const scrollM = useScrollMemoire_("personne|" + nom);
   const list = useMemo(() => {
     const q = normalizeSearch(nom);
@@ -3778,6 +3779,12 @@ function PersonScreen({ films, nom, onOpen, onBack, onMenu }) {
       <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>
         {list.length} FICHE{list.length > 1 ? "S" : ""} DANS TA BIBLIOTHÈQUE{asRealisateur > 0 ? ` · ${asRealisateur} EN TANT QUE RÉALISATEUR` : ""}
       </p>
+      {list.length > 1 && onExplorer && (
+        <button onClick={onExplorer} className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 mb-3" style={{ background: T.accentSoft, border: `1px solid ${T.accent}55` }}>
+          <SlidersHorizontal size={14} color={T.accent} />
+          <span style={{ fontFamily: F.mono, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: T.accent }}>AFFINER AVEC LES FILTRES</span>
+        </button>
+      )}
       <div className="flex flex-col gap-2">
         {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
         {list.length === 0 && (
@@ -4704,7 +4711,123 @@ const EXPLORER_SORTS = [
   { id: "court", label: "Plus court" },
   { id: "az", label: "A → Z" },
 ];
-const EXPLORER_FILTRES_VIDES_ = { type: null, statut: null, plateforme: null, duree: null, depart: null, genresSel: [], noteMin: 0, noteMax: 5 };
+const EXPLORER_QUI_ = ["Romy", "Benoit", "À deux", "En famille"];
+const EXPLORER_FILTRES_VIDES_ = { type: null, statut: null, plateforme: null, duree: null, depart: null, qui: null, personne: null, genresSel: [], noteMin: 0, noteMax: 5 };
+
+// NOUVEAU (29/10/2026) -- "Mes recherches" : combinaisons de filtres
+// enregistrées sur le téléphone (localStorage, par appareil). Toujours
+// protégé par try/catch : si le stockage est indisponible, l'écran marche
+// quand même, sans recherches enregistrées.
+const EXPLORER_VUES_CLE_ = "cinemaison_explorer_vues";
+function explorerVuesLire_() {
+  try { return vuesNettoyer(localStorage.getItem(EXPLORER_VUES_CLE_)); } catch { return []; }
+}
+function explorerVuesEcrire_(vues) {
+  try { localStorage.setItem(EXPLORER_VUES_CLE_, JSON.stringify(vues)); } catch {}
+}
+
+// Dernières réponses données dans "Ce soir" (gardées tant que l'appli reste ouverte).
+let ceSoirState_ = { qui: null, maxMin: null, type: "Film" };
+
+const CE_SOIR_DUREES_ = [
+  { id: 90, label: "Moins de 1h30" },
+  { id: 120, label: "Moins de 2h" },
+  { id: 150, label: "Moins de 2h30" },
+];
+
+/**
+ * Mode "Ce soir" : on dit avec qui et combien de temps, l'appli propose UN
+ * film regardable maintenant (statut Inclus, pas archivé). Les films qui
+ * partent bientôt ont plus de chances d'être proposés (poids 3 dans les
+ * 14 jours, 2 dans les 30 jours). "Un autre" ne repropose pas le même film.
+ */
+function CeSoirSheet({ films, onOpen, onClose }) {
+  const [qui, setQui] = useState(ceSoirState_.qui);
+  const [maxMin, setMaxMin] = useState(ceSoirState_.maxMin);
+  const [type, setType] = useState(ceSoirState_.type);
+  const [propose, setPropose] = useState(null);
+  const [dejaVus, setDejaVus] = useState([]);
+
+  useEffect(() => { ceSoirState_ = { qui, maxMin, type }; }, [qui, maxMin, type]);
+
+  const candidats = useMemo(() => films.filter((f) => {
+    if (isArchived(f)) return false;
+    if ((f.statutAcces || "Inclus") !== "Inclus") return false;
+    if (type && f.type !== type) return false;
+    if (qui && !tagMatches(f, qui)) return false;
+    if (maxMin) {
+      const m = parseDureeMinutes(f.duree);
+      if (m == null || m > maxMin) return false;
+    }
+    return true;
+  }), [films, qui, maxMin, type]);
+
+  // Dès qu'un critère change, l'ancienne proposition n'a plus de sens.
+  useEffect(() => { setPropose(null); setDejaVus([]); }, [qui, maxMin, type]);
+
+  const tirer = () => {
+    const f = tirerPondere(candidats, (x) => poidsCeSoir(computeExpiryDays(x)), (x) => x.id, dejaVus);
+    setPropose(f);
+    if (f) setDejaVus((prev) => (prev.includes(f.id) ? prev : [...prev, f.id]));
+  };
+
+  const jours = propose ? computeExpiryDays(propose) : null;
+
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: "rgba(10,8,6,0.75)" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="flex flex-col rounded-t-2xl" style={{ background: T.bg, border: `1px solid ${T.line}`, borderBottom: "none", maxHeight: "92%" }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>CE SOIR</span>
+          <button onClick={onClose} aria-label="Fermer"><X size={18} color={T.muted} /></button>
+        </div>
+        <div className="overflow-y-auto pull-scroll px-5" style={{ flex: 1 }}>
+          <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>
+            {candidats.length} POSSIBILITÉ{candidats.length > 1 ? "S" : ""}
+          </p>
+
+          {propose && (
+            <button onClick={() => onOpen(propose)} className="flex text-left overflow-hidden w-full mb-4" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accent}`, borderRadius: T.radius, boxShadow: T.shadow }}>
+              <Poster film={propose} className="w-24 h-36 flex-shrink-0" />
+              <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
+                <p style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 17, color: T.cream }}>{propose.titre}</p>
+                <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4, marginTop: 2 }}>
+                  {propose.annee} · {(propose.plateforme || "").toUpperCase()}{propose.duree ? ` · ${propose.duree}` : ""}
+                </p>
+                <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 4 }}>
+                  {parseRating(propose.noteLetterboxd) != null ? `★ ${parseRating(propose.noteLetterboxd).toFixed(1)}` : "pas de note"}
+                </p>
+                {jours != null && jours >= 0 && jours <= 30 && (
+                  <p style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(jours) || T.accentSecondary, marginTop: 4 }}>
+                    {jours === 0 ? "PART AUJOURD'HUI" : `PART DANS ${jours} JOUR${jours > 1 ? "S" : ""}`}
+                  </p>
+                )}
+              </div>
+            </button>
+          )}
+          {candidats.length === 0 && (
+            <p className="text-center mb-4" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>
+              Rien ne correspond. Élargis la durée ou choisis « Peu importe ».
+            </p>
+          )}
+          <PillGroup label="Avec qui ?" options={EXPLORER_QUI_} value={qui} onChange={setQui}
+            renderLabel={(opt) => (opt === "Tous" ? "Peu importe" : opt)} />
+          <PillGroup label="Combien de temps ?" options={CE_SOIR_DUREES_} value={maxMin} onChange={(v) => setMaxMin(v === null ? null : v.id)}
+            renderLabel={(opt) => (opt === "Tous" ? "Peu importe" : opt.label)} />
+          <PillGroup label="Quoi ?" options={["Film", "Série", "Documentaire", "Spectacle"]} value={type} onChange={setType}
+            renderLabel={(opt) => (opt === "Tous" ? "Tout" : opt)} />
+
+        </div>
+        <div className="px-5 py-4" style={{ borderTop: `1px solid ${T.line}`, paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+          <button onClick={tirer} disabled={candidats.length === 0} className="w-full rounded-full px-5 py-3 flex items-center justify-center gap-2"
+            style={{ background: T.accent, opacity: candidats.length ? 1 : 0.4 }}>
+            <Shuffle size={15} color={T.bg} />
+            <span style={{ fontFamily: F.mono, fontSize: 11, color: T.bg, fontWeight: 700, letterSpacing: 0.5 }}>{propose ? "UN AUTRE" : "SURPRENDS-MOI"}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // État des filtres Explorer — persiste en mémoire tant que l'appli reste
 // ouverte (pas localStorage, se réinitialise à la fermeture). ExplorerScreen
@@ -4716,31 +4839,41 @@ let explorerFiltersState_ = { ...EXPLORER_FILTRES_VIDES_, sort: "depart" };
 // haut de la liste à chaque fois).
 let explorerScrollTop_ = 0;
 
-function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
-  const [type, setType] = useState(explorerFiltersState_.type);
+function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, onMenu }) {
+  // Arrivée depuis la filmographie d'une personne : on repart de filtres
+  // vides (sinon d'anciens filtres masqueraient ses films), seul le tri est gardé.
+  const base = initialPerson ? { ...EXPLORER_FILTRES_VIDES_, sort: explorerFiltersState_.sort } : explorerFiltersState_;
+  const [type, setType] = useState(base.type);
   // Filtre Statut séparé du filtre Catégorie (Phase D, 19/09/2026).
-  const [statut, setStatut] = useState(explorerFiltersState_.statut);
-  const [plateforme, setPlateforme] = useState(explorerFiltersState_.plateforme);
-  const [duree, setDuree] = useState(explorerFiltersState_.duree);
-  const [depart, setDepart] = useState(explorerFiltersState_.depart ?? null);
-  const [sort, setSort] = useState(explorerFiltersState_.sort || "depart");
+  const [statut, setStatut] = useState(base.statut);
+  const [plateforme, setPlateforme] = useState(base.plateforme);
+  const [duree, setDuree] = useState(base.duree);
+  const [depart, setDepart] = useState(base.depart ?? null);
+  const [qui, setQui] = useState(base.qui ?? null);
+  const [personne, setPersonne] = useState(initialPerson || base.personne || null);
+  const [sort, setSort] = useState(base.sort || "depart");
   const [genresSel, setGenresSel] = useState(
-    explorerFiltersState_.genresSel.length > 0 ? explorerFiltersState_.genresSel : (initialGenre ? [initialGenre] : [])
+    base.genresSel.length > 0 ? base.genresSel : (initialGenre ? [initialGenre] : [])
   );
-  const [noteMin, setNoteMin] = useState(explorerFiltersState_.noteMin);
-  const [noteMax, setNoteMax] = useState(explorerFiltersState_.noteMax ?? 5);
+  const [noteMin, setNoteMin] = useState(base.noteMin);
+  const [noteMax, setNoteMax] = useState(base.noteMax ?? 5);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [ceSoirOpen, setCeSoirOpen] = useState(false);
+  const [vues, setVues] = useState(explorerVuesLire_);
+  const [nomVue, setNomVue] = useState(null); // null = champ de nom fermé
   const scrollRef = useRef(null);
 
   // Recopie à chaque changement, pour que le prochain montage reparte d'ici.
   useEffect(() => {
-    explorerFiltersState_ = { type, statut, plateforme, duree, depart, sort, genresSel, noteMin, noteMax };
-  }, [type, statut, plateforme, duree, depart, sort, genresSel, noteMin, noteMax]);
+    explorerFiltersState_ = { type, statut, plateforme, duree, depart, qui, personne, sort, genresSel, noteMin, noteMax };
+  }, [type, statut, plateforme, duree, depart, qui, personne, sort, genresSel, noteMin, noteMax]);
 
   // Restaure la position de défilement au montage (retour depuis une
   // fiche), et la mémorise en continu pendant le défilement.
   useEffect(() => {
+    if (initialPerson) explorerScrollTop_ = 0;
     if (scrollRef.current) scrollRef.current.scrollTop = explorerScrollTop_;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const handleScroll = () => {
     if (scrollRef.current) explorerScrollTop_ = scrollRef.current.scrollTop;
@@ -4752,6 +4885,7 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
     return Object.entries(m).sort((a, b) => b[1] - a[1]);
   }, [films]);
 
+  const personneNorm = personne ? normalizeSearch(personne) : null;
   const dureeBucket = DUREE_BUCKETS.find((d) => d.id === duree);
 
   const results = useMemo(() => {
@@ -4771,6 +4905,8 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
       }
       if (noteMin > 0 && (parseRating(f.noteLetterboxd) ?? -1) < noteMin) return false;
       if (noteMax < 5 && (parseRating(f.noteLetterboxd) ?? 99) > noteMax) return false;
+      if (qui && !tagMatches(f, qui)) return false;
+      if (personneNorm && !personneMatch_(f, personneNorm)) return false;
       if (depart) {
         if ((f.statutAcces || "Inclus") !== "Inclus") return false;
         const d = computeExpiryDays(f);
@@ -4791,7 +4927,7 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
     else if (sort === "court") arr.sort((a, b) => ((parseDureeMinutes(a.duree) ?? 99999) - (parseDureeMinutes(b.duree) ?? 99999)) || parTitre(a, b));
     else arr.sort(parTitre);
     return arr;
-  }, [films, type, statut, plateforme, genresSel, dureeBucket, noteMin, noteMax, depart, sort]);
+  }, [films, type, statut, plateforme, genresSel, dureeBucket, noteMin, noteMax, depart, qui, personneNorm, sort]);
 
   // Rappel des filtres actifs, sous forme de pastilles qu'on peut retirer une à une.
   const actifs = [];
@@ -4801,17 +4937,63 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
   genresSel.forEach((g) => actifs.push({ key: "genre_" + g, label: g, clear: () => setGenresSel(genresSel.filter((x) => x !== g)) }));
   if (dureeBucket) actifs.push({ key: "duree", label: `${dureeBucket.label} (${dureeBucket.hint})`, clear: () => setDuree(null) });
   if (depart) actifs.push({ key: "depart", label: `Part dans ${depart} j`, clear: () => setDepart(null) });
+  if (qui) actifs.push({ key: "qui", label: `Pour : ${qui}`, clear: () => setQui(null) });
+  if (personne) actifs.push({ key: "personne", label: personne, clear: () => setPersonne(null) });
   if (noteMin > 0) actifs.push({ key: "noteMin", label: `★ ≥ ${noteMin.toFixed(1)}`, clear: () => setNoteMin(0) });
   if (noteMax < 5) actifs.push({ key: "noteMax", label: `★ ≤ ${noteMax.toFixed(1)}`, clear: () => setNoteMax(5) });
 
   const toutEffacer = () => {
     setType(null); setStatut(null); setPlateforme(null); setDuree(null); setDepart(null);
-    setGenresSel([]); setNoteMin(0); setNoteMax(5);
+    setQui(null); setPersonne(null); setGenresSel([]); setNoteMin(0); setNoteMax(5);
+  };
+
+  // "Mes recherches" : applique une combinaison enregistrée (tout ce qui
+  // manque dans l'enregistrement revient à sa valeur par défaut).
+  const appliquerVue = (v) => {
+    const f = { ...EXPLORER_FILTRES_VIDES_, ...(v.filtres || {}) };
+    setType(f.type); setStatut(f.statut); setPlateforme(f.plateforme); setDuree(f.duree);
+    setDepart(f.depart); setQui(f.qui); setPersonne(f.personne);
+    setGenresSel(Array.isArray(f.genresSel) ? f.genresSel : []);
+    setNoteMin(Number(f.noteMin) || 0); setNoteMax(f.noteMax == null ? 5 : Number(f.noteMax));
+    if (v.filtres && v.filtres.sort) setSort(v.filtres.sort);
+  };
+  const enregistrerVue = () => {
+    const nom = (nomVue || "").trim();
+    if (!nom) return;
+    const suivantes = vuesAjouter(vues, nom, { type, statut, plateforme, duree, depart, qui, personne, genresSel, noteMin, noteMax, sort });
+    setVues(suivantes);
+    explorerVuesEcrire_(suivantes);
+    setNomVue(null);
+  };
+  const supprimerVue = (nom) => {
+    const suivantes = vues.filter((v) => v.nom !== nom);
+    setVues(suivantes);
+    explorerVuesEcrire_(suivantes);
   };
 
   return (
     <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="EXPLORER" onBack={onBack} onMenu={onMenu} />
+
+      {/* Mode "Ce soir" : un film proposé selon avec qui / combien de temps */}
+      <button onClick={() => setCeSoirOpen(true)} className="w-full flex items-center justify-center gap-2 rounded-xl py-3 mb-3"
+        style={{ background: T.accentSoft, border: `1px solid ${T.accent}55` }}>
+        <Moon size={16} color={T.accent} />
+        <span style={{ fontFamily: F.mono, fontSize: 11.5, fontWeight: 700, letterSpacing: 0.8, color: T.accent }}>CE SOIR · SURPRENDS-MOI</span>
+      </button>
+      {vues.length > 0 && (
+        <div className="mb-3">
+          <p className="mb-1.5" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>MES RECHERCHES</p>
+          <div className="flex gap-2 overflow-x-auto pull-scroll">
+            {vues.map((v) => (
+              <button key={v.nom} onClick={() => appliquerVue(v)} className="rounded-full px-3.5 py-2 flex-shrink-0"
+                style={{ fontFamily: F.serif, fontSize: 12.5, background: T.surface, color: T.cream, border: `1px solid ${T.line}`, whiteSpace: "nowrap" }}>
+                {v.nom}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Barre collante : reste visible pendant qu'on fait défiler les résultats */}
       <div className="-mx-5 px-5 pb-3" style={{ position: "sticky", top: 0, zIndex: 20, background: T.bg, paddingTop: 4 }}>
@@ -4858,8 +5040,37 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
               <button onClick={() => setPanelOpen(false)} aria-label="Fermer"><X size={18} color={T.muted} /></button>
             </div>
             <div className="overflow-y-auto pull-scroll px-5" style={{ flex: 1 }}>
+              <div className="mb-5">
+                <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>MES RECHERCHES</p>
+                {vues.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mb-2">
+                    {vues.map((v) => (
+                      <span key={v.nom} className="inline-flex items-center rounded-full" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+                        <button onClick={() => appliquerVue(v)} className="pl-3.5 pr-2 py-2" style={{ fontFamily: F.serif, fontSize: 12.5, color: T.cream }}>{v.nom}</button>
+                        <button onClick={() => supprimerVue(v.nom)} aria-label={`Supprimer ${v.nom}`} className="pr-3 pl-1 py-2"><X size={12} color={T.mutedDim} /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {nomVue === null ? (
+                  <button onClick={() => setNomVue("")} disabled={actifs.length === 0} className="rounded-full px-3.5 py-2"
+                    style={{ border: `1px dashed ${T.accent}88`, opacity: actifs.length ? 1 : 0.4 }}>
+                    <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.accent, letterSpacing: 0.4 }}>+ ENREGISTRER LES FILTRES ACTUELS</span>
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <input value={nomVue} onChange={(e) => setNomVue(e.target.value)} maxLength={30} autoFocus placeholder="Nom (ex. Soirée à deux)"
+                      onKeyDown={(e) => { if (e.key === "Enter") enregistrerVue(); }}
+                      className="flex-1 min-w-0 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }} />
+                    <button onClick={enregistrerVue} className="rounded-lg px-4" style={{ background: T.accent }}>
+                      <span style={{ fontFamily: F.mono, fontSize: 11, color: T.bg, fontWeight: 700 }}>OK</span>
+                    </button>
+                  </div>
+                )}
+              </div>
               <PillGroup label="Part dans…" options={DEPART_OPTIONS} value={depart} onChange={(v) => setDepart(v === null ? null : v.id)}
                 renderLabel={(opt) => (opt === "Tous" ? "Peu importe" : opt.label)} />
+              <PillGroup label="Pour qui" options={EXPLORER_QUI_} value={qui} onChange={setQui} />
               <PillGroup label="Catégorie" options={CATEGORIES_LIST} value={type} onChange={setType} />
               <PillGroup label="Statut" options={STATUTS_LIST} value={statut} onChange={setStatut} />
               <PillGroup label="Plateforme" options={PLATFORMS_LIST} value={plateforme} onChange={setPlateforme} />
@@ -4894,6 +5105,7 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
           </div>
         </div>
       )}
+      {ceSoirOpen && <CeSoirSheet films={films} onOpen={onOpen} onClose={() => setCeSoirOpen(false)} />}
     </div>
   );
 }
@@ -6692,13 +6904,13 @@ export default function App() {
     } else if (name === "fiche") {
       body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onFilmRemoved={(id) => setFilms((prev) => prev.filter((f) => f.id !== id))} allFilms={films} onOpenPerson={openPerson} onOpenFiche={openFiche} initialEditing={params.editRequested} />;
     } else if (name === "personne") {
-      body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} />;
+      body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} onExplorer={() => setScreen({ name: "explorer", params: { initialPerson: params.nom } })} />;
     } else if (name === "biblio") {
       body = <BibliothequeScreen films={films} type={params.type} statut={params.statut} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "alertes") {
       body = <AlertesScreen films={films} mode={params.mode} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "explorer") {
-      body = <ExplorerScreen films={films} initialGenre={params.initialGenre} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
+      body = <ExplorerScreen films={films} initialGenre={params.initialGenre} initialPerson={params.initialPerson} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "genres") {
       body = <GenresScreen films={films} onNavigate={navigate} onBack={goAccueil} onMenu={() => setMenuOpen(true)} />;
     } else if (name === "ajouter") {
