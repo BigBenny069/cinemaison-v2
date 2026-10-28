@@ -2,6 +2,7 @@ import { google } from "../lib/google.js";
 import { lireLetterboxd } from "../lib/letterboxd.js";
 import { declencherWorkflowLetterboxdV1_ } from "../lib/github-actions.js";
 import { avisValide, enregistrerAvis, trouverFilm } from "../lib/avis.js";
+import { resoudreLienLetterboxd } from "../lib/letterboxd-lien.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
 
@@ -86,6 +87,17 @@ export default async function handler(req, res) {
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
+  }
+
+  // NOUVEAU (28/10/2026) -- ajout par lien Letterboxd : { action:
+  // "resoudreLetterboxd", link } -> { slug, letterboxdUrl, tmdbId, title, year,
+  // source }. Ne touche jamais au Sheet : retrouve seulement le film pour que
+  // l'écran Ajouter remplisse le formulaire (voir lib/letterboxd-lien.js).
+  // Placé ici (derrière le mot de passe) plutôt que dans une nouvelle route :
+  // Vercel Hobby = 12 fonctions max.
+  if (req.body && req.body.action === "resoudreLetterboxd") {
+    const resultat = await resoudreLienLetterboxd(req.body.link);
+    return res.status(resultat.status).json(resultat.body);
   }
 
   // NOUVEAU (18/10/2026) -- suggestions quotidiennes : deux actions légères
