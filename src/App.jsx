@@ -2961,13 +2961,12 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
   // Objets complets (pas juste le nom de la plateforme) pour pouvoir
   // ouvrir directement la fiche sœur au clic.
   const fichesAutresPlateformes = useMemo(() => {
-    const cleFilm = normalizeSearch(film.titre) + "|" + (film.annee || "");
     return (allFilms || []).filter((f) =>
       f.id !== film.id &&
       f.plateforme !== film.plateforme &&
-      normalizeSearch(f.titre) + "|" + (f.annee || "") === cleFilm
+      memeFilm_(f, film)
     );
-  }, [film.id, film.titre, film.annee, film.plateforme, allFilms]);
+  }, [film.id, film.titre, film.annee, film.plateforme, film.tmdbId, film.imdbId, allFilms]);
   const [deleting, setDeleting] = useState(false);
   // NOUVEAU (27/09/2026) -- demandé par Ben : à la suppression d'une
   // fiche, propose aussi de supprimer les AUTRES fiches du même film
@@ -3039,10 +3038,9 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
     // besoin d'appel réseau, tout est déjà en mémoire. Si on en trouve,
     // on retarde le retour à l'accueil pour proposer de les supprimer
     // aussi ; sinon on revient directement comme avant.
-    const cleFilm = normalizeSearch(film.titre) + "|" + (film.annee || "");
     const liees = (allFilms || []).filter((f) =>
       f.id !== film.id &&
-      normalizeSearch(f.titre) + "|" + (f.annee || "") === cleFilm
+      memeFilm_(f, film)
     );
     if (liees.length > 0) {
       setFichesLiees(liees);
@@ -3558,14 +3556,30 @@ function normalizeSearch(s) {
 // vu le nombre de fiches en jeu, appelé une fois par carte affichée.
 function autresPlateformesPourFilm_(film, tousLesFilms) {
   if (!film || !Array.isArray(tousLesFilms)) return [];
-  const cle = normalizeSearch(film.titre) + "|" + (film.annee || "");
   const trouvees = new Set();
   tousLesFilms.forEach((f) => {
     if (f.id === film.id) return;
-    if (normalizeSearch(f.titre) + "|" + (f.annee || "") !== cle) return;
+    if (!memeFilm_(f, film)) return;
     if (f.plateforme && f.plateforme !== film.plateforme) trouvees.add(f.plateforme);
   });
   return Array.from(trouvees);
+}
+
+// NOUVEAU (28/10/2026) -- deux fiches (plateformes différentes) désignent-elles
+// le MÊME film ? Cas réel : FILM0654 (Prime, Foxcatcher 2015) et FILM1257
+// (Canal+, Foxcatcher 2014) n'étaient pas rapprochées parce que l'année diffère
+// d'un an selon la plateforme, alors que leur identifiant TMDb est le même.
+// Ordre : même identifiant TMDb -> même film ; sinon même identifiant IMDb ;
+// sinon l'ancienne règle (même titre + même année).
+function memeFilm_(a, b) {
+  if (!a || !b) return false;
+  const tmdbA = String(a.tmdbId || "").trim();
+  const tmdbB = String(b.tmdbId || "").trim();
+  if (tmdbA && tmdbB && tmdbA === tmdbB) return true;
+  const imdbA = String(a.imdbId || "").trim().toLowerCase();
+  const imdbB = String(b.imdbId || "").trim().toLowerCase();
+  if (imdbA && imdbB && imdbA === imdbB) return true;
+  return normalizeSearch(a.titre) + "|" + (a.annee || "") === normalizeSearch(b.titre) + "|" + (b.annee || "");
 }
 
 function matchFilm(film, query) {
