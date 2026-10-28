@@ -20,7 +20,7 @@ const CAMEL_TO_HEADER = {
   // pas la fiche) pose ce drapeau sans toucher au champ Type lui-même.
   typeConfirme: "TypeConfirme",
   genrePrincipal: "GenrePrincipal", benoit: "Benoit", romy: "Romy",
-  aDeux: "À deux", enFamille: "En famille", vu: "Vu", affiche: "Affiche",
+  aDeux: "À deux", enFamille: "En famille", affiche: "Affiche",
   noteTMDb: "NoteTMDb", casting: "Casting", realisateur: "Réalisateur",
   synopsis: "Synopsis", noteLetterboxd: "NoteLetterboxd",
   votesLetterboxd: "VotesLetterboxd", urlLetterboxd: "URLLetterboxd",

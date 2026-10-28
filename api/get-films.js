@@ -9,7 +9,7 @@ import { lireAvis, trouverFilm } from "../lib/avis.js";
 export const EXPOSED_COLUMNS = [
   "ID", "Titre", "Annee", "Plateforme", "Duree", "DateDisponibilite", "Type",
   "StatutAcces", "TypeConfirme",
-  "Genre", "GenrePrincipal", "Benoit", "Romy", "À deux", "En famille", "Vu",
+  "Genre", "GenrePrincipal", "Benoit", "Romy", "À deux", "En famille",
   "Affiche", "NoteTMDb", "Casting", "Réalisateur", "Synopsis",
   "NoteLetterboxd", "VotesLetterboxd", "URLLetterboxd", "DateDisponibiliteAuto",
   "URLBandeAnnonce", "TMDbID", "IMDbID", "CanalContentId", "URLPlateforme",
@@ -143,7 +143,7 @@ export const HEADER_TO_CAMEL = {
   StatutAcces: "statutAcces",
   TypeConfirme: "typeConfirme",
   Genre: "genre", GenrePrincipal: "genrePrincipal", Benoit: "benoit",
-  Romy: "romy", "À deux": "aDeux", "En famille": "enFamille", Vu: "vu",
+  Romy: "romy", "À deux": "aDeux", "En famille": "enFamille",
   Affiche: "affiche", NoteTMDb: "noteTMDb", Casting: "casting",
   Réalisateur: "realisateur", Synopsis: "synopsis",
   NoteLetterboxd: "noteLetterboxd", VotesLetterboxd: "votesLetterboxd",
