@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { SlidersHorizontal, Moon, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
+import { SlidersHorizontal, LayoutGrid, List, Moon, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
 import { looksLikeLetterboxdLink, pickBestTmdbMatch } from "../lib/letterboxd-lien.js";
 import { poidsCeSoir, tirerPondere, vuesNettoyer, vuesAjouter } from "../lib/explorer-outils.js";
 
@@ -4596,7 +4596,12 @@ function parseDureeMinutes(d) {
   return null;
 }
 
-function PillGroup({ label, options, value, onChange, renderLabel }) {
+// MODIFIÉ (29/10/2026) -- deux options facultatives :
+//  - multi : plusieurs pastilles cochables à la fois (value = tableau) ;
+//  - counts : fonction (option) -> nombre de fiches obtenues si on choisit
+//    cette pastille ; une pastille à 0 est affichée grisée (jamais bloquée).
+function PillGroup({ label, options, value, onChange, renderLabel, multi, counts }) {
+  const sel = multi ? (Array.isArray(value) ? value : []) : null;
   return (
     <div className="mb-5">
       <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>{label.toUpperCase()}</p>
@@ -4607,11 +4612,22 @@ function PillGroup({ label, options, value, onChange, renderLabel }) {
           // objets {id, label, ...} (Durée) — la comparaison doit gérer les
           // deux cas, sinon la sélection ne s'affiche jamais en couleur
           // pour les groupes à options-objets.
-          const active = opt === "Tous" ? !value : (typeof opt === "object" ? opt.id === value : opt === value);
+          const active = opt === "Tous"
+            ? (multi ? sel.length === 0 : !value)
+            : multi ? sel.includes(key) : (typeof opt === "object" ? opt.id === value : opt === value);
+          const n = counts && opt !== "Tous" ? counts(opt) : undefined;
+          const vide = n === 0 && !active;
+          const clic = () => {
+            if (multi) {
+              if (opt === "Tous") onChange([]);
+              else onChange(sel.includes(key) ? sel.filter((x) => x !== key) : [...sel, key]);
+            } else onChange(opt === "Tous" ? null : opt);
+          };
           return (
-            <button key={key} onClick={() => onChange(opt === "Tous" ? null : opt)} className="rounded-full px-3.5 py-2"
-              style={{ fontFamily: F.serif, fontSize: 12.5, background: active ? T.accentSoft : T.surface, color: active ? T.accent : T.muted, border: `1px solid ${active ? T.accent + "55" : T.line}` }}>
+            <button key={key} onClick={clic} className="rounded-full px-3.5 py-2"
+              style={{ fontFamily: F.serif, fontSize: 12.5, background: active ? T.accentSoft : T.surface, color: active ? T.accent : T.muted, border: `1px solid ${active ? T.accent + "55" : T.line}`, opacity: vide ? 0.4 : 1 }}>
               {renderLabel ? renderLabel(opt) : opt}
+              {n != null && <span style={{ fontFamily: F.mono, fontSize: 9.5, marginLeft: 5, opacity: 0.75 }}>{n}</span>}
             </button>
           );
         })}
@@ -4699,6 +4715,29 @@ function GenreField({ genreCounts, selected, onChange }) {
 // connue de l'appli (computeExpiryDays), uniquement pour les fiches
 // "Inclus" -- les statuts VOD / Abo ++ / Bientôt n'ont pas de départ à
 // compter (même règle que les pastilles J-x des cartes).
+// NOUVEAU (29/10/2026) -- vignette d'affiche pour la vue "grille" d'Explorer :
+// affiche, titre, et un petit repère en coin (statut VOD/Abo/Bientôt/Indispo,
+// ou J-x quand le départ est proche), comme sur les cartes de la liste.
+function GrilleAffiche({ film, onOpen }) {
+  const jours = !isArchived(film) ? computeExpiryDays(film) : null;
+  const statut = STATUT_DISPO_BADGE_V1[film.statutAcces];
+  let coin = null;
+  if (statut) coin = { texte: statut.label, couleur: statut.couleur(T) };
+  else if (jours != null && jours >= 0 && jours <= 30) coin = { texte: `J-${jours}`, couleur: urgencyColor_(jours) || T.accent };
+  return (
+    <button onClick={() => onOpen(film)} className="text-left min-w-0">
+      <div className="relative">
+        <Poster film={film} className="w-full" style={{ aspectRatio: "2 / 3", height: "auto" }} />
+        {coin && (
+          <span className="absolute rounded-full px-1.5 py-0.5" style={{ top: 4, right: 4, background: coin.couleur, fontFamily: F.mono, fontSize: 8.5, fontWeight: 800, color: texteLisibleSur_(coin.couleur), letterSpacing: 0.3 }}>{coin.texte}</span>
+        )}
+      </div>
+      <p className="truncate mt-1" style={{ fontFamily: F.serif, fontSize: 11.5, color: T.cream }}>{film.titre}</p>
+      <p className="truncate" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>{film.annee}{film.plateforme ? ` · ${film.plateforme}` : ""}</p>
+    </button>
+  );
+}
+
 const DEPART_OPTIONS = [
   { id: 7, label: "7 jours" },
   { id: 15, label: "15 jours" },
@@ -4712,7 +4751,59 @@ const EXPLORER_SORTS = [
   { id: "az", label: "A → Z" },
 ];
 const EXPLORER_QUI_ = ["Romy", "Benoit", "À deux", "En famille"];
-const EXPLORER_FILTRES_VIDES_ = { type: null, statut: null, plateforme: null, duree: null, depart: null, qui: null, personne: null, genresSel: [], noteMin: 0, noteMax: 5 };
+const EXPLORER_FILTRES_VIDES_ = { type: null, statut: null, plateformes: [], duree: null, depart: null, qui: null, personne: null, decennie: null, langue: null, genresSel: [], noteMin: 0, noteMax: 5 };
+const EXPLORER_LANGUES_ = ["VF", "VOST", "VO"];
+
+// NOUVEAU (29/10/2026) -- règle de filtrage unique d'Explorer, utilisée
+// à la fois pour la liste ET pour les petits nombres affichés sur les
+// pastilles (on rejoue la règle avec "et si je choisissais celle-ci ?").
+// F = { type, statut, plateformes[], duree, depart, qui, personneNorm,
+//       decennie, langue, genresSel[], noteMin, noteMax }.
+function decennieDe_(f) {
+  const y = parseInt(f.annee, 10);
+  return y ? Math.floor(y / 10) * 10 : null;
+}
+function langueContient_(f, l) {
+  return String(f.langue || "").toUpperCase().split(/[^A-Z]+/).filter(Boolean).includes(l);
+}
+function passeFiltres_(f, F) {
+  if (isArchived(f)) return false;
+  if (F.type && f.type !== F.type) return false;
+  // "Inclus" == pas de valeur écrite (fiche jamais retouchée depuis
+  // la migration Phase C, voir get-films.js) -- traité comme
+  // équivalent ici, pas juste une chaîne vide qui ne matcherait rien.
+  if (F.statut && (f.statutAcces || "Inclus") !== F.statut) return false;
+  if (F.plateformes.length && !F.plateformes.some((p) => (f.plateforme || "").toUpperCase() === p.toUpperCase())) return false;
+  if (F.genresSel.length) {
+    const fGenres = (f.genre || "").split(",").map((g) => g.trim());
+    if (!fGenres.some((g) => F.genresSel.includes(g))) return false;
+  }
+  if (F.duree) {
+    const b = DUREE_BUCKETS.find((d) => d.id === F.duree);
+    if (b) {
+      const mins = parseDureeMinutes(f.duree);
+      if (mins == null || mins < b.min || mins > b.max) return false;
+    }
+  }
+  if (F.noteMin > 0 && (parseRating(f.noteLetterboxd) ?? -1) < F.noteMin) return false;
+  if (F.noteMax < 5 && (parseRating(f.noteLetterboxd) ?? 99) > F.noteMax) return false;
+  if (F.qui && !tagMatches(f, F.qui)) return false;
+  if (F.personneNorm && !personneMatch_(f, F.personneNorm)) return false;
+  if (F.decennie != null && decennieDe_(f) !== F.decennie) return false;
+  if (F.langue && !langueContient_(f, F.langue)) return false;
+  if (F.depart) {
+    if ((f.statutAcces || "Inclus") !== "Inclus") return false;
+    const d = computeExpiryDays(f);
+    if (d == null || d < 0 || d > F.depart) return false;
+  }
+  return true;
+}
+
+// Affichage liste / grille d'affiches, retenu sur le téléphone.
+const EXPLORER_AFFICHAGE_CLE_ = "cinemaison_explorer_affichage";
+function explorerAffichageLire_() {
+  try { return localStorage.getItem(EXPLORER_AFFICHAGE_CLE_) === "grille" ? "grille" : "liste"; } catch { return "liste"; }
+}
 
 // NOUVEAU (29/10/2026) -- "Mes recherches" : combinaisons de filtres
 // enregistrées sur le téléphone (localStorage, par appareil). Toujours
@@ -4846,10 +4937,14 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
   const [type, setType] = useState(base.type);
   // Filtre Statut séparé du filtre Catégorie (Phase D, 19/09/2026).
   const [statut, setStatut] = useState(base.statut);
-  const [plateforme, setPlateforme] = useState(base.plateforme);
+  const [plateformes, setPlateformes] = useState(base.plateformes || []);
   const [duree, setDuree] = useState(base.duree);
   const [depart, setDepart] = useState(base.depart ?? null);
   const [qui, setQui] = useState(base.qui ?? null);
+  const [decennie, setDecennie] = useState(base.decennie ?? null);
+  const [langue, setLangue] = useState(base.langue ?? null);
+  const [affichage, setAffichageState] = useState(explorerAffichageLire_);
+  const setAffichage = (v) => { setAffichageState(v); try { localStorage.setItem(EXPLORER_AFFICHAGE_CLE_, v); } catch {} };
   const [personne, setPersonne] = useState(initialPerson || base.personne || null);
   const [sort, setSort] = useState(base.sort || "depart");
   const [genresSel, setGenresSel] = useState(
@@ -4865,8 +4960,8 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
 
   // Recopie à chaque changement, pour que le prochain montage reparte d'ici.
   useEffect(() => {
-    explorerFiltersState_ = { type, statut, plateforme, duree, depart, qui, personne, sort, genresSel, noteMin, noteMax };
-  }, [type, statut, plateforme, duree, depart, qui, personne, sort, genresSel, noteMin, noteMax]);
+    explorerFiltersState_ = { type, statut, plateformes, duree, depart, qui, personne, decennie, langue, sort, genresSel, noteMin, noteMax };
+  }, [type, statut, plateformes, duree, depart, qui, personne, decennie, langue, sort, genresSel, noteMin, noteMax]);
 
   // Restaure la position de défilement au montage (retour depuis une
   // fiche), et la mémorise en continu pendant le défilement.
@@ -4888,32 +4983,21 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
   const personneNorm = personne ? normalizeSearch(personne) : null;
   const dureeBucket = DUREE_BUCKETS.find((d) => d.id === duree);
 
+  // Ensemble des filtres actifs, au format attendu par passeFiltres_.
+  const F = { type, statut, plateformes, duree, depart, qui, personneNorm, decennie, langue, genresSel, noteMin, noteMax };
+  // Petit nombre affiché sur chaque pastille : combien de fiches on aurait
+  // en choisissant cette pastille (les autres filtres restant en place).
+  const compter = (groupe, valeur) => films.filter((f) => passeFiltres_(f, { ...F, [groupe]: valeur })).length;
+
+  // Décennies réellement présentes dans la bibliothèque (récentes d'abord).
+  const decennies = useMemo(() => {
+    const set = new Set();
+    films.forEach((f) => { const d = decennieDe_(f); if (d != null) set.add(d); });
+    return [...set].sort((a, b) => b - a);
+  }, [films]);
+
   const results = useMemo(() => {
-    const arr = films.filter((f) => {
-      if (isArchived(f)) return false;
-      if (type && f.type !== type) return false;
-      // "Inclus" == pas de valeur écrite (fiche jamais retouchée depuis
-      // la migration Phase C, voir get-films.js) -- traité comme
-      // équivalent ici, pas juste une chaîne vide qui ne matcherait rien.
-      if (statut && (f.statutAcces || "Inclus") !== statut) return false;
-      if (plateforme && (f.plateforme || "").toUpperCase() !== plateforme.toUpperCase()) return false;
-      const fGenres = (f.genre || "").split(",").map((g) => g.trim());
-      if (genresSel.length && !fGenres.some((g) => genresSel.includes(g))) return false;
-      if (dureeBucket) {
-        const mins = parseDureeMinutes(f.duree);
-        if (mins == null || mins < dureeBucket.min || mins > dureeBucket.max) return false;
-      }
-      if (noteMin > 0 && (parseRating(f.noteLetterboxd) ?? -1) < noteMin) return false;
-      if (noteMax < 5 && (parseRating(f.noteLetterboxd) ?? 99) > noteMax) return false;
-      if (qui && !tagMatches(f, qui)) return false;
-      if (personneNorm && !personneMatch_(f, personneNorm)) return false;
-      if (depart) {
-        if ((f.statutAcces || "Inclus") !== "Inclus") return false;
-        const d = computeExpiryDays(f);
-        if (d == null || d < 0 || d > depart) return false;
-      }
-      return true;
-    });
+    const arr = films.filter((f) => passeFiltres_(f, F));
     const parTitre = (a, b) => (a.titre || "").localeCompare(b.titre || "", "fr");
     // Sans date / sans note / sans durée : toujours en fin de liste.
     const joursDepart = (f) => {
@@ -4927,13 +5011,16 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
     else if (sort === "court") arr.sort((a, b) => ((parseDureeMinutes(a.duree) ?? 99999) - (parseDureeMinutes(b.duree) ?? 99999)) || parTitre(a, b));
     else arr.sort(parTitre);
     return arr;
-  }, [films, type, statut, plateforme, genresSel, dureeBucket, noteMin, noteMax, depart, qui, personneNorm, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [films, type, statut, plateformes, genresSel, duree, noteMin, noteMax, depart, qui, personneNorm, decennie, langue, sort]);
 
   // Rappel des filtres actifs, sous forme de pastilles qu'on peut retirer une à une.
   const actifs = [];
   if (type) actifs.push({ key: "type", label: type, clear: () => setType(null) });
   if (statut) actifs.push({ key: "statut", label: statut, clear: () => setStatut(null) });
-  if (plateforme) actifs.push({ key: "plateforme", label: plateforme, clear: () => setPlateforme(null) });
+  plateformes.forEach((pf) => actifs.push({ key: "pf_" + pf, label: pf, clear: () => setPlateformes(plateformes.filter((x) => x !== pf)) }));
+  if (decennie != null) actifs.push({ key: "decennie", label: `Années ${decennie}`, clear: () => setDecennie(null) });
+  if (langue) actifs.push({ key: "langue", label: langue, clear: () => setLangue(null) });
   genresSel.forEach((g) => actifs.push({ key: "genre_" + g, label: g, clear: () => setGenresSel(genresSel.filter((x) => x !== g)) }));
   if (dureeBucket) actifs.push({ key: "duree", label: `${dureeBucket.label} (${dureeBucket.hint})`, clear: () => setDuree(null) });
   if (depart) actifs.push({ key: "depart", label: `Part dans ${depart} j`, clear: () => setDepart(null) });
@@ -4943,16 +5030,17 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
   if (noteMax < 5) actifs.push({ key: "noteMax", label: `★ ≤ ${noteMax.toFixed(1)}`, clear: () => setNoteMax(5) });
 
   const toutEffacer = () => {
-    setType(null); setStatut(null); setPlateforme(null); setDuree(null); setDepart(null);
-    setQui(null); setPersonne(null); setGenresSel([]); setNoteMin(0); setNoteMax(5);
+    setType(null); setStatut(null); setPlateformes([]); setDuree(null); setDepart(null);
+    setQui(null); setPersonne(null); setDecennie(null); setLangue(null); setGenresSel([]); setNoteMin(0); setNoteMax(5);
   };
 
   // "Mes recherches" : applique une combinaison enregistrée (tout ce qui
   // manque dans l'enregistrement revient à sa valeur par défaut).
   const appliquerVue = (v) => {
     const f = { ...EXPLORER_FILTRES_VIDES_, ...(v.filtres || {}) };
-    setType(f.type); setStatut(f.statut); setPlateforme(f.plateforme); setDuree(f.duree);
-    setDepart(f.depart); setQui(f.qui); setPersonne(f.personne);
+    // Anciennes recherches enregistrées : une seule plateforme (texte).
+    setType(f.type); setStatut(f.statut); setPlateformes(Array.isArray(v.filtres && v.filtres.plateformes) ? v.filtres.plateformes : (v.filtres && v.filtres.plateforme ? [v.filtres.plateforme] : [])); setDuree(f.duree);
+    setDepart(f.depart); setQui(f.qui); setPersonne(f.personne); setDecennie(f.decennie ?? null); setLangue(f.langue ?? null);
     setGenresSel(Array.isArray(f.genresSel) ? f.genresSel : []);
     setNoteMin(Number(f.noteMin) || 0); setNoteMax(f.noteMax == null ? 5 : Number(f.noteMax));
     if (v.filtres && v.filtres.sort) setSort(v.filtres.sort);
@@ -4960,7 +5048,7 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
   const enregistrerVue = () => {
     const nom = (nomVue || "").trim();
     if (!nom) return;
-    const suivantes = vuesAjouter(vues, nom, { type, statut, plateforme, duree, depart, qui, personne, genresSel, noteMin, noteMax, sort });
+    const suivantes = vuesAjouter(vues, nom, { type, statut, plateformes, duree, depart, qui, personne, decennie, langue, genresSel, noteMin, noteMax, sort });
     setVues(suivantes);
     explorerVuesEcrire_(suivantes);
     setNomVue(null);
@@ -5010,6 +5098,11 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
             style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }}>
             {EXPLORER_SORTS.map((s) => <option key={s.id} value={s.id}>{`Trier : ${s.label}`}</option>)}
           </select>
+          <button onClick={() => setAffichage(affichage === "grille" ? "liste" : "grille")} className="flex-shrink-0 rounded-full flex items-center justify-center"
+            aria-label={affichage === "grille" ? "Afficher en liste" : "Afficher en grille d'affiches"}
+            style={{ width: 42, height: 42, background: T.surface, border: `1px solid ${T.line}` }}>
+            {affichage === "grille" ? <List size={17} color={T.muted} /> : <LayoutGrid size={17} color={T.muted} />}
+          </button>
         </div>
         {actifs.length > 0 && (
           <div className="flex gap-1.5 mt-2 overflow-x-auto pull-scroll items-center" style={{ paddingBottom: 2 }}>
@@ -5027,10 +5120,16 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
         <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>{results.length} RÉSULTAT{results.length > 1 ? "S" : ""}</p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {results.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
-        {results.length === 0 && <p className="text-center mt-6" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Aucune fiche ne correspond à ces critères.</p>}
-      </div>
+      {affichage === "grille" ? (
+        <div className="grid grid-cols-3 gap-2.5">
+          {results.map((f) => <GrilleAffiche key={f.id} film={f} onOpen={onOpen} />)}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {results.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
+        </div>
+      )}
+      {results.length === 0 && <p className="text-center mt-6" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Aucune fiche ne correspond à ces critères.</p>}
 
       {panelOpen && (
         <div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: "rgba(10,8,6,0.75)" }} onClick={() => setPanelOpen(false)}>
@@ -5069,14 +5168,17 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
                 )}
               </div>
               <PillGroup label="Part dans…" options={DEPART_OPTIONS} value={depart} onChange={(v) => setDepart(v === null ? null : v.id)}
-                renderLabel={(opt) => (opt === "Tous" ? "Peu importe" : opt.label)} />
-              <PillGroup label="Pour qui" options={EXPLORER_QUI_} value={qui} onChange={setQui} />
-              <PillGroup label="Catégorie" options={CATEGORIES_LIST} value={type} onChange={setType} />
-              <PillGroup label="Statut" options={STATUTS_LIST} value={statut} onChange={setStatut} />
-              <PillGroup label="Plateforme" options={PLATFORMS_LIST} value={plateforme} onChange={setPlateforme} />
+                renderLabel={(opt) => (opt === "Tous" ? "Peu importe" : opt.label)} counts={(o) => compter("depart", o.id)} />
+              <PillGroup label="Pour qui" options={EXPLORER_QUI_} value={qui} onChange={setQui} counts={(o) => compter("qui", o)} />
+              <PillGroup label="Catégorie" options={CATEGORIES_LIST} value={type} onChange={setType} counts={(o) => compter("type", o)} />
+              <PillGroup label="Statut" options={STATUTS_LIST} value={statut} onChange={setStatut} counts={(o) => compter("statut", o)} />
+              <PillGroup label="Plateformes (plusieurs possibles)" options={PLATFORMS_LIST} value={plateformes} onChange={setPlateformes} multi counts={(o) => compter("plateformes", [o])} />
+              <PillGroup label="Années" options={decennies.map((d) => ({ id: d, label: `${d}s` }))} value={decennie} onChange={(v) => setDecennie(v === null ? null : v.id)}
+                renderLabel={(opt) => (opt === "Tous" ? "Toutes" : opt.label)} counts={(o) => compter("decennie", o.id)} />
+              <PillGroup label="Langue (si connue)" options={EXPLORER_LANGUES_} value={langue} onChange={setLangue} counts={(o) => compter("langue", o)} />
               <GenreField genreCounts={genreCounts} selected={genresSel} onChange={setGenresSel} />
               <PillGroup label="Durée" options={DUREE_BUCKETS} value={duree} onChange={(v) => setDuree(v === null ? null : v.id)}
-                renderLabel={(opt) => (opt === "Tous" ? "Toutes" : `${opt.label} (${opt.hint})`)} />
+                renderLabel={(opt) => (opt === "Tous" ? "Toutes" : `${opt.label} (${opt.hint})`)} counts={(o) => compter("duree", o.id)} />
               <div className="mb-5">
                 <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>NOTE MINIMUM</p>
                 <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
