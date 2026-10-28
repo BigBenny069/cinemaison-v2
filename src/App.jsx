@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
+import { SlidersHorizontal, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
 import { looksLikeLetterboxdLink, pickBestTmdbMatch } from "../lib/letterboxd-lien.js";
 
 /* ------------------------------------------------------------------ */
@@ -4685,11 +4685,32 @@ function GenreField({ genreCounts, selected, onChange }) {
   );
 }
 
+// MODIFIÉ (28/10/2026) -- Explorer refondu : les filtres vivent dans un
+// panneau qui monte du bas (bouton "Filtres"), les filtres actifs sont
+// rappelés en pastilles effaçables, et la liste peut être triée. Nouveau
+// filtre "Part dans…" (7/15/30 jours) : repose sur la date de départ déjà
+// connue de l'appli (computeExpiryDays), uniquement pour les fiches
+// "Inclus" -- les statuts VOD / Abo ++ / Bientôt n'ont pas de départ à
+// compter (même règle que les pastilles J-x des cartes).
+const DEPART_OPTIONS = [
+  { id: 7, label: "7 jours" },
+  { id: 15, label: "15 jours" },
+  { id: 30, label: "30 jours" },
+];
+const EXPLORER_SORTS = [
+  { id: "depart", label: "Part bientôt" },
+  { id: "note", label: "Mieux noté" },
+  { id: "recent", label: "Plus récent" },
+  { id: "court", label: "Plus court" },
+  { id: "az", label: "A → Z" },
+];
+const EXPLORER_FILTRES_VIDES_ = { type: null, statut: null, plateforme: null, duree: null, depart: null, genresSel: [], noteMin: 0, noteMax: 5 };
+
 // État des filtres Explorer — persiste en mémoire tant que l'appli reste
 // ouverte (pas localStorage, se réinitialise à la fermeture). ExplorerScreen
 // est démonté puis remonté à chaque navigation (ouvrir une fiche, revenir
 // en arrière), ce qui effacerait ses useState internes sans ce filet.
-let explorerFiltersState_ = { type: null, statut: null, plateforme: null, duree: null, genresSel: [], noteMin: 0, noteMax: 5 };
+let explorerFiltersState_ = { ...EXPLORER_FILTRES_VIDES_, sort: "depart" };
 // Position de défilement mémorisée en dehors de React, pour la restaurer
 // au retour d'une fiche ouverte depuis Explorer (au lieu de remonter en
 // haut de la liste à chaque fois).
@@ -4697,28 +4718,27 @@ let explorerScrollTop_ = 0;
 
 function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
   const [type, setType] = useState(explorerFiltersState_.type);
-  // NOUVEAU (19/09/2026) -- Phase D (Étape 5) : filtre Statut séparé
-  // du filtre Catégorie (Type), qui ne mélangeait plus vraiment les
-  // deux (STATUTS_LIST manquait "Bientôt disponible"/"Abonnement
-  // complémentaire" côté ancien TYPES_LIST) mais restait quand même le
-  // même champ, StatutAcces).
+  // Filtre Statut séparé du filtre Catégorie (Phase D, 19/09/2026).
   const [statut, setStatut] = useState(explorerFiltersState_.statut);
   const [plateforme, setPlateforme] = useState(explorerFiltersState_.plateforme);
   const [duree, setDuree] = useState(explorerFiltersState_.duree);
+  const [depart, setDepart] = useState(explorerFiltersState_.depart ?? null);
+  const [sort, setSort] = useState(explorerFiltersState_.sort || "depart");
   const [genresSel, setGenresSel] = useState(
     explorerFiltersState_.genresSel.length > 0 ? explorerFiltersState_.genresSel : (initialGenre ? [initialGenre] : [])
   );
   const [noteMin, setNoteMin] = useState(explorerFiltersState_.noteMin);
   const [noteMax, setNoteMax] = useState(explorerFiltersState_.noteMax ?? 5);
+  const [panelOpen, setPanelOpen] = useState(false);
   const scrollRef = useRef(null);
 
   // Recopie à chaque changement, pour que le prochain montage reparte d'ici.
   useEffect(() => {
-    explorerFiltersState_ = { type, statut, plateforme, duree, genresSel, noteMin, noteMax };
-  }, [type, statut, plateforme, duree, genresSel, noteMin, noteMax]);
+    explorerFiltersState_ = { type, statut, plateforme, duree, depart, sort, genresSel, noteMin, noteMax };
+  }, [type, statut, plateforme, duree, depart, sort, genresSel, noteMin, noteMax]);
 
-  // Restaure la position de défilement au montage (retour depuis une      //
-  // fiche), et la mémorise en continu pendant le défilement.               //
+  // Restaure la position de défilement au montage (retour depuis une
+  // fiche), et la mémorise en continu pendant le défilement.
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = explorerScrollTop_;
   }, []);
@@ -4735,7 +4755,7 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
   const dureeBucket = DUREE_BUCKETS.find((d) => d.id === duree);
 
   const results = useMemo(() => {
-    return films.filter((f) => {
+    const arr = films.filter((f) => {
       if (isArchived(f)) return false;
       if (type && f.type !== type) return false;
       // "Inclus" == pas de valeur écrite (fiche jamais retouchée depuis
@@ -4751,40 +4771,129 @@ function ExplorerScreen({ films, initialGenre, onOpen, onBack, onMenu }) {
       }
       if (noteMin > 0 && (parseRating(f.noteLetterboxd) ?? -1) < noteMin) return false;
       if (noteMax < 5 && (parseRating(f.noteLetterboxd) ?? 99) > noteMax) return false;
+      if (depart) {
+        if ((f.statutAcces || "Inclus") !== "Inclus") return false;
+        const d = computeExpiryDays(f);
+        if (d == null || d < 0 || d > depart) return false;
+      }
       return true;
     });
-  }, [films, type, statut, plateforme, genresSel, dureeBucket, noteMin, noteMax]);
+    const parTitre = (a, b) => (a.titre || "").localeCompare(b.titre || "", "fr");
+    // Sans date / sans note / sans durée : toujours en fin de liste.
+    const joursDepart = (f) => {
+      if ((f.statutAcces || "Inclus") !== "Inclus") return Infinity;
+      const d = computeExpiryDays(f);
+      return d == null || d < 0 ? Infinity : d;
+    };
+    if (sort === "depart") arr.sort((a, b) => (joursDepart(a) - joursDepart(b)) || parTitre(a, b));
+    else if (sort === "note") arr.sort((a, b) => ((parseRating(b.noteLetterboxd) ?? -1) - (parseRating(a.noteLetterboxd) ?? -1)) || parTitre(a, b));
+    else if (sort === "recent") arr.sort((a, b) => ((Number(b.annee) || 0) - (Number(a.annee) || 0)) || parTitre(a, b));
+    else if (sort === "court") arr.sort((a, b) => ((parseDureeMinutes(a.duree) ?? 99999) - (parseDureeMinutes(b.duree) ?? 99999)) || parTitre(a, b));
+    else arr.sort(parTitre);
+    return arr;
+  }, [films, type, statut, plateforme, genresSel, dureeBucket, noteMin, noteMax, depart, sort]);
+
+  // Rappel des filtres actifs, sous forme de pastilles qu'on peut retirer une à une.
+  const actifs = [];
+  if (type) actifs.push({ key: "type", label: type, clear: () => setType(null) });
+  if (statut) actifs.push({ key: "statut", label: statut, clear: () => setStatut(null) });
+  if (plateforme) actifs.push({ key: "plateforme", label: plateforme, clear: () => setPlateforme(null) });
+  genresSel.forEach((g) => actifs.push({ key: "genre_" + g, label: g, clear: () => setGenresSel(genresSel.filter((x) => x !== g)) }));
+  if (dureeBucket) actifs.push({ key: "duree", label: `${dureeBucket.label} (${dureeBucket.hint})`, clear: () => setDuree(null) });
+  if (depart) actifs.push({ key: "depart", label: `Part dans ${depart} j`, clear: () => setDepart(null) });
+  if (noteMin > 0) actifs.push({ key: "noteMin", label: `★ ≥ ${noteMin.toFixed(1)}`, clear: () => setNoteMin(0) });
+  if (noteMax < 5) actifs.push({ key: "noteMax", label: `★ ≤ ${noteMax.toFixed(1)}`, clear: () => setNoteMax(5) });
+
+  const toutEffacer = () => {
+    setType(null); setStatut(null); setPlateforme(null); setDuree(null); setDepart(null);
+    setGenresSel([]); setNoteMin(0); setNoteMax(5);
+  };
 
   return (
     <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="EXPLORER" onBack={onBack} onMenu={onMenu} />
-      <PillGroup label="Catégorie" options={CATEGORIES_LIST} value={type} onChange={setType} />
-      <PillGroup label="Statut" options={STATUTS_LIST} value={statut} onChange={setStatut} />
-      <PillGroup label="Plateforme" options={PLATFORMS_LIST} value={plateforme} onChange={setPlateforme} />
-      <GenreField genreCounts={genreCounts} selected={genresSel} onChange={setGenresSel} />
-      <PillGroup label="Durée" options={DUREE_BUCKETS} value={duree} onChange={(v) => setDuree(v === null ? null : v.id)}
-        renderLabel={(opt) => (opt === "Tous" ? "Toutes" : `${opt.label} (${opt.hint})`)} />
-      <div className="mb-5">
-        <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>NOTE MINIMUM</p>
-        <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-          <button onClick={() => setNoteMin((v) => Math.max(0, +(v - 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={14} color={T.muted} /></button>
-          <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>{noteMin === 0 ? "TOUTES" : `★ ${noteMin.toFixed(1)}`}</span>
-          <button onClick={() => setNoteMin((v) => Math.min(5, +(v + 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={14} color={T.muted} /></button>
+
+      {/* Barre collante : reste visible pendant qu'on fait défiler les résultats */}
+      <div className="-mx-5 px-5 pb-3" style={{ position: "sticky", top: 0, zIndex: 20, background: T.bg, paddingTop: 4 }}>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setPanelOpen(true)} className="flex items-center gap-2 rounded-full px-4 py-2.5 flex-shrink-0"
+            style={{ background: actifs.length ? T.accentSoft : T.surface, border: `1px solid ${actifs.length ? T.accent + "55" : T.line}` }}>
+            <SlidersHorizontal size={15} color={actifs.length ? T.accent : T.muted} />
+            <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: actifs.length ? T.accent : T.muted }}>
+              FILTRES{actifs.length ? ` (${actifs.length})` : ""}
+            </span>
+          </button>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Trier par"
+            className="flex-1 min-w-0 rounded-full px-3 py-2.5 outline-none"
+            style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }}>
+            {EXPLORER_SORTS.map((s) => <option key={s.id} value={s.id}>{`Trier : ${s.label}`}</option>)}
+          </select>
         </div>
+        {actifs.length > 0 && (
+          <div className="flex gap-1.5 mt-2 overflow-x-auto pull-scroll items-center" style={{ paddingBottom: 2 }}>
+            {actifs.map((a) => (
+              <button key={a.key} onClick={a.clear} className="inline-flex items-center gap-1 rounded-full pl-2.5 pr-2 py-1 flex-shrink-0" style={{ background: T.accentSoft }}>
+                <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, whiteSpace: "nowrap" }}>{a.label}</span>
+                <X size={11} color={T.accent} />
+              </button>
+            ))}
+            <button onClick={toutEffacer} className="flex-shrink-0 px-2 py-1">
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.muted, letterSpacing: 0.5, whiteSpace: "nowrap", textDecoration: "underline" }}>TOUT EFFACER</span>
+            </button>
+          </div>
+        )}
+        <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>{results.length} RÉSULTAT{results.length > 1 ? "S" : ""}</p>
       </div>
-      <div className="mb-5">
-        <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>NOTE MAXIMUM</p>
-        <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-          <button onClick={() => setNoteMax((v) => Math.max(0, +(v - 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={14} color={T.muted} /></button>
-          <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>{noteMax >= 5 ? "TOUTES" : `★ ${noteMax.toFixed(1)}`}</span>
-          <button onClick={() => setNoteMax((v) => Math.min(5, +(v + 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={14} color={T.muted} /></button>
-        </div>
-      </div>
-      <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>{results.length} RÉSULTAT{results.length > 1 ? "S" : ""}</p>
+
       <div className="flex flex-col gap-2">
         {results.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
         {results.length === 0 && <p className="text-center mt-6" style={{ fontFamily: F.serif, fontSize: 13, color: T.mutedDim, fontStyle: "italic" }}>Aucune fiche ne correspond à ces critères.</p>}
       </div>
+
+      {panelOpen && (
+        <div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: "rgba(10,8,6,0.75)" }} onClick={() => setPanelOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="flex flex-col rounded-t-2xl" style={{ background: T.bg, border: `1px solid ${T.line}`, borderBottom: "none", maxHeight: "90%" }}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>FILTRES</span>
+              <button onClick={() => setPanelOpen(false)} aria-label="Fermer"><X size={18} color={T.muted} /></button>
+            </div>
+            <div className="overflow-y-auto pull-scroll px-5" style={{ flex: 1 }}>
+              <PillGroup label="Part dans…" options={DEPART_OPTIONS} value={depart} onChange={(v) => setDepart(v === null ? null : v.id)}
+                renderLabel={(opt) => (opt === "Tous" ? "Peu importe" : opt.label)} />
+              <PillGroup label="Catégorie" options={CATEGORIES_LIST} value={type} onChange={setType} />
+              <PillGroup label="Statut" options={STATUTS_LIST} value={statut} onChange={setStatut} />
+              <PillGroup label="Plateforme" options={PLATFORMS_LIST} value={plateforme} onChange={setPlateforme} />
+              <GenreField genreCounts={genreCounts} selected={genresSel} onChange={setGenresSel} />
+              <PillGroup label="Durée" options={DUREE_BUCKETS} value={duree} onChange={(v) => setDuree(v === null ? null : v.id)}
+                renderLabel={(opt) => (opt === "Tous" ? "Toutes" : `${opt.label} (${opt.hint})`)} />
+              <div className="mb-5">
+                <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>NOTE MINIMUM</p>
+                <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+                  <button onClick={() => setNoteMin((v) => Math.max(0, +(v - 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={14} color={T.muted} /></button>
+                  <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>{noteMin === 0 ? "TOUTES" : `★ ${noteMin.toFixed(1)}`}</span>
+                  <button onClick={() => setNoteMin((v) => Math.min(5, +(v + 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={14} color={T.muted} /></button>
+                </div>
+              </div>
+              <div className="mb-5">
+                <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>NOTE MAXIMUM</p>
+                <div className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
+                  <button onClick={() => setNoteMax((v) => Math.max(0, +(v - 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Minus size={14} color={T.muted} /></button>
+                  <span style={{ fontFamily: F.marquee, fontSize: 20, color: T.cream, letterSpacing: 0.5 }}>{noteMax >= 5 ? "TOUTES" : `★ ${noteMax.toFixed(1)}`}</span>
+                  <button onClick={() => setNoteMax((v) => Math.min(5, +(v + 0.5).toFixed(1)))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.surfaceRaised }}><Plus size={14} color={T.muted} /></button>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-5 py-4" style={{ borderTop: `1px solid ${T.line}`, paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+              <button onClick={toutEffacer} disabled={actifs.length === 0} className="px-2 py-2" style={{ opacity: actifs.length ? 1 : 0.4 }}>
+                <span style={{ fontFamily: F.mono, fontSize: 11, color: T.muted, letterSpacing: 0.5, textDecoration: "underline" }}>EFFACER</span>
+              </button>
+              <button onClick={() => setPanelOpen(false)} className="flex-1 rounded-full px-5 py-2.5" style={{ background: T.accent, fontFamily: F.mono, fontSize: 11, color: T.bg, fontWeight: 700, letterSpacing: 0.5 }}>
+                {`VOIR ${results.length} RÉSULTAT${results.length > 1 ? "S" : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
