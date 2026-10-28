@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
+import { looksLikeLetterboxdLink, pickBestTmdbMatch } from "../lib/letterboxd-lien.js";
 
 /* ------------------------------------------------------------------ */
 /* THÈMES — deux palettes disponibles, sélectionnables dans Réglages.  */
@@ -4855,6 +4856,13 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   // envoyé à l'ajout, donc l'enrichissement reste sur le bon film.
   const [titreAffiche, setTitreAffiche] = useState("");
   const [rechercheElargie, setRechercheElargie] = useState(null);
+  // NOUVEAU (28/10/2026) -- ajout par lien Letterboxd : on colle un lien de
+  // partage (boxd.it/xxxx), le serveur retrouve le film, puis le formulaire se
+  // remplit comme si le film avait été choisi dans la liste TMDb (le champ
+  // "Titre affiché dans l'appli" reste modifiable). Au moindre doute, rien n'est
+  // choisi à ta place : le titre est pré-rempli et la liste de choix s'affiche.
+  const [lbStatus, setLbStatus] = useState(null); // null | "loading" | "ok" | "error"
+  const [lbMessage, setLbMessage] = useState("");
   useEffect(() => {
     if (!titreTouchedByUser || titre.trim().length < 2) { setTmdbResults([]); setTmdbError(null); return; }
     const controller = new AbortController();
@@ -4919,6 +4927,87 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     setTimeout(() => { try { window.scrollTo(0, 0); } catch (e) {} }, 80);
   };
 
+  // Le résultat s'affiche en haut de l'écran : quand le lien a été collé dans le
+  // champ « URL Letterboxd » (tout en bas), on remonte pour qu'il soit visible.
+  const remonterEnHaut = () => {
+    setTimeout(() => { try { const c = document.querySelector(".pull-scroll"); if (c) c.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) {} }, 100);
+  };
+
+  const resolveLetterboxdLink = async (text) => {
+    remonterEnHaut();
+    if (!looksLikeLetterboxdLink(text)) {
+      setLbStatus("error");
+      setLbMessage("Ce texte ne ressemble pas à un lien Letterboxd (boxd.it/… ou letterboxd.com/film/…).");
+      return;
+    }
+    setLbStatus("loading");
+    setLbMessage("");
+    let result;
+    try {
+      result = await apiWrite("/api/add-film", { action: "resoudreLetterboxd", link: text });
+    } catch {
+      result = { ok: false, error: "Connexion impossible. Réessaie dans un instant." };
+    }
+    if (!result.ok) {
+      setLbStatus("error");
+      setLbMessage(result.error);
+      return;
+    }
+    const { tmdbId, title: foundTitle, year: foundYear, letterboxdUrl: foundUrl, source } = result.data;
+    remonterEnHaut();
+    const noteSource = source === "slug" ? " (Letterboxd n'a pas livré sa page : titre déduit du lien)" : "";
+    try {
+      let match = null;
+      if (tmdbId) {
+        const det = await fetch(`/api/search-tmdb?q=${encodeURIComponent("tmdb:" + tmdbId)}&type=${encodeURIComponent(type)}`).then((r) => r.json());
+        if (det && Array.isArray(det.results) && det.results[0]) match = det.results[0];
+      }
+      if (!match && foundTitle) {
+        const found = await fetch(`/api/search-tmdb?q=${encodeURIComponent(foundTitle)}&type=${encodeURIComponent(type)}`).then((r) => r.json());
+        match = pickBestTmdbMatch(found && found.results, foundTitle, foundYear);
+      }
+      if (match) {
+        pickTmdbResult(match);
+        if (foundUrl) setUrlLetterboxd(foundUrl);
+        setLbStatus("ok");
+        setLbMessage(`✓ Film retrouvé : ${match.titre}${match.annee ? " (" + match.annee + ")" : ""}. Vérifie, choisis la plateforme puis ajoute.${noteSource}`);
+        return;
+      }
+      // Pas de certitude : on pré-remplit la recherche, tu choisis dans la liste.
+      if (foundTitle) {
+        setTmdbIdPicked(null);
+        setTitreAffiche("");
+        setTitre(foundTitle);
+        setTitreTouchedByUser(true);
+        if (foundYear) setAnnee(String(foundYear));
+        if (foundUrl) setUrlLetterboxd(foundUrl);
+        setLbStatus("ok");
+        setLbMessage(`Film pas identifié avec certitude : choisis le bon dans la liste qui s'affiche sous « Titre ».${noteSource}`);
+        return;
+      }
+      setLbStatus("error");
+      setLbMessage("Lien lu, mais le film n'a pas pu être identifié. Saisis le titre à la main.");
+    } catch {
+      setLbStatus("error");
+      setLbMessage("Le lien est valide mais la recherche du film a échoué. Réessaie dans un instant.");
+    }
+  };
+
+  const pasteLetterboxdLink = async () => {
+    let text = "";
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      // Presse-papiers non accessible (refus du navigateur, iPhone) : message ci-dessous.
+    }
+    if (!text) {
+      setLbStatus("error");
+      setLbMessage("Presse-papiers inaccessible. Colle le lien dans le champ « URL Letterboxd » plus bas : le film sera retrouvé automatiquement.");
+      return;
+    }
+    resolveLetterboxdLink(text);
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSaving(true);
@@ -4957,6 +5046,20 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     <div className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
       <ScreenHeader title="NOUVELLE ENTRÉE" onBack={() => setType(null)} onMenu={onMenu} />
       <SectionLabel>IDENTIFICATION</SectionLabel>
+      {type !== "Série" && (
+        <div className="mb-4">
+          <button
+            onClick={pasteLetterboxdLink}
+            disabled={lbStatus === "loading"}
+            className="w-full rounded-lg py-3"
+            style={{ border: `1px solid ${T.accent}`, background: "transparent", fontFamily: F.mono, fontSize: 11.5, letterSpacing: 0.8, color: T.accent, opacity: lbStatus === "loading" ? 0.6 : 1 }}>
+            {lbStatus === "loading" ? "RECHERCHE DU FILM…" : "📋 COLLER UN LIEN LETTERBOXD"}
+          </button>
+          {lbMessage && (
+            <p className="mt-2" style={{ fontFamily: F.mono, fontSize: 10, lineHeight: 1.5, color: lbStatus === "error" ? T.alert : T.accent }}>{lbMessage}</p>
+          )}
+        </div>
+      )}
       <label className="block mb-4 relative">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE *</span>
         <input
@@ -5047,7 +5150,18 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
       </label>
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
-        <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/…"
+        <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/… ou lien boxd.it"
+          onPaste={(e) => {
+            // Collage d'un lien de partage Letterboxd : le film est retrouvé tout seul
+            // (indispensable sur iPhone, où le bouton du presse-papiers est souvent refusé).
+            if (type === "Série") return;
+            const pasted = (e.clipboardData && e.clipboardData.getData("text")) || "";
+            if (looksLikeLetterboxdLink(pasted)) {
+              e.preventDefault();
+              setUrlLetterboxd(pasted.trim());
+              resolveLetterboxdLink(pasted);
+            }
+          }}
           className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none" style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 16, color: T.cream }} />
         {/* Redirection officielle Letterboxd basée sur l'ID TMDb (voir      */}
         {/* letterboxd.com/about/film-data/) : letterboxd.com/tmdb/{id}       */}
