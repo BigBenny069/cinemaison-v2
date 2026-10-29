@@ -4924,7 +4924,12 @@ function CeSoirSheet({ films, onOpen, onClose }) {
 // ouverte (pas localStorage, se réinitialise à la fermeture). ExplorerScreen
 // est démonté puis remonté à chaque navigation (ouvrir une fiche, revenir
 // en arrière), ce qui effacerait ses useState internes sans ce filet.
-let explorerFiltersState_ = { ...EXPLORER_FILTRES_VIDES_, sort: "depart" };
+// MODIFIÉ (29/10/2026) -- à l'ouverture de l'appli, Explorer démarre sur le
+// statut « Inclus » (demandé par Ben) ; « Tous » dans le panneau, la croix de la
+// pastille ou « Tout effacer » l'enlèvent. Le choix est ensuite retenu tant que
+// l'appli reste ouverte. (Arrivée depuis la filmographie d'une personne :
+// tous les statuts, voir ExplorerScreen.)
+let explorerFiltersState_ = { ...EXPLORER_FILTRES_VIDES_, statut: "Inclus", sort: "depart" };
 // Position de défilement mémorisée en dehors de React, pour la restaurer
 // au retour d'une fiche ouverte depuis Explorer (au lieu de remonter en
 // haut de la liste à chaque fois).
