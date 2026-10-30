@@ -27,6 +27,8 @@
 // réécrite en /film/..., le mécanisme Apps Script existant
 // (03_LETTERBOXD.gs) s'en charge tout seul au prochain passage.
 
+import { candidatsLetterboxd } from "../lib/letterboxd-slugs.js";
+
 const API_BASE = "https://cinemaison-v2.vercel.app";
 const MOT_DE_PASSE = process.env.CINEMAISON_PASSWORD || "";
 const USER_AGENT =
@@ -96,10 +98,15 @@ function extraireAnneePage_(html) {
   return "";
 }
 
+let requetesBloquees_ = 0;
+
 async function essayerCandidat_(url) {
   try {
     const reponse = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-    if (!reponse.ok) return null;
+    if (!reponse.ok) {
+      if (reponse.status === 403 || reponse.status === 429) requetesBloquees_++;
+      return null;
+    }
     const html = await reponse.text();
     if (!/letterboxd/i.test(html)) return null;
     return {
@@ -127,34 +134,18 @@ function pageCorrespond_(infos, titre, annee) {
 }
 
 /**
- * Devine l'URL /film/{slug}/ (puis /film/{slug}-{annee}/ en repli) à
- * partir du titre -- même méthode que rechercherLetterboxdViaSlug_.
- * Essaie le titre tel qu'enregistré (souvent en français), puis le
- * titre original si différent et disponible -- même ordre de priorité
- * que rechercherUrlLetterboxdAutomatique_ (03_LETTERBOXD.gs) : Letterboxd
- * utilise presque toujours le titre original dans ses URL, un titre
- * français traduit ne donnera donc souvent rien.
+ * Devine l'URL /film/{slug}/ à partir de TOUS les titres connus du film
+ * (français, original, anglais et alternatifs TMDb), chacun avec et sans
+ * année (année, année-1, année+1). Letterboxd utilise le titre international
+ * (souvent anglais) : l'ancienne méthode, limitée au titre français puis au
+ * titre original, ratait par exemple « Kaïro » (page « pulse-2001 »).
  */
-async function resoudreParSlug_(titre, annee, titreOriginal) {
-  const resultat = await essayerTousLesCandidats_(titre, annee);
-  if (resultat) return resultat;
-
-  if (titreOriginal && normaliserTexte_(titreOriginal) !== normaliserTexte_(titre)) {
-    return essayerTousLesCandidats_(titreOriginal, annee);
-  }
-  return null;
-}
-
-async function essayerTousLesCandidats_(titre, annee) {
-  const slug = slugifier_(titre);
-  if (!slug) return null;
-
-  const candidats = ["https://letterboxd.com/film/" + slug + "/"];
-  if (annee) candidats.push("https://letterboxd.com/film/" + slug + "-" + annee + "/");
-
+async function resoudreParSlug_(titre, annee, titreOriginal, titresTmdb) {
+  const titres = [titre, titreOriginal].concat(titresTmdb || []).filter(Boolean);
+  const candidats = candidatsLetterboxd(titres, annee);
   for (let i = 0; i < candidats.length; i++) {
-    const infos = await essayerCandidat_(candidats[i]);
-    if (infos && pageCorrespond_(infos, titre, annee)) {
+    const infos = await essayerCandidat_(candidats[i].url);
+    if (infos && pageCorrespond_(infos, candidats[i].titre, annee)) {
       return infos.urlFinale;
     }
     if (i < candidats.length - 1) {
@@ -162,6 +153,20 @@ async function essayerTousLesCandidats_(titre, annee) {
     }
   }
   return null;
+}
+
+/** Autres titres du film (anglais, alternatifs) via TMDb, [] si indisponible. */
+async function lireTitresTmdb_(f) {
+  if (!f.tmdbId) return [];
+  try {
+    const type = /s[ée]rie/i.test(f.type || "") ? "tv" : "movie";
+    const r = await fetch(API_BASE + "/api/titres-tmdb?id=" + encodeURIComponent(f.tmdbId) + "&type=" + type);
+    if (!r.ok) return [];
+    const d = await r.json();
+    return Array.isArray(d.titres) ? d.titres : [];
+  } catch (e) {
+    return [];
+  }
 }
 
 async function envoyerMisesAJourEnLot_(misesAJour) {
@@ -201,7 +206,8 @@ async function main() {
     const f = films[i];
     process.stdout.write("[" + (i + 1) + "/" + films.length + "] " + f.titre + " (" + f.annee + ") ... ");
     try {
-      const urlResolue = await resoudreParSlug_(f.titre, f.annee, f.titreOriginal);
+      const titresTmdb = await lireTitresTmdb_(f);
+      const urlResolue = await resoudreParSlug_(f.titre, f.annee, f.titreOriginal, titresTmdb);
       if (urlResolue) {
         console.log("OK -> " + urlResolue);
         misesAJour.push({ id: f.id, url: urlResolue });
@@ -216,6 +222,7 @@ async function main() {
     await new Promise(function (r) { setTimeout(r, PAUSE_ENTRE_FILMS_MS); });
   }
 
+  if (requetesBloquees_ > 0) console.log("\nAttention : " + requetesBloquees_ + " requête(s) refusée(s) par Letterboxd (403/429) -- blocage anti-robot probable, retentera au prochain passage.");
   console.log("\n" + misesAJour.length + " URL(s) résolue(s), " + echecs.length + " échec(s) cette fois.");
 
   if (misesAJour.length > 0) {
