@@ -4644,7 +4644,7 @@ const GENRE_EMOJI = {
 };
 function genreEmoji(g) { return GENRE_EMOJI[g] || "🎞️"; }
 
-function GenreField({ genreCounts, selected, onChange }) {
+function GenreField({ genreCounts, selected, onChange, compterGenre }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const filtered = genreCounts.filter(([g]) => g.toLowerCase().includes(search.toLowerCase()));
@@ -4655,19 +4655,24 @@ function GenreField({ genreCounts, selected, onChange }) {
       <p className="mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.2, color: T.accentSecondary }}>GENRE</p>
       <button onClick={() => setOpen(true)} className="w-full rounded-xl px-4 py-3 flex items-center justify-between text-left" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
         <span style={{ fontFamily: F.serif, fontSize: 13.5, color: selected.length ? T.cream : T.mutedDim }}>
-          {selected.length === 0 ? "Tous les genres" : `${selected.length} genre${selected.length > 1 ? "s" : ""} sélectionné${selected.length > 1 ? "s" : ""}`}
+          {selected.length === 0 ? "Voir tous les genres…" : `${selected.length} genre${selected.length > 1 ? "s" : ""} sélectionné${selected.length > 1 ? "s" : ""} · voir tous…`}
         </span>
       </button>
-      {selected.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap mt-2">
-          {selected.map((g) => (
-            <button key={g} onClick={() => toggle(g)} className="inline-flex items-center gap-1 rounded-full pl-2.5 pr-2 py-1" style={{ background: T.accentSoft }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent }}>{g}</span>
-              <X size={11} color={T.accent} />
+      {/* Pastilles rapides : les genres les plus fréquents + ceux déjà choisis, */}
+      {/* avec le nombre de fiches (les autres filtres restant en place).       */}
+      <div className="flex gap-2 flex-wrap mt-2">
+        {[...new Set([...selected, ...genreCounts.slice(0, 8).map(([g]) => g)])].map((g) => {
+          const actif = selected.includes(g);
+          const n = compterGenre ? compterGenre(g) : null;
+          return (
+            <button key={g} onClick={() => toggle(g)} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2"
+              style={{ background: actif ? T.accentSoft : T.surface, border: `1px solid ${actif ? T.accent + "66" : T.line}` }}>
+              <span style={{ fontFamily: F.serif, fontSize: 12.5, color: actif ? T.accent : T.cream, fontWeight: actif ? 700 : 400 }}>{g}</span>
+              {n != null && <span style={{ fontFamily: F.mono, fontSize: 9.5, color: actif ? T.accent : T.mutedDim }}>{n}</span>}
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
       {open && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: "rgba(10,8,6,0.75)" }} onClick={() => setOpen(false)}>
           <div onClick={(e) => e.stopPropagation()} className="flex flex-col rounded-t-2xl" style={{ background: T.bg, border: `1px solid ${T.line}`, borderBottom: "none", maxHeight: "82%" }}>
@@ -4747,7 +4752,8 @@ const EXPLORER_SORTS = [
   { id: "depart", label: "Part bientôt" },
   { id: "note", label: "Mieux noté" },
   { id: "recent", label: "Plus récent" },
-  { id: "court", label: "Plus court" },
+  { id: "court", label: "Durée : plus court" },
+  { id: "long", label: "Durée : plus long" },
   { id: "az", label: "A → Z" },
 ];
 const EXPLORER_QUI_ = ["Romy", "Benoit", "À deux", "En famille"];
@@ -5014,6 +5020,7 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
     else if (sort === "note") arr.sort((a, b) => ((parseRating(b.noteLetterboxd) ?? -1) - (parseRating(a.noteLetterboxd) ?? -1)) || parTitre(a, b));
     else if (sort === "recent") arr.sort((a, b) => ((Number(b.annee) || 0) - (Number(a.annee) || 0)) || parTitre(a, b));
     else if (sort === "court") arr.sort((a, b) => ((parseDureeMinutes(a.duree) ?? 99999) - (parseDureeMinutes(b.duree) ?? 99999)) || parTitre(a, b));
+    else if (sort === "long") arr.sort((a, b) => ((parseDureeMinutes(b.duree) ?? -1) - (parseDureeMinutes(a.duree) ?? -1)) || parTitre(a, b));
     else arr.sort(parTitre);
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5177,11 +5184,12 @@ function ExplorerScreen({ films, initialGenre, initialPerson, onOpen, onBack, on
               <PillGroup label="Pour qui" options={EXPLORER_QUI_} value={qui} onChange={setQui} counts={(o) => compter("qui", o)} />
               <PillGroup label="Catégorie" options={CATEGORIES_LIST} value={type} onChange={setType} counts={(o) => compter("type", o)} />
               <PillGroup label="Statut" options={STATUTS_LIST} value={statut} onChange={setStatut} counts={(o) => compter("statut", o)} />
+              <GenreField genreCounts={genreCounts} selected={genresSel} onChange={setGenresSel}
+                compterGenre={(g) => compter("genresSel", genresSel.includes(g) ? genresSel : [...genresSel, g])} />
               <PillGroup label="Plateformes (plusieurs possibles)" options={PLATFORMS_LIST} value={plateformes} onChange={setPlateformes} multi counts={(o) => compter("plateformes", [o])} />
               <PillGroup label="Années" options={decennies.map((d) => ({ id: d, label: `${d}s` }))} value={decennie} onChange={(v) => setDecennie(v === null ? null : v.id)}
                 renderLabel={(opt) => (opt === "Tous" ? "Toutes" : opt.label)} counts={(o) => compter("decennie", o.id)} />
               <PillGroup label="Langue (si connue)" options={EXPLORER_LANGUES_} value={langue} onChange={setLangue} counts={(o) => compter("langue", o)} />
-              <GenreField genreCounts={genreCounts} selected={genresSel} onChange={setGenresSel} />
               <PillGroup label="Durée" options={DUREE_BUCKETS} value={duree} onChange={(v) => setDuree(v === null ? null : v.id)}
                 renderLabel={(opt) => (opt === "Tous" ? "Toutes" : `${opt.label} (${opt.hint})`)} counts={(o) => compter("duree", o.id)} />
               <div className="mb-5">
