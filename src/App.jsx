@@ -3576,7 +3576,10 @@ function memeFilm_(a, b) {
   if (!a || !b) return false;
   const tmdbA = String(a.tmdbId || "").trim();
   const tmdbB = String(b.tmdbId || "").trim();
-  if (tmdbA && tmdbB && tmdbA === tmdbB) return true;
+  // Un identifiant de série et un identifiant de film de même numéro ne sont PAS le même film.
+  const serieA = String(a.tmdbSerie || "").trim() !== "";
+  const serieB = String(b.tmdbSerie || "").trim() !== "";
+  if (tmdbA && tmdbB && tmdbA === tmdbB && serieA === serieB) return true;
   const imdbA = String(a.imdbId || "").trim().toLowerCase();
   const imdbB = String(b.imdbId || "").trim().toLowerCase();
   if (imdbA && imdbB && imdbA === imdbB) return true;
@@ -5349,6 +5352,9 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   // ci s'appuie sur l'ID exact déjà récupéré côté TMDb : fiable à 100%, pas
   // une supposition — donc le pré-remplissage automatique redevient sûr.
   const [tmdbIdPicked, setTmdbIdPicked] = useState(null);
+  // NOUVEAU (02/11/2026) -- true quand le film choisi est classé SÉRIE chez TMDb
+  // (identifiant de série, à ne pas lire comme un identifiant de film).
+  const [tmdbSeriePicked, setTmdbSeriePicked] = useState(false);
   const titreFinal = (tmdbIdPicked && titreAffiche.trim()) ? titreAffiche.trim() : titre.trim();
   const canSubmit = titreFinal && annee.trim() && plateforme;
 
@@ -5357,7 +5363,8 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     setTitreAffiche(r.titre);
     if (r.annee) setAnnee(String(r.annee));
     setTmdbIdPicked(r.tmdbId || null);
-    if (!urlLetterboxd.trim() && r.tmdbId) {
+    setTmdbSeriePicked(!!r.tmdbSerie);
+    if (!urlLetterboxd.trim() && r.tmdbId && !r.tmdbSerie) {
     // Correctif : la redirection letterboxd.com/tmdb/{id} ne fonctionne
     // officiellement QUE pour les films — Letterboxd confirme que les
     // séries ne sont jamais auto-importées ainsi (ajout manuel par leur
@@ -5426,6 +5433,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
       // Pas de certitude : on pré-remplit la recherche, tu choisis dans la liste.
       if (foundTitle) {
         setTmdbIdPicked(null);
+        setTmdbSeriePicked(false);
         setTitreAffiche("");
         setTitre(foundTitle);
         setTitreTouchedByUser(true);
@@ -5462,7 +5470,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
-    const result = await apiWrite("/api/add-film", { titre: titreFinal, tmdbId: tmdbIdPicked || undefined, annee: annee.trim(), plateforme, type, statutAcces: statutAcces !== "Inclus" ? statutAcces : undefined, dateManuelle: dateManuelle.trim() || undefined, urlLetterboxd: urlLetterboxd.trim() || undefined });
+    const result = await apiWrite("/api/add-film", { titre: titreFinal, tmdbId: tmdbIdPicked || undefined, tmdbSerie: (tmdbIdPicked && tmdbSeriePicked) ? true : undefined, annee: annee.trim(), plateforme, type, statutAcces: statutAcces !== "Inclus" ? statutAcces : undefined, dateManuelle: dateManuelle.trim() || undefined, urlLetterboxd: urlLetterboxd.trim() || undefined });
     setSaving(false);
     if (!result.ok) {
       setError(result.error || "Impossible d'ajouter ce film");
@@ -5514,7 +5522,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accentSecondary, letterSpacing: 1 }}>TITRE *</span>
         <input
           value={titre}
-          onChange={(e) => { setTitre(e.target.value); setTitreTouchedByUser(true); setTmdbIdPicked(null); setTitreAffiche(""); }}
+          onChange={(e) => { setTitre(e.target.value); setTitreTouchedByUser(true); setTmdbIdPicked(null); setTmdbSeriePicked(false); setTitreAffiche(""); }}
           onFocus={() => { if (tmdbResults.length > 0) setTmdbOpen(true); }}
           className="w-full mt-1.5 rounded-lg px-3 py-2.5 outline-none"
           style={{ background: T.surface, border: `1px solid ${T.line}`, fontFamily: F.serif, fontSize: 16, color: T.cream }}
@@ -5541,7 +5549,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
                 )}
                 <span className="min-w-0">
                   <span className="block truncate" style={{ fontFamily: F.serif, fontSize: 13, color: T.cream }}>{r.titre}</span>
-                  <span className="block truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{r.annee || "—"}{r.realisateur ? " · " + r.realisateur : ""}</span>
+                  <span className="block truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim }}>{r.annee || "—"}{r.realisateur ? " · " + r.realisateur : ""}{r.tmdbSerie ? " · classé série chez TMDb" : ""}</span>
                 </span>
               </button>
             ))}

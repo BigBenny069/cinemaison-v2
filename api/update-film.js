@@ -25,7 +25,7 @@ const CAMEL_TO_HEADER = {
   synopsis: "Synopsis", noteLetterboxd: "NoteLetterboxd",
   votesLetterboxd: "VotesLetterboxd", urlLetterboxd: "URLLetterboxd",
   dateAuto: "DateDisponibiliteAuto",
-  tmdbId: "TMDbID", imdbId: "IMDbID",
+  tmdbId: "TMDbID", tmdbSerie: "TMDbSerie", imdbId: "IMDbID",
   urlPlateforme: "URLPlateforme",
   // NOUVEAU : langue de lecture (VF / VOST / VF + VOST / VO), écrite par langues.js
   langue: "Langue",
@@ -381,6 +381,17 @@ export default async function handler(req, res) {
         finalFields.canalContentId = "";
         finalFields.urlPlateforme = "";
       }
+    }
+
+    // NOUVEAU (02/11/2026) -- le drapeau « identifiant TMDb de série » (colonne
+    // TMDbSerie) ne vaut que pour CET identifiant : si l'identifiant TMDb est
+    // modifié à la main (et que l'appelant ne dit rien du drapeau), on l'efface
+    // pour ne pas lire le nouvel identifiant comme une série. Un identifiant
+    // renvoyé tel quel (formulaire d'édition) ne change rien.
+    if (typeof finalFields.tmdbId === "string" && !Object.prototype.hasOwnProperty.call(finalFields, "tmdbSerie")) {
+      const tmdbCol0 = headers.indexOf("TMDbID");
+      const tmdbActuel0 = tmdbCol0 >= 0 ? String(rows[rowIndex][tmdbCol0] || "").trim() : "";
+      if (finalFields.tmdbId.trim() !== tmdbActuel0) finalFields.tmdbSerie = "";
     }
 
     // NOUVEAU (03/09/2026) : résolution Letterboxd directement ici, sur
