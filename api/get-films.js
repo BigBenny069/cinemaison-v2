@@ -12,7 +12,7 @@ export const EXPOSED_COLUMNS = [
   "Genre", "GenrePrincipal", "Benoit", "Romy", "À deux", "En famille",
   "Affiche", "NoteTMDb", "Casting", "Réalisateur", "Synopsis",
   "NoteLetterboxd", "VotesLetterboxd", "URLLetterboxd", "DateDisponibiliteAuto",
-  "URLBandeAnnonce", "TMDbID", "IMDbID", "CanalContentId", "URLPlateforme",
+  "URLBandeAnnonce", "TMDbID", "TMDbSerie", "IMDbID", "CanalContentId", "URLPlateforme",
   "TitreOriginal", "Langue",
 ];
 
@@ -148,7 +148,7 @@ export const HEADER_TO_CAMEL = {
   Réalisateur: "realisateur", Synopsis: "synopsis",
   NoteLetterboxd: "noteLetterboxd", VotesLetterboxd: "votesLetterboxd",
   URLLetterboxd: "urlLetterboxd", DateDisponibiliteAuto: "dateAuto",
-  TMDbID: "tmdbId", IMDbID: "imdbId",
+  TMDbID: "tmdbId", TMDbSerie: "tmdbSerie", IMDbID: "imdbId",
   CanalContentId: "canalContentId", URLPlateforme: "urlPlateforme",
   TitreOriginal: "titreOriginal", Langue: "langue",
   URLBandeAnnonce: "urlBandeAnnonce",

@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { password, titre, annee, plateforme, type, statutAcces, dateManuelle, urlLetterboxd, tmdbId } = req.body || {};
+  const { password, titre, annee, plateforme, type, statutAcces, dateManuelle, urlLetterboxd, tmdbId, tmdbSerie } = req.body || {};
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
@@ -288,7 +288,21 @@ export default async function handler(req, res) {
     // Écrit seulement si la colonne est encore vide côté client (on ne
     // vient jamais écraser un TMDbID déjà saisi à la main) -- ici c'est
     // toujours le cas puisqu'il s'agit d'une création.
-    if (tmdbIdExtrait) setField("TMDbID", tmdbIdExtrait);
+    // NOUVEAU (02/11/2026) -- identifiant TMDb de SÉRIE (film classé série par
+    // TMDb) : marqué dans la colonne TMDbSerie. Si cette colonne n'existe pas
+    // encore dans le Sheet, on n'écrit PAS l'identifiant (lu comme un film il
+    // désignerait un autre film) : la fiche est créée sans lui.
+    const identifiantDeSerie = tmdbSerie === true || tmdbSerie === "oui";
+    if (tmdbIdExtrait) {
+      if (!identifiantDeSerie) {
+        setField("TMDbID", tmdbIdExtrait);
+      } else if (headers.indexOf("TMDbSerie") >= 0) {
+        setField("TMDbID", tmdbIdExtrait);
+        setField("TMDbSerie", "oui");
+      } else {
+        console.error("[add-film] TMDbSerie absente du Sheet : identifiant TMDb de série non écrit (lancer ajouterColonneTMDbSerieV1).");
+      }
+    }
 
     if (champsIgnores.length > 0) {
       // console.error (pas .warn) pour que ça remonte bien dans l'onglet

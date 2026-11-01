@@ -147,8 +147,8 @@ export default async function handler(req, res) {
   let estSerie = type === "Série";
 
   try {
-    const cherche = async (texte) => {
-      const url = estSerie
+    const cherche = async (texte, serie = estSerie) => {
+      const url = serie
         ? `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(texte)}&include_adult=false`
         : `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&language=fr-FR&query=${encodeURIComponent(texte)}&include_adult=false`;
       const rep = await fetch(url);
@@ -161,6 +161,11 @@ export default async function handler(req, res) {
     // directement à la fiche, sans passer par le titre.
     let brut = [];
     let requeteUtilisee = q;
+    // NOUVEAU (02/11/2026) -- certains films sont classés SÉRIE par TMDb (cas réel :
+    // « Mel Brooks: The 99 Year Old Man! », documentaire HBO). Si la recherche dans
+    // les films ne donne rien, on cherche aussi dans les séries et on marque les
+    // résultats (tmdbSerie: true) : leur identifiant n'est PAS celui d'un film.
+    let viaSecoursSerie = false;
     const colle = lireIdentifiantColle(q);
     if (colle) {
       if (colle.type) estSerie = colle.type === "tv";
@@ -185,6 +190,18 @@ export default async function handler(req, res) {
         for (const variante of genererVariantes(q)) {
           brut = await cherche(variante);
           if (brut.length > 0) { requeteUtilisee = variante; break; }
+        }
+      }
+      if (brut.length === 0 && !estSerie) {
+        for (const texte of [q, ...genererVariantes(q)]) {
+          const enSerie = await cherche(texte, true);
+          if (enSerie.length > 0) {
+            brut = enSerie;
+            requeteUtilisee = texte;
+            viaSecoursSerie = true;
+            estSerie = true; // la suite (réalisateur, titre anglais, dates) lit les champs « série »
+            break;
+          }
         }
       }
     }
@@ -216,6 +233,7 @@ export default async function handler(req, res) {
       affiche: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
       tmdbId: r.id,
       realisateur: realisateurs[i],
+      ...(viaSecoursSerie ? { tmdbSerie: true } : {}),
     }));
     return res.status(200).json({ results, requeteUtilisee: requeteUtilisee !== q ? requeteUtilisee : null });
   } catch (e) {
