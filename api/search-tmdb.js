@@ -53,6 +53,11 @@ async function lireRealisateur(id, estSerie, apiKey) {
   }
 }
 
+/** Sans accents ni casse ni ponctuation : pour comparer deux titres. */
+function normaliserTitre_(t) {
+  return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 // Caractères d'écritures non latines (grec, cyrillique, arabe, hébreu, thaï,
 // chinois/japonais/coréen...). Les accents et la ponctuation typographique
 // (’ – …) ne comptent pas.
@@ -192,16 +197,26 @@ export default async function handler(req, res) {
           if (brut.length > 0) { requeteUtilisee = variante; break; }
         }
       }
-      if (brut.length === 0 && !estSerie) {
-        for (const texte of [q, ...genererVariantes(q)]) {
-          const enSerie = await cherche(texte, true);
-          if (enSerie.length > 0) {
-            brut = enSerie;
-            requeteUtilisee = texte;
-            viaSecoursSerie = true;
-            estSerie = true; // la suite (réalisateur, titre anglais, dates) lit les champs « série »
-            break;
-          }
+      // NOUVEAU (02/11/2026, v2) -- film classé SÉRIE chez TMDb. Le repli ne doit pas
+      // dépendre d'un résultat vide : « Mel Brooks: The 99 Year Old Man! » fait remonter
+      // d'autres films de Mel Brooks dans /search/movie, donc la liste n'est jamais vide.
+      // On cherche donc aussi dans les séries et on ne garde que celles dont le TITRE est
+      // exactement celui cherché (pas de bruit dans les recherches ordinaires). Placées en
+      // premier si aucun film n'a ce titre exact, sinon après les films.
+      if (!estSerie) {
+        const voulu = normaliserTitre_(q);
+        const memeTitre = (t) => voulu && normaliserTitre_(t) === voulu;
+        const filmExact = brut.some((r) => memeTitre(r.title) || memeTitre(r.original_title));
+        let serieExactes = [];
+        try {
+          const enSerie = await cherche(q, true);
+          serieExactes = enSerie
+            .filter((r) => memeTitre(r.name) || memeTitre(r.original_name))
+            .map((r) => ({ ...r, _serie: true }));
+        } catch { /* la liste des films reste valable */ }
+        if (serieExactes.length) {
+          viaSecoursSerie = true;
+          brut = filmExact ? [...brut, ...serieExactes] : [...serieExactes, ...brut];
         }
       }
     }
@@ -214,7 +229,7 @@ export default async function handler(req, res) {
     // en parallèle. Film -> réalisateur(s) (crédits) ; série -> créateur(s).
     // Un échec sur un résultat n'empêche jamais d'afficher la liste
     // (realisateur = null).
-    const realisateurs = await Promise.all(brut.map((r) => lireRealisateur(r.id, estSerie, apiKey)));
+    const realisateurs = await Promise.all(brut.map((r) => lireRealisateur(r.id, estSerie || !!r._serie, apiKey)));
     // NOUVEAU (25/10/2026) -- TMDb renvoie le titre ORIGINAL (japonais,
     // coréen, russe...) quand il n'existe pas de titre français. Cas réel :
     // "House of Sayuri" ajouté sous son titre japonais (FILM1388). Pour
@@ -222,18 +237,19 @@ export default async function handler(req, res) {
     // le titre ANGLAIS de TMDb (un appel de détail en en-US) ; s'il échoue
     // ou reste non latin, on garde le titre d'origine.
     const titresAffiches = await Promise.all(brut.map(async (r) => {
-      const titre = estSerie ? r.name : r.title;
+      const serieR = estSerie || !!r._serie;
+      const titre = serieR ? r.name : r.title;
       if (!NON_LATIN.test(titre || "")) return titre;
-      const anglais = await lireTitreAnglais(r.id, estSerie, apiKey);
+      const anglais = await lireTitreAnglais(r.id, serieR, apiKey);
       return anglais && !NON_LATIN.test(anglais) ? anglais : titre;
     }));
     const results = brut.map((r, i) => ({
       titre: titresAffiches[i],
-      annee: (estSerie ? r.first_air_date : r.release_date) ? (estSerie ? r.first_air_date : r.release_date).slice(0, 4) : null,
+      annee: ((estSerie || r._serie) ? r.first_air_date : r.release_date) ? ((estSerie || r._serie) ? r.first_air_date : r.release_date).slice(0, 4) : null,
       affiche: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
       tmdbId: r.id,
       realisateur: realisateurs[i],
-      ...(viaSecoursSerie ? { tmdbSerie: true } : {}),
+      ...(r._serie ? { tmdbSerie: true } : {}),
     }));
     return res.status(200).json({ results, requeteUtilisee: requeteUtilisee !== q ? requeteUtilisee : null });
   } catch (e) {
