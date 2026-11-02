@@ -6544,101 +6544,119 @@ function ScrollToTopButton() {
   );
 }
 
+// MODIFIÉ (02/11/2026, v2) -- sur iPhone (capture de Ben), tirer en haut de l'accueil étirait
+// toute la page (rebond iOS) sans que l'indicateur n'apparaisse : l'ancien geste, branché sur un
+// conteneur précis, ne voyait pas ce tirage. Désormais : écoute sur TOUTE la fenêtre (phase de
+// capture), le conteneur défilant est retrouvé en remontant depuis l'élément touché, et
+// l'indicateur est « fixed » en haut de l'écran (visible même si la page rebondit).
+function trouverDefilantVertical_(depart) {
+  let el = depart;
+  while (el && el !== document.body && el !== document.documentElement) {
+    if (el.nodeType === 1) {
+      const oy = getComputedStyle(el).overflowY;
+      if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight + 1) return el;
+    }
+    el = el.parentElement;
+  }
+  return null; // pas de conteneur défilant : la page elle-même
+}
+
 function PullToRefresh({ onRefresh, children }) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [resultat, setResultat] = useState(null); // null | "ok" | "erreur" -- court message après l'actualisation
-  const stateRef = useRef({ active: false, startY: 0, scrollEl: null, distance: 0 }).current;
+  const [resultat, setResultat] = useState(null); // null | "ok" | "erreur"
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
+  const etat = useRef({ actif: false, startY: 0, startX: 0, scroller: null, distance: 0, occupe: false, horizontal: false }).current;
 
-  const handleTouchStart = (e) => {
-    if (refreshing) return;
-    const scrollEl = e.target.closest(".pull-scroll");
-    // Tolérance : sur iOS, le scrollTop d'un écran « tout en haut » peut valoir 0,5 après un élan.
-    if (!scrollEl || scrollEl.scrollTop > PULL_TOP_TOLERANCE) return;
-    stateRef.active = true;
-    stateRef.startY = e.touches[0].clientY;
-    stateRef.scrollEl = scrollEl;
-    stateRef.distance = 0;
-  };
-
-  const handleTouchMove = (e) => {
-    if (!stateRef.active) return;
-    if (!stateRef.scrollEl || stateRef.scrollEl.scrollTop > PULL_TOP_TOLERANCE) {
-      stateRef.active = false;
-      stateRef.distance = 0;
-      setPullDistance(0);
-      return;
-    }
-    const delta = e.touches[0].clientY - stateRef.startY;
-    if (delta <= 0) {
-      stateRef.distance = 0;
-      setPullDistance(0);
-      return;
-    }
-    stateRef.distance = Math.min(delta * PULL_RESISTANCE, PULL_MAX);
-    setPullDistance(stateRef.distance);
-  };
-
-  const handleTouchEnd = async () => {
-    if (!stateRef.active) return;
-    stateRef.active = false;
-    // On lit la distance dans la référence (et non dans l'état) : l'état affiché peut avoir un rendu de retard.
-    if (stateRef.distance >= PULL_THRESHOLD) {
+  useEffect(() => {
+    const hautDuScroller = () => {
+      const sc = etat.scroller;
+      const haut = sc ? sc.scrollTop : (window.scrollY || document.documentElement.scrollTop || 0);
+      return haut <= PULL_TOP_TOLERANCE;
+    };
+    const onStart = (e) => {
+      if (etat.occupe || !e.touches || e.touches.length !== 1) { etat.actif = false; return; }
+      etat.scroller = trouverDefilantVertical_(e.target);
+      if (!hautDuScroller()) { etat.actif = false; return; }
+      etat.actif = true;
+      etat.horizontal = false;
+      etat.startY = e.touches[0].clientY;
+      etat.startX = e.touches[0].clientX;
+      etat.distance = 0;
+    };
+    const onMove = (e) => {
+      if (!etat.actif || !e.touches || !e.touches[0]) return;
+      const dy = e.touches[0].clientY - etat.startY;
+      const dx = e.touches[0].clientX - etat.startX;
+      // Geste surtout horizontal (rail qu'on fait défiler) : on laisse tranquille.
+      if (!etat.horizontal && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) etat.horizontal = true;
+      if (etat.horizontal) { etat.actif = false; etat.distance = 0; setPullDistance(0); return; }
+      // La liste a quitté le haut : c'est un défilement normal, pas un tirage d'actualisation.
+      if (!hautDuScroller()) { etat.actif = false; etat.distance = 0; setPullDistance(0); return; }
+      // Le doigt remonte : pas (ou plus) de tirage ; on reste prêt si le doigt redescend.
+      if (dy <= 0) { etat.distance = 0; setPullDistance(0); return; }
+      etat.distance = Math.min(dy * PULL_RESISTANCE, PULL_MAX);
+      setPullDistance(etat.distance);
+    };
+    const onEnd = async () => {
+      if (!etat.actif) return;
+      etat.actif = false;
+      const assez = etat.distance >= PULL_THRESHOLD && !etat.horizontal;
+      etat.distance = 0;
+      if (!assez) { setPullDistance(0); return; }
+      etat.occupe = true;
       setRefreshing(true);
       setResultat(null);
       setPullDistance(PULL_THRESHOLD);
       let ok = true;
-      try {
-        ok = (await onRefresh()) !== false;
-      } catch {
-        ok = false;
-      } finally {
-        setRefreshing(false);
-        setPullDistance(0);
-        stateRef.distance = 0;
-      }
+      try { ok = (await onRefreshRef.current()) !== false; } catch { ok = false; }
+      etat.occupe = false;
+      setRefreshing(false);
+      setPullDistance(0);
       setResultat(ok ? "ok" : "erreur");
       setTimeout(() => setResultat(null), 1800);
-    } else {
-      stateRef.distance = 0;
-      setPullDistance(0);
-    }
-  };
+    };
+    const opts = { passive: true, capture: true };
+    window.addEventListener("touchstart", onStart, opts);
+    window.addEventListener("touchmove", onMove, opts);
+    window.addEventListener("touchend", onEnd, opts);
+    window.addEventListener("touchcancel", onEnd, opts);
+    return () => {
+      window.removeEventListener("touchstart", onStart, opts);
+      window.removeEventListener("touchmove", onMove, opts);
+      window.removeEventListener("touchend", onEnd, opts);
+      window.removeEventListener("touchcancel", onEnd, opts);
+    };
+  }, []);
 
   const libelle = refreshing
     ? "Actualisation…"
     : pullDistance >= PULL_THRESHOLD ? "Relâche pour actualiser" : "Tire pour actualiser";
 
   return (
-    <div
-      className="relative flex-1 min-h-0 flex flex-col"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
-    >
-      {pullDistance > 0 && (
+    <div className="relative flex-1 min-h-0 flex flex-col">
+      {(pullDistance > 0 || refreshing) && (
         <div
-          className="absolute left-0 right-0 flex items-center justify-center gap-2 z-30 pointer-events-none"
-          style={{ top: 0, height: pullDistance, transition: refreshing ? "none" : "height 0.2s ease", overflow: "hidden" }}
+          className="fixed left-0 right-0 flex justify-center z-50 pointer-events-none"
+          style={{ top: "max(8px, env(safe-area-inset-top))" }}
         >
-          <RefreshCw
-            size={16}
-            color={T.accent}
-            style={{
-              transform: `rotate(${pullDistance * 4}deg)`,
-              animation: refreshing ? "spin 0.8s linear infinite" : "none",
-              opacity: Math.min(pullDistance / PULL_THRESHOLD, 1),
-            }}
-          />
-          {pullDistance >= 28 && (
-            <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.accent, opacity: Math.min(pullDistance / PULL_THRESHOLD, 1) }}>{libelle}</span>
-          )}
+          <div
+            className="rounded-full px-3.5 py-2 flex items-center gap-2"
+            style={{ background: T.surfaceRaised, border: `1px solid ${T.accent}66`, boxShadow: "0 4px 14px rgba(0,0,0,0.4)", opacity: refreshing ? 1 : Math.max(0.35, Math.min(pullDistance / PULL_THRESHOLD, 1)) }}
+          >
+            <RefreshCw
+              size={15}
+              color={T.accent}
+              style={{ transform: refreshing ? "none" : `rotate(${pullDistance * 5}deg)`, animation: refreshing ? "spin 0.8s linear infinite" : "none" }}
+            />
+            <span style={{ fontFamily: F.mono, fontSize: 11, color: T.cream }}>{libelle}</span>
+          </div>
         </div>
       )}
       {resultat && (
-        <div className="absolute left-0 right-0 flex justify-center z-30 pointer-events-none" style={{ top: 8 }}>
-          <span className="rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised, border: `1px solid ${resultat === "ok" ? T.accent + "55" : T.alert + "66"}`, fontFamily: F.mono, fontSize: 10.5, color: resultat === "ok" ? T.cream : T.alert, boxShadow: "0 4px 14px rgba(0,0,0,0.35)" }}>
+        <div className="fixed left-0 right-0 flex justify-center z-50 pointer-events-none" style={{ top: "max(8px, env(safe-area-inset-top))" }}>
+          <span className="rounded-full px-3.5 py-2" style={{ background: T.surfaceRaised, border: `1px solid ${resultat === "ok" ? T.accent + "55" : T.alert + "66"}`, fontFamily: F.mono, fontSize: 11, color: resultat === "ok" ? T.cream : T.alert, boxShadow: "0 4px 14px rgba(0,0,0,0.35)" }}>
             {resultat === "ok" ? "Fiches à jour ✓" : "Actualisation impossible"}
           </span>
         </div>
