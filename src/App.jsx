@@ -6506,8 +6506,12 @@ function MenuDrawer({ open, onClose, films, onNavigate }) {
 /* réellement sous le doigt via la classe "pull-scroll" (posée sur     */
 /* chaque écran), pas de dépendance à une seule zone de scroll globale.*/
 /* ------------------------------------------------------------------ */
-const PULL_THRESHOLD = 64; // px à tirer avant que le relâchement déclenche le refresh
-const PULL_MAX = 92;
+// MODIFIÉ (02/11/2026) -- geste plus facile : ~75 px de doigt suffisent (avant : 128 px), tout en
+// haut d'un écran (tolérance de 2 px pour l'élasticité iOS).
+const PULL_THRESHOLD = 42; // hauteur de l'indicateur qui déclenche l'actualisation au relâchement
+const PULL_MAX = 72;
+const PULL_RESISTANCE = 0.56; // part du déplacement du doigt qui se voit à l'écran
+const PULL_TOP_TOLERANCE = 2;
 
 // Bouton "remonter en haut" — universel, tous thèmes, toutes listes. Écoute
 // les événements de scroll en phase de capture (les scroll ne remontent pas
@@ -6543,48 +6547,67 @@ function ScrollToTopButton() {
 function PullToRefresh({ onRefresh, children }) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const stateRef = useRef({ active: false, startY: 0, scrollEl: null }).current;
+  const [resultat, setResultat] = useState(null); // null | "ok" | "erreur" -- court message après l'actualisation
+  const stateRef = useRef({ active: false, startY: 0, scrollEl: null, distance: 0 }).current;
 
   const handleTouchStart = (e) => {
     if (refreshing) return;
     const scrollEl = e.target.closest(".pull-scroll");
-    if (!scrollEl || scrollEl.scrollTop > 0) return;
+    // Tolérance : sur iOS, le scrollTop d'un écran « tout en haut » peut valoir 0,5 après un élan.
+    if (!scrollEl || scrollEl.scrollTop > PULL_TOP_TOLERANCE) return;
     stateRef.active = true;
     stateRef.startY = e.touches[0].clientY;
     stateRef.scrollEl = scrollEl;
+    stateRef.distance = 0;
   };
 
   const handleTouchMove = (e) => {
     if (!stateRef.active) return;
-    if (!stateRef.scrollEl || stateRef.scrollEl.scrollTop > 0) {
+    if (!stateRef.scrollEl || stateRef.scrollEl.scrollTop > PULL_TOP_TOLERANCE) {
       stateRef.active = false;
+      stateRef.distance = 0;
       setPullDistance(0);
       return;
     }
     const delta = e.touches[0].clientY - stateRef.startY;
     if (delta <= 0) {
+      stateRef.distance = 0;
       setPullDistance(0);
       return;
     }
-    setPullDistance(Math.min(delta * 0.5, PULL_MAX));
+    stateRef.distance = Math.min(delta * PULL_RESISTANCE, PULL_MAX);
+    setPullDistance(stateRef.distance);
   };
 
   const handleTouchEnd = async () => {
     if (!stateRef.active) return;
     stateRef.active = false;
-    if (pullDistance >= PULL_THRESHOLD) {
+    // On lit la distance dans la référence (et non dans l'état) : l'état affiché peut avoir un rendu de retard.
+    if (stateRef.distance >= PULL_THRESHOLD) {
       setRefreshing(true);
+      setResultat(null);
       setPullDistance(PULL_THRESHOLD);
+      let ok = true;
       try {
-        await onRefresh();
+        ok = (await onRefresh()) !== false;
+      } catch {
+        ok = false;
       } finally {
         setRefreshing(false);
         setPullDistance(0);
+        stateRef.distance = 0;
       }
+      setResultat(ok ? "ok" : "erreur");
+      setTimeout(() => setResultat(null), 1800);
     } else {
+      stateRef.distance = 0;
       setPullDistance(0);
     }
   };
+
+  const libelle = refreshing
+    ? "Actualisation…"
+    : pullDistance >= PULL_THRESHOLD ? "Relâche pour actualiser" : "Tire pour actualiser";
 
   return (
     <div
@@ -6592,21 +6615,32 @@ function PullToRefresh({ onRefresh, children }) {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {pullDistance > 0 && (
         <div
-          className="absolute left-0 right-0 flex items-center justify-center z-30"
-          style={{ top: 0, height: pullDistance, transition: refreshing ? "none" : "height 0.2s ease" }}
+          className="absolute left-0 right-0 flex items-center justify-center gap-2 z-30 pointer-events-none"
+          style={{ top: 0, height: pullDistance, transition: refreshing ? "none" : "height 0.2s ease", overflow: "hidden" }}
         >
           <RefreshCw
-            size={17}
+            size={16}
             color={T.accent}
             style={{
-              transform: `rotate(${pullDistance * 3}deg)`,
+              transform: `rotate(${pullDistance * 4}deg)`,
               animation: refreshing ? "spin 0.8s linear infinite" : "none",
               opacity: Math.min(pullDistance / PULL_THRESHOLD, 1),
             }}
           />
+          {pullDistance >= 28 && (
+            <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.accent, opacity: Math.min(pullDistance / PULL_THRESHOLD, 1) }}>{libelle}</span>
+          )}
+        </div>
+      )}
+      {resultat && (
+        <div className="absolute left-0 right-0 flex justify-center z-30 pointer-events-none" style={{ top: 8 }}>
+          <span className="rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised, border: `1px solid ${resultat === "ok" ? T.accent + "55" : T.alert + "66"}`, fontFamily: F.mono, fontSize: 10.5, color: resultat === "ok" ? T.cream : T.alert, boxShadow: "0 4px 14px rgba(0,0,0,0.35)" }}>
+            {resultat === "ok" ? "Fiches à jour ✓" : "Actualisation impossible"}
+          </span>
         </div>
       )}
       {children}
@@ -6853,8 +6887,8 @@ export default function App() {
         if (!res.ok) throw new Error(`Erreur ${res.status}`);
         return res.json();
       })
-      .then((data) => setFilms(data))
-      .catch((e) => setError(e.message));
+      .then((data) => { setFilms(data); return true; })
+      .catch((e) => { setError(e.message); return false; });
   };
 
   useEffect(() => { loadFilms(); }, []);
@@ -7099,49 +7133,16 @@ export default function App() {
     };
   }, []);
 
-  // NOUVEAU (02/10/2026) -- geste "tirer vers le bas pour rafraîchir",
-  // façon Mail sur iPhone : en haut de la page (scroll à 0), un tirage
-  // franc vers le bas relance la même vérification de nouvelle version
-  // que la bannière automatique, avec un petit retour visuel pendant la
-  // vérification. Ne fait rien si on n'est pas tout en haut, pour ne
-  // jamais interférer avec un défilement normal au milieu d'une liste.
-  const [tirageEnCours, setTirageEnCours] = useState(false);
-  useEffect(() => {
-    let depart = null; // position Y du doigt au moment du toucher, ou null si le geste ne compte pas
-    const SEUIL_DECLENCHEMENT = 70; // px -- tirage franc, pas un petit rebond accidentel
-
-    const onTouchStart = (e) => {
-      if (window.scrollY > 0 || tirageEnCours) { depart = null; return; }
-      depart = e.touches[0].clientY;
-    };
-    const onTouchMove = (e) => {
-      if (depart == null) return;
-      // Si l'utilisateur s'est mis à scroller pendant le geste, on annule --
-      // seul un tirage depuis tout en haut doit compter.
-      if (window.scrollY > 0) { depart = null; return; }
-    };
-    const onTouchEnd = (e) => {
-      if (depart == null) return;
-      const arrivee = (e.changedTouches && e.changedTouches[0] && e.changedTouches[0].clientY) ?? depart;
-      const distance = arrivee - depart;
-      depart = null;
-      if (distance > SEUIL_DECLENCHEMENT && verifierNouvelleVersionRef.current) {
-        setTirageEnCours(true);
-        Promise.resolve(verifierNouvelleVersionRef.current()).finally(() => {
-          setTimeout(() => setTirageEnCours(false), 500); // laisse le retour visuel le temps d'être vu, même si la vérification est quasi instantanée
-        });
-      }
-    };
-
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [tirageEnCours]);
+  // MODIFIÉ (02/11/2026) -- le geste « tirer pour rafraîchir » est unique : il est géré par
+  // <PullToRefresh> (en haut d'un écran, actualise les fiches ET vérifie s'il existe une nouvelle
+  // version). L'ancien geste au niveau de la fenêtre testait window.scrollY, toujours à 0 puisque
+  // l'application défile dans ses propres conteneurs : il se déclenchait donc aussi quand on remontait
+  // une liste du doigt.
+  const actualiserEtVerifier = async () => {
+    const ok = await loadFilms();
+    try { if (verifierNouvelleVersionRef.current) await verifierNouvelleVersionRef.current(); } catch {}
+    return ok;
+  };
 
   const activeTab =
     screen.name === "accueil" ? "accueil" :
@@ -7192,14 +7193,6 @@ export default function App() {
         {/* visible sur tous les écrans du thème sans repousser le contenu   */}
         {/* existant (pointer-events désactivés, ne gêne jamais le tap).     */}
 
-        {tirageEnCours && (
-          <div className="fixed left-0 right-0 flex justify-center z-50 pointer-events-none" style={{ top: "max(10px, env(safe-area-inset-top))" }}>
-            <div className="rounded-full px-3 py-1.5" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}`, fontFamily: F.mono, fontSize: 10.5, color: T.cream, boxShadow: "0 4px 14px rgba(0,0,0,0.35)" }}>
-              Vérification...
-            </div>
-          </div>
-        )}
-
         {error && (
           <div className="mx-4 mb-4 rounded-lg p-3" style={{ marginTop: "max(16px, env(safe-area-inset-top))", background: T.alertSoft, border: `1px solid ${T.alert}44` }}>
             <p style={{ fontFamily: F.mono, fontSize: 11, color: T.alert }}>Erreur : {error}</p>
@@ -7228,7 +7221,7 @@ export default function App() {
           }} />
         )}
 
-        <PullToRefresh onRefresh={loadFilms}>{body}</PullToRefresh>
+        <PullToRefresh onRefresh={actualiserEtVerifier}>{body}</PullToRefresh>
         {films && <ScrollToTopButton />}
 
         {films && <BottomNav active={activeTab} onNavigate={navigate} />}
