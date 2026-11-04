@@ -6753,6 +6753,9 @@ function playClapSound_(ctx) {
   }
 }
 
+// Délai avant lancement automatique de l'intro si l'écran n'est pas touché.
+const BOOT_AUTO_DELAY_MS_ = 5000;
+
 const BOOT_CSS_ = `
 @keyframes biWallIn { to { opacity: 1; } }
 @keyframes biWallOut { from { opacity: 1; filter: brightness(.55) blur(0); } to { opacity: 0; filter: brightness(.3) blur(6px); } }
@@ -6820,6 +6823,15 @@ function AppBootIntro({ ready, onDone, films }) {
     setAffiches(tirage);
     setPhase("play");
   };
+
+  // Lancement automatique : si personne ne touche l'écran, l'intro démarre
+  // toute seule après 5 s (sans son : iOS l'interdit sans toucher), puis
+  // l'appli s'ouvre comme d'habitude.
+  useEffect(() => {
+    if (phase !== "tap") return;
+    const t = setTimeout(() => entrer(), BOOT_AUTO_DELAY_MS_);
+    return () => clearTimeout(t);
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== "play") return;
