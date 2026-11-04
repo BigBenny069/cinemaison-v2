@@ -6711,159 +6711,188 @@ function BottomNav({ active, onNavigate }) {
 /* APP                                                                 */
 /* ------------------------------------------------------------------ */
 /* ------------------------------------------------------------------ */
-/* INTRO DE CHARGEMENT — rideau/marquee joué UNE FOIS au vrai lancement */
-/* de l'appli (pas à chaque navigation), pendant le chargement réseau,  */
-/* quel que soit le thème actif. Son de projecteur synthétisé (Web      */
-/* Audio, pas de fichier externe) + tentative de vibration.             */
+/* INTRO DE LANCEMENT — « Touchez pour entrer », puis mur d'affiches +  */
+/* claquette de cinéma (≈ 4 s). Jouée UNE FOIS au vrai lancement de      */
+/* l'appli, quel que soit le thème actif.                               */
+/* NOUVEAU (04/11/2026) : remplace le rideau rouge. Raison : sur iPhone,  */
+/* un son ne peut démarrer qu'après un toucher de l'utilisateur ; au      */
+/* lancement depuis l'écran d'accueil il n'y en a aucun, donc l'ancien    */
+/* bruit de projecteur restait muet. L'écran « Touchez pour entrer » fournit */
+/* ce toucher : le claquement est joué dans la foulée, son garanti.       */
 /* ------------------------------------------------------------------ */
-function playProjectorSound_() {
+function playClapSound_(ctx) {
   try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const now = ctx.currentTime;
-    // Bourdonnement grave de moteur de projecteur (bruit filtré)
-    const bufferSize = ctx.sampleRate * 1.4;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 180;
-    filter.Q.value = 0.7;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.5, now + 0.15);
-    gain.gain.linearRampToValueAtTime(0.0001, now + 1.3);
-    noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
-    noise.start(now); noise.stop(now + 1.4);
-    // Petit "clic" sec de déclenchement, comme un obturateur
-    const click = ctx.createOscillator();
-    const clickGain = ctx.createGain();
-    click.type = "square"; click.frequency.value = 800;
-    clickGain.gain.setValueAtTime(0.15, now);
-    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-    click.connect(clickGain); clickGain.connect(ctx.destination);
-    click.start(now); click.stop(now + 0.07);
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // Claquement sec : bruit bref qui retombe vite, filtré vers l'aigu
+    const n = Math.floor(ctx.sampleRate * 0.12);
+    const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let k = 0; k < n; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / n, 3);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const filt = ctx.createBiquadFilter();
+    filt.type = "highpass";
+    filt.frequency.value = 900;
+    const g = ctx.createGain();
+    g.gain.value = 0.9;
+    src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+    src.start(t);
+    // Petit « toc » grave en dessous, pour le corps du claquement
+    const o = ctx.createOscillator();
+    const og = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(160, t);
+    o.frequency.exponentialRampToValueAtTime(60, t + 0.12);
+    og.gain.setValueAtTime(0.7, t);
+    og.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    o.connect(og); og.connect(ctx.destination);
+    o.start(t); o.stop(t + 0.16);
   } catch {
-    // Contexte audio indisponible ou bloqué par le navigateur — silencieux, pas grave.
+    // Audio indisponible — silencieux, pas grave.
   }
 }
 
-function AppBootIntro({ ready, onDone }) {
-  const [lit, setLit] = useState(false);
-  const [curtainOpen, setCurtainOpen] = useState(false);
+const BOOT_CSS_ = `
+@keyframes biWallIn { to { opacity: 1; } }
+@keyframes biWallOut { from { opacity: 1; filter: brightness(.55) blur(0); } to { opacity: 0; filter: brightness(.3) blur(6px); } }
+@keyframes biDriftUp { from { transform: translateY(-5%); } to { transform: translateY(-30%); } }
+@keyframes biDriftDown { from { transform: translateY(-30%); } to { transform: translateY(-5%); } }
+@keyframes biFlash { 0% { opacity: .85; } 100% { opacity: 0; } }
+@keyframes biClapIn { to { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes biShake { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-3px,2px); } 60% { transform: translate(3px,-2px); } }
+@keyframes biClack { to { transform: rotate(0deg); } }
+@keyframes biFadeUp { to { opacity: 1; transform: none; } }
+@keyframes biPulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+.bi-wall { position: absolute; left: -10%; right: -10%; top: -10%; bottom: -10%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; transform: rotate(-8deg) scale(1.15); opacity: 0; filter: brightness(.55) saturate(.9); animation: biWallIn .9s ease .1s forwards, biWallOut .9s ease 3.0s forwards; }
+.bi-col { display: flex; flex-direction: column; gap: 8px; }
+.bi-col:nth-child(odd) { animation: biDriftUp 4s linear forwards; }
+.bi-col:nth-child(even) { animation: biDriftDown 4s linear forwards; }
+.bi-poster { aspect-ratio: 2/3; border-radius: 4px; overflow: hidden; background: linear-gradient(160deg, #4a2a1f, #140d09); }
+.bi-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bi-clap { width: 78%; max-width: 340px; transform: translateY(8px) scale(.9); opacity: 0; animation: biClapIn .6s cubic-bezier(.2,.8,.2,1) .8s forwards, biShake .3s ease 1.55s; }
+.bi-stick { height: 26px; border-radius: 3px 3px 0 0; transform-origin: 4% 100%; transform: rotate(-26deg); background: repeating-linear-gradient(115deg, #F3EEE3 0 16px, #151210 16px 32px); border: 2px solid #F3EEE3; animation: biClack .22s cubic-bezier(.6,0,1,.6) 1.4s forwards; }
+.bi-stick-base { transform: none; animation: none; border-radius: 0; margin-top: 3px; }
+.bi-board { border: 2px solid #F3EEE3; border-top: 0; background: #14110d; padding: 12px 12px 14px; }
+.bi-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(24px, 9vw, 34px); letter-spacing: 1.5px; line-height: 1; margin: 2px 0 10px; text-align: center; white-space: nowrap; color: #F3EEE3; text-shadow: 0 0 14px #C58D2988; opacity: 0; transform: translateY(6px); animation: biFadeUp .5s ease 1.75s forwards; }
+.bi-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid rgba(243,238,227,.35); }
+.bi-fields div { padding: 6px 6px 2px; border-right: 1px solid rgba(243,238,227,.35); font-family: 'IBM Plex Mono', monospace; font-size: 8px; letter-spacing: 1.5px; color: #9C9284; }
+.bi-fields div:last-child { border-right: 0; }
+.bi-fields strong { display: block; font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 20px; letter-spacing: 1px; color: #C58D29; margin-top: 2px; }
+.bi-tag { margin: 12px 0 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 8px; letter-spacing: 2.5px; white-space: nowrap; color: #9C9284; opacity: 0; animation: biFadeUp .6s ease 2.3s forwards; }
+`;
+
+function AppBootIntro({ ready, onDone, films }) {
+  // phase : "tap" (écran « Touchez pour entrer ») -> "play" (mur + claquette)
+  const [phase, setPhase] = useState("tap");
+  const [seqDone, setSeqDone] = useState(false);
   const [fadingOut, setFadingOut] = useState(false);
   const [hidden, setHidden] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setLit(true), 30);
-    playProjectorSound_();
-    // Vibration : ne fonctionne PAS sur iPhone (Safari/PWA n'implémentent pas
-    // la Vibration API) — tentative silencieuse, sans effet visible sur iOS,
-    // mais active sur Android si jamais l'appli y tourne un jour.
-    try { if (navigator.vibrate) navigator.vibrate([25, 40, 25]); } catch {}
-    return () => clearTimeout(t);
-  }, []);
-  // Chronologie, une fois les films chargés :
-  //   1. le rideau s'ouvre (1,3 s) ;
-  //   2. le logo CINÉMAISON reste ensuite affiché, fixe, sur fond noir
-  //      pendant une courte pause (1,1 s) — c'est la "photo" demandée ;
-  //   3. tout s'efface en fondu (0,6 s) pour révéler l'appli en dessous.
-  // Durée totale de l'intro une fois les données prêtes : ≈ 3,2 s (900 ms
-  // avant le début de l'ouverture + 1,3 s d'ouverture + 1,1 s de pause +
-  // 0,6 s de fondu final). Si le réseau est lent, le marquee/bobine
-  // continue de tourner en boucle avant même que ce minutage démarre.
-  const CURTAIN_OPEN_DELAY = 900;
-  const CURTAIN_OPEN_DURATION = 1300;
-  const HOLD_DURATION = 1100;
-  const FADE_OUT_DURATION = 600;
-  // NOUVEAU (19/09/2026) -- voir la note complète plus bas (au niveau du
-  // bloc texte) : le texte doit avoir fini de disparaître BIEN avant que
-  // le fond noir ne devienne assez transparent pour laisser deviner le
-  // vrai titre "CINÉMAISON" en dessous -- sensiblement plus court que
-  // FADE_OUT_DURATION (600ms), pas juste un peu plus court.
-  const FADE_OUT_TEXTE_DURATION = 250;
-  useEffect(() => {
-    if (!ready) return;
-    const t1 = setTimeout(() => setCurtainOpen(true), CURTAIN_OPEN_DELAY);
-    const t2 = setTimeout(() => setFadingOut(true), CURTAIN_OPEN_DELAY + CURTAIN_OPEN_DURATION + HOLD_DURATION);
-    const t3 = setTimeout(() => { setHidden(true); onDone && onDone(); }, CURTAIN_OPEN_DELAY + CURTAIN_OPEN_DURATION + HOLD_DURATION + FADE_OUT_DURATION);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [ready]);
-  if (hidden) return null;
+  const [affiches, setAffiches] = useState([]);
+  const audioRef = useRef(null);
 
-  const word = "CINÉMAISON";
-  // Couleurs et polices fixes, volontairement PAS liées au thème actif (T/F)
-  // — Ben veut la même animation d'ouverture, à l'identique, quel que soit
-  // le thème choisi (contrairement au reste de l'appli qui suit T/F).
   const GOLD = "#C58D29";
   const CREAM = "#F3EEE3";
   const MUTED = "#9C9284";
   const MONO = "'IBM Plex Mono', monospace";
   const MARQUEE_FONT = "'Bebas Neue', sans-serif";
 
-  const fringeStyle = { position: "absolute", bottom: 0, left: 0, right: 0, height: 14, background: `repeating-linear-gradient(90deg, ${GOLD} 0 6px, transparent 6px 12px)`, opacity: 0.5 };
-  const curtainBase = {
-    // z-index 45 : SOUS le marquee (z-index 50 ci-dessous), pour que
-    // "CINÉMAISON" et la bobine soient visibles EN SURIMPRESSION du
-    // velours pendant la fermeture — pas cachés derrière.
-    position: "absolute", top: 0, bottom: 0, width: "52%", zIndex: 45,
-    background: "repeating-linear-gradient(90deg, #6E1F1A 0px, #6E1F1A 14px, #5A1815 14px, #5A1815 28px), linear-gradient(180deg,#7A2620,#4A1310)",
-    boxShadow: "inset -30px 0 60px rgba(0,0,0,0.55)",
-    transition: `transform ${CURTAIN_OPEN_DURATION}ms cubic-bezier(.65,0,.35,1)`,
-    pointerEvents: curtainOpen ? "none" : "auto",
-  };
-  return (
-    <div className="absolute inset-0" style={{ zIndex: 100, overflow: "hidden", background: "#050403", opacity: fadingOut ? 0 : 1, transition: `opacity ${FADE_OUT_DURATION}ms ease` }}>
-      <div style={{ ...curtainBase, left: 0, transformOrigin: "left", transform: curtainOpen ? "translateX(-102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
-        <div style={fringeStyle} />
-      </div>
-      <div style={{ ...curtainBase, right: 0, transformOrigin: "right", transform: curtainOpen ? "translateX(102%) scaleX(0.4)" : "translateX(0) scaleX(1)" }}>
-        <div style={fringeStyle} />
-      </div>
+  const reduireMouvement = (() => {
+    try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
+  })();
 
-      {/* Le logo reste affiché, fixe, sur fond noir après l'ouverture du   */}
-      {/* rideau — il ne s'efface plus en même temps que le rideau s'ouvre, */}
-      {/* seulement au moment du fondu final (fadingOut).                  */}
-      {/* CORRECTIF (19/09/2026) -- ce bloc (texte + points lumineux) a son */}
-      {/* PROPRE fondu, plus rapide (FADE_OUT_TEXTE_DURATION) que celui du  */}
-      {/* fond noir juste au-dessus (FADE_OUT_DURATION) : signalé par Ben,  */}
-      {/* capture d'écran à l'appui -- le fond noir mettant 600ms à devenir */}
-      {/* transparent, le VRAI titre "CINÉMAISON" de l'app (dessous, autre  */}
-      {/* police/couleur) apparaissait en transparence AVANT que ce texte-  */}
-      {/* ci ait fini de s'effacer, donnant l'impression de deux titres     */}
-      {/* superposés/flous. Ce texte disparaît maintenant intégralement     */}
-      {/* avant que le fond ne devienne assez transparent pour laisser      */}
-      {/* deviner quoi que ce soit en dessous.                              */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 50, pointerEvents: "none", opacity: fadingOut ? 0 : 1, transition: `opacity ${FADE_OUT_TEXTE_DURATION}ms ease` }}>
-        <div className="flex gap-1 mb-6">
-          {Array.from({ length: 18 }).map((_, i) => (
-            <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: GOLD, boxShadow: `0 0 6px ${GOLD}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
-          ))}
-        </div>
-        <div className="flex overflow-hidden">
-          {[...word].map((ch, i) => (
-            <span key={i} style={{
-              fontFamily: MARQUEE_FONT, fontSize: 30, lineHeight: 1, letterSpacing: 1.5,
-              color: lit ? CREAM : "transparent",
-              textShadow: lit ? `0 0 14px ${GOLD}88` : "none",
-              opacity: lit ? 1 : 0, transform: lit ? "translateY(0)" : "translateY(18px)",
-              transition: `all .5s ease ${i * 0.09}s`,
-            }}>{ch === " " ? "\u00A0" : ch}</span>
-          ))}
-        </div>
-        <p style={{ marginTop: 14, fontFamily: MONO, fontSize: 10, letterSpacing: 5, color: MUTED, opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.3s" }}>
-          VOTRE CINÉMA. VOS RÈGLES.
-        </p>
-        {!ready && (
-          <div className="flex items-center gap-2 mt-5" style={{ opacity: lit ? 1 : 0, transition: "opacity 1s ease 1.1s" }}>
-            <Film size={13} color={GOLD} style={{ animation: "spin 1.6s linear infinite" }} />
-            <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 3, color: MUTED }}>CHARGEMENT DES FILMS…</span>
+  const entrer = () => {
+    if (phase !== "tap") return;
+    // Le toucher de l'utilisateur débloque l'audio sur iPhone : le contexte
+    // audio doit être créé/relancé ICI, dans le gestionnaire du toucher.
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) {
+        const ctx = new Ctx();
+        if (ctx.state === "suspended") ctx.resume();
+        audioRef.current = ctx;
+      }
+    } catch {}
+    try { if (navigator.vibrate) navigator.vibrate([25, 40, 25]); } catch {}
+    // 20 affiches de la bibliothèque, tirées au hasard à chaque lancement
+    const dispo = (Array.isArray(films) ? films : []).filter((f) => f && f.affiche);
+    const tirage = [...dispo].sort(() => Math.random() - 0.5).slice(0, 20).map((f) => f.affiche);
+    setAffiches(tirage);
+    setPhase("play");
+  };
+
+  useEffect(() => {
+    if (phase !== "play") return;
+    const tClac = setTimeout(() => playClapSound_(audioRef.current), 1620);
+    const tFin = setTimeout(() => setSeqDone(true), reduireMouvement ? 700 : 3700);
+    return () => { clearTimeout(tClac); clearTimeout(tFin); };
+  }, [phase]);
+
+  // Une fois la séquence terminée ET les films chargés : fondu vers l'appli.
+  useEffect(() => {
+    if (!seqDone || !ready) return;
+    setFadingOut(true);
+    const t = setTimeout(() => { setHidden(true); onDone && onDone(); try { audioRef.current && audioRef.current.close(); } catch {} }, 700);
+    return () => clearTimeout(t);
+  }, [seqDone, ready]);
+
+  if (hidden) return null;
+
+  const cols = [0, 1, 2, 3].map((c) => affiches.length ? affiches.filter((_, i) => i % 4 === c) : [null, null, null, null, null]);
+
+  return (
+    <div className="absolute inset-0" style={{ zIndex: 100, overflow: "hidden", background: "#050403", opacity: fadingOut ? 0 : 1, transition: "opacity 700ms ease" }}>
+      <style>{BOOT_CSS_}</style>
+
+      {phase === "tap" && (
+        <button
+          type="button"
+          onClick={entrer}
+          className="absolute inset-0 flex flex-col items-center justify-center"
+          style={{ zIndex: 60, background: "transparent", border: 0, cursor: "pointer", padding: 0 }}
+          aria-label="Touchez pour entrer"
+        >
+          <div className="flex gap-1 mb-6">
+            {Array.from({ length: 18 }).map((_, i) => (
+              <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: GOLD, boxShadow: `0 0 6px ${GOLD}88`, animation: "seanceChase 1.6s infinite", animationDelay: `${i * 0.07}s` }} />
+            ))}
           </div>
-        )}
-      </div>
+          <span style={{ fontFamily: MARQUEE_FONT, fontSize: 34, lineHeight: 1, letterSpacing: 2, color: CREAM, textShadow: `0 0 14px ${GOLD}88` }}>CINÉMAISON</span>
+          <span style={{ marginTop: 14, fontFamily: MONO, fontSize: 10, letterSpacing: 5, color: MUTED }}>VOTRE CINÉMA. VOS RÈGLES.</span>
+          <span style={{ marginTop: 38, fontFamily: MONO, fontSize: 11, letterSpacing: 4, color: GOLD, animation: "biPulse 1.8s ease-in-out infinite" }}>TOUCHEZ POUR ENTRER</span>
+        </button>
+      )}
+
+      {phase === "play" && !reduireMouvement && (
+        <>
+          <div className="bi-wall" aria-hidden="true">
+            {cols.map((col, c) => (
+              <div className="bi-col" key={c}>
+                {col.map((url, r) => (
+                  <div className="bi-poster" key={r}>{url ? <img src={url} alt="" /> : null}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(5,4,3,.2) 0%, rgba(5,4,3,.85) 75%)" }} />
+          <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 50, pointerEvents: "none" }}>
+            <div className="bi-clap">
+              <div className="bi-stick" />
+              <div className="bi-stick bi-stick-base" />
+              <div className="bi-board">
+                <div className="bi-title">CINÉMAISON</div>
+                <div className="bi-fields">
+                  <div>SCÈNE<strong>01</strong></div>
+                  <div>PRISE<strong>01</strong></div>
+                  <div>RÉALISATEUR<strong>VOUS</strong></div>
+                </div>
+                <p className="bi-tag">VOTRE CINÉMA. VOS RÈGLES.</p>
+              </div>
+            </div>
+          </div>
+          <div className="absolute inset-0" style={{ background: "#fff", opacity: 0, pointerEvents: "none", animation: "biFlash .35s ease-out 1.55s" }} />
+        </>
+      )}
     </div>
   );
 }
@@ -7230,7 +7259,7 @@ export default function App() {
           </div>
         )}
 
-        {showBoot && <AppBootIntro ready={!!films || !!error} onDone={() => setShowBoot(false)} />}
+        {showBoot && <AppBootIntro ready={!!films || !!error} films={films} onDone={() => setShowBoot(false)} />}
         {leaderPendingFilm && (
           <LeaderCountdown onDone={() => {
             const film = leaderPendingFilm;
