@@ -6793,6 +6793,11 @@ function AppBootIntro({ ready, onDone, films }) {
   const [hidden, setHidden] = useState(false);
   const [affiches, setAffiches] = useState([]);
   const audioRef = useRef(null);
+  // Dernière liste de films connue : le minuteur du lancement automatique est
+  // créé au tout premier rendu (films encore vides) ; sans cette référence il
+  // ne verrait jamais les affiches arrivées ensuite.
+  const filmsRef = useRef(films);
+  filmsRef.current = films;
 
   const GOLD = "#C58D29";
   const CREAM = "#F3EEE3";
@@ -6818,7 +6823,7 @@ function AppBootIntro({ ready, onDone, films }) {
     } catch {}
     try { if (navigator.vibrate) navigator.vibrate([25, 40, 25]); } catch {}
     // 20 affiches de la bibliothèque, tirées au hasard à chaque lancement
-    const dispo = (Array.isArray(films) ? films : []).filter((f) => f && f.affiche);
+    const dispo = (Array.isArray(filmsRef.current) ? filmsRef.current : []).filter((f) => f && f.affiche);
     const tirage = [...dispo].sort(() => Math.random() - 0.5).slice(0, 20).map((f) => f.affiche);
     setAffiches(tirage);
     setPhase("play");
