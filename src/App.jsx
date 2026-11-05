@@ -1183,7 +1183,18 @@ function TicketCard({ film, onOpen, tousLesFilms }) {
   );
 }
 
-function MiniCard({ film, onOpen, sub, showStamp, tousLesFilms }) {
+// 05/11/2026 -- pastille J-x en haut à gauche d'une affiche (Derniers ajouts),
+// uniquement si le départ est dans 20 jours ou moins ; le statut d'accès
+// (ABO ++, VOD...) passe alors à droite, comme dans "Ça part bientôt".
+function BadgeJoursCoin_({ film }) {
+  const days = computeExpiryDays(film);
+  if (days == null || days < 0 || days > 20 || film.statutAcces === "Bientôt disponible") return null;
+  return (
+    <span className="absolute" style={{ top: 6, left: 6, background: urgencyColor_(days), color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4 }}><Jx_ signe="J-" days={days} /></span>
+  );
+}
+
+function MiniCard({ film, onOpen, sub, showStamp, showJours, tousLesFilms }) {
   const expiryDays = computeExpiryDays(film);
   const autresPlateformes = autresPlateformesPourFilm_(film, tousLesFilms);
   // NOUVEAU (01/10/2026) -- pastille de statut d'accès, coin opposé à
@@ -1199,8 +1210,9 @@ function MiniCard({ film, onOpen, sub, showStamp, tousLesFilms }) {
       <div className="relative">
         <Poster film={film} className="w-full" style={{ height: 152, borderRadius: T.radiusSm }} />
         {showStamp && expiryDays != null && <DateStamp days={expiryDays} arrivee={film.statutAcces === "Bientôt disponible"} />}
+        {showJours && <BadgeJoursCoin_ film={film} />}
         {statutInfo && (
-          <span className="absolute" style={{ top: 6, left: 6, background: "rgba(0,0,0,0.65)", border: `1px solid ${statutInfo.couleur(T)}`, color: statutInfo.couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4, letterSpacing: 0.2 }}>{statutInfo.label}</span>
+          <span className="absolute" style={{ top: 6, ...(showJours ? { right: 6 } : { left: 6 }), background: "rgba(0,0,0,0.65)", border: `1px solid ${statutInfo.couleur(T)}`, color: statutInfo.couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4, letterSpacing: 0.2 }}>{statutInfo.label}</span>
         )}
       </div>
       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 12, fontWeight: 600, color: T.cream }}>{film.titre}</p>
@@ -1698,8 +1710,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
                   <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
                     <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                    <BadgeJoursCoin_ film={f} />
                     {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
-                      <span className="absolute" style={{ top: 4, left: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontSize: 7.5, fontWeight: 700, padding: "2px 5px", borderRadius: 3 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
+                      <span className="absolute" style={{ top: 4, right: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontSize: 7.5, fontWeight: 700, padding: "2px 5px", borderRadius: 3 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
                     )}
                   </div>
                   <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, fontWeight: 600, color: T.cream }}>{f.titre}</p>
@@ -1862,6 +1875,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
                     <div className="relative overflow-hidden" style={{ height: 132, borderRadius: 8, background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
                       <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+                      <BadgeJoursCoin_ film={f} />
                       {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
                         <span className="absolute top-1.5 right-1.5" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
                       )}
@@ -2021,8 +2035,9 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   return (
                     <button key={f.id} onClick={() => onOpen(f)} className="relative flex-shrink-0 text-left overflow-hidden" style={{ width: 108, background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
                       <Poster film={f} className="w-full" style={{ height: 152, objectFit: "cover" }} />
+                      <BadgeJoursCoin_ film={f} />
                       {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
-                        <span className="absolute" style={{ top: 4, left: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 999 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
+                        <span className="absolute" style={{ top: 4, right: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 999 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
                       )}
                       <div className="p-2">
                         <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
@@ -2164,6 +2179,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 {derniers.map((f) => (
                   <button key={f.id} onClick={() => onOpen(f)} className="relative flex-shrink-0 text-left" style={{ width: 108 }}>
                     <Poster film={f} className="w-full" style={{ height: 152, borderRadius: 8, objectFit: "cover" }} />
+                    <BadgeJoursCoin_ film={f} />
                     {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
                       <span className="absolute top-1.5 right-1.5" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
                     )}
@@ -2230,7 +2246,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
               <div className="flex gap-3 px-4 overflow-x-auto mb-5">
                 {derniers.map((f) => (
-                  <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
+                  <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} showJours
                     sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
                 ))}
               </div>
@@ -4497,7 +4513,9 @@ const STATUT_DISPO_BADGE_V1 = {
   "VOD": { label: "VOD", couleur: () => "#C084FC", forme: "nuage" },
   "Bientôt disponible": { label: "BIENTÔT", couleur: () => ARRIVEE_COULEUR_V1, forme: "anneau" },
   // MODIFIÉ (24/09/2026) -- libellé "ABO" -> "ABO ++", demandé par Ben.
-  "Abonnement complémentaire": { label: "ABO ++", couleur: () => "#D9A536", forme: "croix" },
+  // 05/11/2026 -- ABO ++ passe du doré au turquoise : le doré se confondait
+  // avec l'orange de J-6 à J-15 (choix de Ben).
+  "Abonnement complémentaire": { label: "ABO ++", couleur: () => "#1FC8C8", forme: "croix" },
 };
 
 /**
