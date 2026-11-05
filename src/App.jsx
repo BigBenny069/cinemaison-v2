@@ -3281,7 +3281,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           <div className="flex gap-2 mt-4 flex-wrap">
             {film.dateAuto && (
               <div className="flex-1" style={{ minWidth: 130, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "8px 12px" }}>
-                <p style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1, color: T.mutedDim, fontWeight: 700 }}>FIN · AUTO</p>
+                <p style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1, color: T.mutedDim, fontWeight: 700 }}>{film.statutAcces === "Bientôt disponible" ? "DISPONIBLE LE" : "FIN · AUTO"}</p>
                 <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, marginTop: 2 }}>{film.dateAuto}</p>
               </div>
             )}
@@ -3329,7 +3329,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <FicheLabel className="mt-4 mb-1">FICHE TECHNIQUE</FicheLabel>
         <Row label="Réalisateur" value={film.realisateur} onClick={film.realisateur ? () => onOpenPerson(film.realisateur) : undefined} />
         <Row label="Genre" value={film.genre} />
-        <Row label="Date de dispo. (auto)" value={film.dateAuto} />
+        <Row label={film.statutAcces === "Bientôt disponible" ? "Disponible le (auto)" : "Date de dispo. (auto)"} value={film.dateAuto} />
         <Row label="Votes Letterboxd" value={film.votesLetterboxd} />
 
         {film.urlLetterboxd && (
@@ -4072,6 +4072,15 @@ function dateFinAlerte_(film) {
   return "";
 }
 
+// 05/11/2026 -- un film "Bientôt disponible" arrive (J+x, bleu), il ne
+// part pas (J-x, rouge/orange) : même logique que la fiche détaillée.
+function signeAlerte_(film) {
+  return film.statutAcces === "Bientôt disponible" ? "J+" : "J-";
+}
+function couleurAlerte_(film, days) {
+  return film.statutAcces === "Bientôt disponible" ? ARRIVEE_COULEUR_V1 : urgencyColor_(days);
+}
+
 function AlertesListe({ films, field, onOpen }) {
   const groups = useMemo(() => {
     const list = films
@@ -4112,8 +4121,8 @@ function AlertesListe({ films, field, onOpen }) {
               {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
               <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left py-3"
                 style={{ borderBottom: i < flat.length - 1 ? `1px solid ${T.line}` : "none" }}>
-                <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: "50%", border: `1px solid ${urgencyColor_(days) || T.accent}` }}>
-                  <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.accent, fontWeight: 600 }}>J-{days}</span>
+                <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: "50%", border: `1px solid ${couleurAlerte_(f, days) || T.accent}` }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: couleurAlerte_(f, days) || T.accent, fontWeight: 600 }}>{signeAlerte_(f)}{days}</span>
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate" style={{ fontFamily: F.serif, fontSize: 14, color: T.cream, fontStyle: "italic" }}>{f.titre}</p>
@@ -4154,7 +4163,7 @@ function AlertesListe({ films, field, onOpen }) {
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8, color: T.muted, marginTop: 1, fontWeight: 700 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
                 </div>
-                <span className="flex-shrink-0 px-2 py-1" style={{ background: urgencyColor_(days) || T.accent, color: "#fff", fontFamily: F.marquee, fontSize: 11 }}>J-{days}</span>
+                <span className="flex-shrink-0 px-2 py-1" style={{ background: couleurAlerte_(f, days) || T.accent, color: "#fff", fontFamily: F.marquee, fontSize: 11 }}>{signeAlerte_(f)}{days}</span>
               </button>
             </div>
           );
@@ -4185,7 +4194,7 @@ function AlertesListe({ films, field, onOpen }) {
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
                 </div>
-                <span className="flex-shrink-0 px-2 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft, fontFamily: F.marquee, fontSize: 10, color: urgencyColor_(days) || T.cream, borderRadius: 999, border: `1px solid ${T.cream}` }}>J-{days}</span>
+                <span className="flex-shrink-0 px-2 py-1" style={{ background: couleurAlerte_(f, days) ? `${couleurAlerte_(f, days)}22` : T.accentSoft, fontFamily: F.marquee, fontSize: 10, color: couleurAlerte_(f, days) || T.cream, borderRadius: 999, border: `1px solid ${T.cream}` }}>{signeAlerte_(f)}{days}</span>
               </button>
             </div>
           );
@@ -4214,7 +4223,7 @@ function AlertesListe({ films, field, onOpen }) {
                   <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
                   {rating != null && <p style={{ color: T.accent, fontSize: 9, marginTop: 2, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>}
                 </div>
-                <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.alert, fontWeight: 700, flexShrink: 0 }}>J-{days}</span>
+                <span style={{ fontFamily: F.mono, fontSize: 10, color: couleurAlerte_(f, days) || T.alert, fontWeight: 700, flexShrink: 0 }}>{signeAlerte_(f)}{days}</span>
               </button>
             </div>
           );
@@ -4243,7 +4252,7 @@ function AlertesListe({ films, field, onOpen }) {
     return (
       <div className="flex flex-col gap-3">
         {flat.map(({ f, days, _label }, i) => {
-          const urg = urgencyColor_(days);
+          const urg = couleurAlerte_(f, days);
           const frameColor = urg || frameColors[i % frameColors.length];
           const showHeader = i === 0 || flat[i - 1]._label !== _label;
           return (
@@ -4255,7 +4264,7 @@ function AlertesListe({ films, field, onOpen }) {
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
                 </div>
-                <span className="flex-shrink-0 px-2 py-1" style={{ background: frameColor, color: (urg || CURRENT_THEME === "cacartoon") ? "#fff" : "#000", fontFamily: F.mono, fontSize: 10, fontWeight: 700, borderRadius: CURRENT_THEME === "cacartoon" ? 999 : 2 }}>J-{days}</span>
+                <span className="flex-shrink-0 px-2 py-1" style={{ background: frameColor, color: (urg || CURRENT_THEME === "cacartoon") ? "#fff" : "#000", fontFamily: F.mono, fontSize: 10, fontWeight: 700, borderRadius: CURRENT_THEME === "cacartoon" ? 999 : 2 }}>{signeAlerte_(f)}{days}</span>
               </button>
             </div>
           );
@@ -4279,8 +4288,8 @@ function AlertesListe({ films, field, onOpen }) {
           <div className="flex flex-col gap-2">
             {g.items.map(({ f, days }) => (
               <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
-                right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: urgencyColor_(days) ? `${urgencyColor_(days)}22` : T.accentSoft }}>
-                  <span style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(days) || T.accent, fontWeight: 700 }}>J-{days}</span>
+                right={<div className="flex items-center pr-3"><span className="rounded-full px-2.5 py-1" style={{ background: couleurAlerte_(f, days) ? `${couleurAlerte_(f, days)}22` : T.accentSoft }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 10, color: couleurAlerte_(f, days) || T.accent, fontWeight: 700 }}>{signeAlerte_(f)}{days}</span>
                 </span></div>} />
             ))}
           </div>
