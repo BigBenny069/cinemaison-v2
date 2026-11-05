@@ -3281,7 +3281,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           <div className="flex gap-2 mt-4 flex-wrap">
             {film.dateAuto && (
               <div className="flex-1" style={{ minWidth: 130, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "8px 12px" }}>
-                <p style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1, color: T.mutedDim, fontWeight: 700 }}>FIN · AUTO</p>
+                <p style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1, color: T.mutedDim, fontWeight: 700 }}>{film.statutAcces === "Bientôt disponible" ? "DISPONIBLE LE" : "FIN · AUTO"}</p>
                 <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, marginTop: 2 }}>{film.dateAuto}</p>
               </div>
             )}
@@ -3329,7 +3329,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <FicheLabel className="mt-4 mb-1">FICHE TECHNIQUE</FicheLabel>
         <Row label="Réalisateur" value={film.realisateur} onClick={film.realisateur ? () => onOpenPerson(film.realisateur) : undefined} />
         <Row label="Genre" value={film.genre} />
-        <Row label="Date de dispo. (auto)" value={film.dateAuto} />
+        <Row label={film.statutAcces === "Bientôt disponible" ? "Disponible le (auto)" : "Date de dispo. (auto)"} value={film.dateAuto} />
         <Row label="Votes Letterboxd" value={film.votesLetterboxd} />
 
         {film.urlLetterboxd && (
