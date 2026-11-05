@@ -463,6 +463,16 @@ const ARRIVEE_COULEUR_V1 = "#3D8BFF";
 // L'AUTRE est dépassée, la fiche part en Archive -- une fiche peut
 // avoir une date automatique détectée (contrôle streaming) sans
 // jamais avoir de date manuelle saisie, et inversement.
+// 05/11/2026 -- nombre de jours depuis la date dépassée : la manuelle si
+// elle est dépassée, sinon l'automatique (avant : toujours la manuelle,
+// d'où "depuis 0 jours" sur les fiches à date automatique seulement).
+function joursDepuisArchivage_(film) {
+  const m = parseDateFR(film.dateManuelle);
+  const au = parseDateFR(film.dateAuto);
+  const d = m && daysUntil(m) < 0 ? m : (au && daysUntil(au) < 0 ? au : (m || au));
+  return d ? Math.abs(daysUntil(d)) : 0;
+}
+
 function isArchived(film) {
   const manuelle = parseDateFR(film.dateManuelle);
   if (manuelle && daysUntil(manuelle) < 0) return true;
@@ -471,7 +481,10 @@ function isArchived(film) {
   // fiche passée en Abonnement complémentaire / VOD (le film n'est plus
   // dans l'abonnement, la vieille date de fin n'a plus de sens) : sans
   // ça elle partait en Archives et n'apparaissait jamais dans son menu.
-  const dateAutoSansObjet = film.statutAcces === "Abonnement complémentaire" || film.statutAcces === "VOD";
+  // 05/11/2026 -- idem pour "Indispo" : un film déjà marqué indisponible
+  // (ex. Prime, date de fin passée hier) doit aller dans le menu Indispo,
+  // pas dans les Archives -- signalé par Ben.
+  const dateAutoSansObjet = film.statutAcces === "Abonnement complémentaire" || film.statutAcces === "VOD" || film.statutAcces === "Indispo";
   if (auto && daysUntil(auto) < 0 && !dateAutoSansObjet) return true;
   return false;
 }
@@ -3209,7 +3222,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         {archived ? (
           <div className="rounded-xl p-3 mt-4" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
             <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>
-              ARCHIVÉ — DATE DÉPASSÉE DEPUIS {Math.abs(daysUntil(parseDateFR(film.dateManuelle)))} JOURS
+              ARCHIVÉ — DATE DÉPASSÉE DEPUIS {joursDepuisArchivage_(film)} JOURS
             </span>
           </div>
         ) : expiryDays != null && expiryDays >= 0 && (() => {
@@ -5680,7 +5693,7 @@ function ArchivesScreen({ films, onOpen, onBack, onMenu }) {
   const scrollM = useScrollMemoire_("archives");
   const [sortRecent, setSortRecent] = useState(true);
   const list = useMemo(() => {
-    const arr = films.filter((f) => isArchived(f)).map((f) => ({ f, days: Math.abs(daysUntil(parseDateFR(f.dateManuelle))) }));
+    const arr = films.filter((f) => isArchived(f)).map((f) => ({ f, days: joursDepuisArchivage_(f) }));
     arr.sort((a, b) => sortRecent ? a.days - b.days : b.days - a.days);
     return arr;
   }, [films, sortRecent]);
