@@ -607,6 +607,8 @@ const CANAL_CHAINES_V1 = {
   "50052": { label: "RTL9", slug: "rtl9" },
   "50071": { label: "W9", slug: "w9" },
   "50076": { label: "POLAR+", slug: "polarplus" },
+  // Ajouté le 05/11/2026 (signalé par le mail "écarts avec Ma Liste" : FILM1390).
+  "50154": { label: "RMC STORY", slug: "rmcstory" },
   "50254": { label: "CANAL+ SÉRIES", slug: "canalseries" },
   "50943": { label: "NOVO19", slug: "novo19" },
   "50662": { label: "PARAMOUNT+", slug: "paramountchaine" },
