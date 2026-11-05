@@ -2828,10 +2828,6 @@ function EditFilmScreen({ film, onCancel, onSaved }) {
       </div>
 
       <SectionLabel>FACULTATIF</SectionLabel>
-      <label className="block mb-4">
-        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>DATE DE DISPONIBILITÉ (JJ/MM/AAAA)</span>
-        <DateFieldWithCalendar value={dateManuelle} onChange={setDateManuelle} />
-      </label>
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
         <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/…"
@@ -3281,14 +3277,8 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         {/* affichées ensemble, juste avant le synopsis, quel que soit le     */}
         {/* thème (pas de variante par thème ici, contrairement au badge      */}
         {/* d'expiration ci-dessus qui reste stylé par thème).                */}
-        {(film.dateManuelle || film.dateAuto) && (
+        {film.dateAuto && (
           <div className="flex gap-2 mt-4 flex-wrap">
-            {film.dateManuelle && (
-              <div className="flex-1" style={{ minWidth: 130, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "8px 12px" }}>
-                <p style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1, color: T.mutedDim, fontWeight: 700 }}>FIN · MANUEL</p>
-                <p style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream, marginTop: 2 }}>{film.dateManuelle}</p>
-              </div>
-            )}
             {film.dateAuto && (
               <div className="flex-1" style={{ minWidth: 130, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "8px 12px" }}>
                 <p style={{ fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1, color: T.mutedDim, fontWeight: 700 }}>FIN · AUTO</p>
@@ -3339,7 +3329,6 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <FicheLabel className="mt-4 mb-1">FICHE TECHNIQUE</FicheLabel>
         <Row label="Réalisateur" value={film.realisateur} onClick={film.realisateur ? () => onOpenPerson(film.realisateur) : undefined} />
         <Row label="Genre" value={film.genre} />
-        <Row label="Date de dispo. (saisie)" value={film.dateManuelle} />
         <Row label="Date de dispo. (auto)" value={film.dateAuto} />
         <Row label="Votes Letterboxd" value={film.votesLetterboxd} />
 
@@ -4071,11 +4060,23 @@ function buildMonthGrid(year, month) {
 /* ------------------------------------------------------------------ */
 /* ECRAN ALERTES — calendrier mensuel, disparaît bientôt (manuel) / sortie théorique (auto) */
 /* ------------------------------------------------------------------ */
+// 05/11/2026 -- date de fin utilisée par l'écran Alertes (liste "Bientôt"
+// et calendrier) : Ben ne saisit plus de date à la main, les contrôles
+// remplissent la date auto. On prend la manuelle si elle existe encore
+// et n'est pas passée, sinon l'automatique (si elle n'est pas passée).
+function dateFinAlerte_(film) {
+  const m = parseDateFR(film.dateManuelle);
+  if (m && daysUntil(m) >= 0) return film.dateManuelle;
+  const a = parseDateFR(film.dateAuto);
+  if (a && daysUntil(a) >= 0) return film.dateAuto;
+  return "";
+}
+
 function AlertesListe({ films, field, onOpen }) {
   const groups = useMemo(() => {
     const list = films
       .map((f) => {
-        const raw = f[field];
+        const raw = dateFinAlerte_(f);
         const date = parseDateFR(raw);
         const days = daysUntil(date);
         return { f, days, date, raw };
@@ -4300,11 +4301,11 @@ function AlertesCalendrier({ films, onOpen }) {
   const month = base.getMonth() + monthOffset;
   const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
-  // Le calendrier ne prend en compte que dateManuelle, jamais dateAuto
+  // Le calendrier utilise la date de fin effective (manuelle sinon auto)
   const alertsByDay = useMemo(() => {
     const map = {};
     films.forEach((f) => {
-      const date = parseDateFR(f.dateManuelle);
+      const date = parseDateFR(dateFinAlerte_(f));
       if (!date) return;
       if (date.getFullYear() !== year || date.getMonth() !== month) return;
       const days = daysUntil(date);
@@ -4400,7 +4401,7 @@ function AlertesCalendrier({ films, onOpen }) {
 let alertesScrollState_ = {}; // { [tab]: scrollTop }
 
 function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
-  const [tab, setTab] = useState(initialMode || "manuel"); // "manuel" | "auto" | "calendrier"
+  const [tab, setTab] = useState(initialMode === "calendrier" ? "calendrier" : "manuel"); // "manuel" (= Bientôt) | "calendrier"
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -4412,7 +4413,6 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
 
   const TABS = [
     { id: "manuel", label: "BIENTÔT", icon: Clock },
-    { id: "auto", label: "THÉORIQUE", icon: Rocket },
     { id: "calendrier", label: "CALENDRIER", icon: CalendarDays },
   ];
 
@@ -4434,7 +4434,6 @@ function AlertesScreen({ films, mode: initialMode, onOpen, onBack, onMenu }) {
       </div>
 
       {tab === "manuel" && <AlertesListe films={films} field="dateManuelle" onOpen={onOpen} />}
-      {tab === "auto" && <AlertesListe films={films} field="dateAuto" onOpen={onOpen} />}
       {tab === "calendrier" && <AlertesCalendrier films={films} onOpen={onOpen} />}
     </div>
   );
@@ -5616,10 +5615,6 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
             </button>
           ))}
         </div>
-      </label>
-      <label className="block mb-4">
-        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>DATE DE DISPONIBILITÉ (JJ/MM/AAAA)</span>
-        <DateFieldWithCalendar value={dateManuelle} onChange={setDateManuelle} />
       </label>
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
