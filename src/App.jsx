@@ -957,6 +957,54 @@ function Poster({ film, className, style, hideSprockets }) {
   return content;
 }
 
+// ── Note TMDb (repli quand il n'y a aucune note Letterboxd) ─────────────────
+// Visuel volontairement différent du cachet Letterboxd : plaquette gris-bleu,
+// pas d'étoile, note sur 10 écrite « /10 », mot « TMDb » toujours visible.
+const TMDB_COLOR = "#8FA6BF";
+const TMDB_BG = "#1B232C";
+const TMDB_LINE = "#34455A";
+function noteTmdb_(film) {
+  const v = parseRating(film && film.noteTMDb);
+  return v != null && v > 0 ? v : null;
+}
+function noteAffichable_(film) {
+  return parseRating(film && film.noteLetterboxd) != null || noteTmdb_(film) != null;
+}
+function noteTexte_(film) {
+  const lb = parseRating(film && film.noteLetterboxd);
+  if (lb != null) return `★ ${lb.toFixed(1)}`;
+  const tm = noteTmdb_(film);
+  if (tm != null) return `TMDb ${tm.toFixed(1).replace(".", ",")}`;
+  return "pas de note";
+}
+function TmdbPlaque({ value }) {
+  return (
+    <div className="flex-shrink-0 text-center" style={{ border: `1.5px solid ${TMDB_LINE}`, background: TMDB_BG, borderRadius: 6, padding: "5px 9px 6px", minWidth: 62 }}>
+      <span style={{ display: "block", fontFamily: F.mono, fontSize: 8.5, letterSpacing: 1.6, color: TMDB_COLOR, fontWeight: 700 }}>TMDb</span>
+      <span style={{ fontFamily: F.mono, fontSize: 21, color: "#F3EEE3", fontWeight: 700, lineHeight: 1.1 }}>
+        {value.toFixed(1).replace(".", ",")}<span style={{ fontSize: 11, color: "#9C9284", fontWeight: 400 }}>/10</span>
+      </span>
+    </div>
+  );
+}
+function NoteBadge({ film }) {
+  if (parseRating(film.noteLetterboxd) != null) return <RatingStamp value={film.noteLetterboxd} />;
+  const tm = noteTmdb_(film);
+  return tm != null ? <TmdbPlaque value={tm} /> : null;
+}
+function NoteInline({ film }) {
+  const lb = parseRating(film.noteLetterboxd);
+  if (lb != null) return <span style={{ whiteSpace: "nowrap" }}>★ {lb.toFixed(1)}</span>;
+  const tm = noteTmdb_(film);
+  if (tm == null) return null;
+  return (
+    <span style={{ whiteSpace: "nowrap" }}>
+      <span style={{ color: TMDB_COLOR, fontWeight: 700, letterSpacing: 0.6, border: `1px solid ${TMDB_LINE}`, borderRadius: 3, padding: "0 3px", fontSize: "0.85em" }}>TMDb</span> <span style={{ color: "#C9D3DF" }}>{tm.toFixed(1).replace(".", ",")}</span>
+    </span>
+  );
+}
+
+
 function RatingStamp({ value, size = 58 }) {
   const rating = parseRating(value);
   if (rating == null) return null;
@@ -1170,7 +1218,7 @@ function TicketCard({ film, onOpen, tousLesFilms }) {
           {autresPlateformes.length > 0 && (
             <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
           )}
-          {rating != null && <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600, marginTop: 3 }}>★ {rating.toFixed(1)}</p>}
+          {noteAffichable_(film) && <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600, marginTop: 3 }}><NoteInline film={film} /></p>}
           {film.synopsis && (
             <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10.5, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{film.synopsis}</p>
           )}
@@ -1625,8 +1673,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 14, color: T.cream }}>{suggestion.titre}</p>
               <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 3 }}>
                 {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
-                {parseRating(suggestion.noteLetterboxd) != null && (
-                  <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
+                {noteAffichable_(suggestion) && (
+                  <> · <NoteInline film={suggestion} /></>
                 )}
               </p>
               {suggestion.synopsis && (
@@ -1660,8 +1708,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
                       <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
-                  {rating != null && (
-                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
+                  {noteAffichable_(f) && (
+                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}><NoteInline film={f} /></p>
                   )}
                 </button>
               );
@@ -1690,8 +1738,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
                       <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
-                  {rating != null && (
-                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
+                  {noteAffichable_(f) && (
+                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}><NoteInline film={f} /></p>
                   )}
                 </button>
               );
@@ -1722,8 +1770,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
                       <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
-                  {rating != null && (
-                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>
+                  {noteAffichable_(f) && (
+                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}><NoteInline film={f} /></p>
                   )}
                 </button>
               );
@@ -1781,8 +1829,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 14, color: "#1c3350" }}>{suggestion.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 9.5, color: "#1c3350", fontWeight: 700, marginTop: 3 }}>
                       {suggestion.plateforme}{suggestion.duree ? ` · ${suggestion.duree}` : ""}
-                      {parseRating(suggestion.noteLetterboxd) != null && (
-                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
+                      {noteAffichable_(suggestion) && (
+                        <> · <NoteInline film={suggestion} /></>
                       )}
                     </p>
                       {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
@@ -1817,8 +1865,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#1c3350", fontWeight: 700, marginTop: 2 }}>
                         {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                        {parseRating(f.noteLetterboxd) != null && (
-                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        {noteAffichable_(f) && (
+                          <> · <NoteInline film={f} /></>
                         )}
                       </p>
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -1851,8 +1899,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#1c3350", fontWeight: 700, marginTop: 2 }}>
                         {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                        {parseRating(f.noteLetterboxd) != null && (
-                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        {noteAffichable_(f) && (
+                          <> · <NoteInline film={f} /></>
                         )}
                       </p>
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -1883,8 +1931,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: "#1c3350" }}>{f.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 8.5, color: "#1c3350", fontWeight: 700, marginTop: 2 }}>
                       {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                      {parseRating(f.noteLetterboxd) != null && (
-                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                      {noteAffichable_(f) && (
+                        <> · <NoteInline film={f} /></>
                       )}
                     </p>
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -1975,8 +2023,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
                         <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 1 }}>
                           {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                          {parseRating(f.noteLetterboxd) != null && (
-                            <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                          {noteAffichable_(f) && (
+                            <> · <NoteInline film={f} /></>
                           )}
                         </p>
                           {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -2010,8 +2058,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
                         <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 1 }}>
                           {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                          {parseRating(f.noteLetterboxd) != null && (
-                            <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                          {noteAffichable_(f) && (
+                            <> · <NoteInline film={f} /></>
                           )}
                         </p>
                           {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -2043,8 +2091,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12, color: T.cream }}>{f.titre}</p>
                         <p style={{ fontFamily: F.mono, fontSize: 8, color: T.muted, marginTop: 1 }}>
                           {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                          {parseRating(f.noteLetterboxd) != null && (
-                            <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                          {noteAffichable_(f) && (
+                            <> · <NoteInline film={f} /></>
                           )}
                         </p>
                           {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -2127,8 +2175,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
                         {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                        {parseRating(f.noteLetterboxd) != null && (
-                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        {noteAffichable_(f) && (
+                          <> · <NoteInline film={f} /></>
                         )}
                       </p>
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -2158,8 +2206,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
                         {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                        {parseRating(f.noteLetterboxd) != null && (
-                          <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                        {noteAffichable_(f) && (
+                          <> · <NoteInline film={f} /></>
                         )}
                       </p>
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -2186,8 +2234,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
                       {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                      {parseRating(f.noteLetterboxd) != null && (
-                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                      {noteAffichable_(f) && (
+                        <> · <NoteInline film={f} /></>
                       )}
                     </p>
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -2225,7 +2273,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5">
                 {bientot.map((f) => (
                   <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
-                    sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
+                    sub={noteTexte_(f)} showStamp />
                 ))}
               </div>
             </>
@@ -2236,7 +2284,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="flex gap-3 px-4 overflow-x-auto mb-5">
                 {bientotDisponible.map((f) => (
                   <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
-                    sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
+                    sub={noteTexte_(f)} showStamp />
                 ))}
               </div>
             </>
@@ -2247,7 +2295,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="flex gap-3 px-4 overflow-x-auto mb-5">
                 {derniers.map((f) => (
                   <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} showJours
-                    sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
+                    sub={noteTexte_(f)} />
                 ))}
               </div>
             </>
@@ -2261,7 +2309,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5">
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
-                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
+                sub={noteTexte_(f)} showStamp />
             ))}
           </div>
         </>
@@ -2273,7 +2321,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <div className="flex gap-3 px-4 overflow-x-auto mb-5">
             {bientotDisponible.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
-                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} showStamp />
+                sub={noteTexte_(f)} showStamp />
             ))}
           </div>
         </>
@@ -2305,8 +2353,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <p className="mt-1" style={{ fontFamily: F.marquee, fontSize: 19, lineHeight: 1.05 }}>{suggestion.titre}</p>
                 <p className="mt-1" style={{ fontFamily: "'Archivo', sans-serif", fontSize: 9.5, opacity: 0.9, fontWeight: 700 }}>
                   {suggestion.duree ? suggestion.duree : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
-                  {parseRating(suggestion.noteLetterboxd) != null && (
-                    <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
+                  {noteAffichable_(suggestion) && (
+                    <> · <NoteInline film={suggestion} /></>
                   )}
                 </p>
                 {suggestion.synopsis && (
@@ -2399,7 +2447,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <div className="flex gap-3 px-4 overflow-x-auto mb-5" style={CURRENT_THEME === "table" ? { paddingTop: 6, paddingBottom: 6 } : undefined}>
             {derniers.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
-                sub={parseRating(f.noteLetterboxd) != null ? `★ ${parseRating(f.noteLetterboxd).toFixed(1)}` : "pas de note"} />
+                sub={noteTexte_(f)} />
             ))}
           </div>
         </>
@@ -2430,8 +2478,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>{suggestion.titre}</p>
                 <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 4 }}>
                   {suggestion.annee}{suggestion.duree ? ` · ${suggestion.duree}` : ""}{suggestion.plateforme ? ` · ${suggestion.plateforme}` : ""}
-                  {parseRating(suggestion.noteLetterboxd) != null && (
-                    <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</span></>
+                  {noteAffichable_(suggestion) && (
+                    <> · <NoteInline film={suggestion} /></>
                   )}
                 </p>
                 {suggestion.synopsis && (
@@ -2464,8 +2512,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>
                       {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                      {parseRating(f.noteLetterboxd) != null && (
-                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                      {noteAffichable_(f) && (
+                        <> · <NoteInline film={f} /></>
                       )}
                     </p>
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -2497,8 +2545,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>
                       {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                      {parseRating(f.noteLetterboxd) != null && (
-                        <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                      {noteAffichable_(f) && (
+                        <> · <NoteInline film={f} /></>
                       )}
                     </p>
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -2530,8 +2578,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 10, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>
                     {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                    {parseRating(f.noteLetterboxd) != null && (
-                      <> · <span style={{ whiteSpace: "nowrap" }}>★ {parseRating(f.noteLetterboxd).toFixed(1)}</span></>
+                    {noteAffichable_(f) && (
+                      <> · <NoteInline film={f} /></>
                     )}
                   </p>
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
@@ -3201,7 +3249,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
       <div className="px-5 -mt-10 relative">
         <div className="flex items-end justify-between mb-1">
           <h2 style={{ fontFamily: F.marquee, fontSize: 27, color: T.cream, letterSpacing: 0.5, lineHeight: 1 }}>{film.titre}</h2>
-          <RatingStamp value={film.noteLetterboxd} />
+          <NoteBadge film={film} />
         </div>
         <p style={{ fontFamily: F.mono, fontSize: 12, color: T.muted, letterSpacing: 0.6, fontWeight: 600 }}>
           {(film.type || "").toUpperCase()} · {film.annee} · {film.duree || "—"}
@@ -3653,7 +3701,7 @@ function SearchResultCard({ film, match, onOpen, tousLesFilms }) {
           <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
         )}
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
-          {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
+          {noteTexte_(film)}
         </p>
         <MatchTag match={match} />
       </div>
@@ -3980,7 +4028,7 @@ function ListResultCard({ film, onOpen, right, tousLesFilms }) {
           <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(film, tousLesFilms).join(", ")}</p>
         )}
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
-          {parseRating(film.noteLetterboxd) != null ? `★ ${parseRating(film.noteLetterboxd).toFixed(1)}` : "pas de note"}
+          {noteTexte_(film)}
         </p>
       </div>
       {expiryBadge}
@@ -4247,7 +4295,7 @@ function AlertesListe({ films, field, onOpen }) {
                 <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, borderRadius: 4 }} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
-                  {rating != null && <p style={{ color: T.accent, fontSize: 9, marginTop: 2, fontFamily: F.mono, fontWeight: 700 }}>★ {rating.toFixed(1)}</p>}
+                  {noteAffichable_(f) && <p style={{ color: T.accent, fontSize: 9, marginTop: 2, fontFamily: F.mono, fontWeight: 700 }}><NoteInline film={f} /></p>}
                 </div>
                 <span style={{ fontFamily: F.mono, fontSize: 10, color: couleurAlerte_(f, days) || T.alert, fontWeight: 700, flexShrink: 0 }}><Jx_ signe={signeAlerte_(f)} days={days} /></span>
               </button>
@@ -4947,7 +4995,7 @@ function CeSoirSheet({ films, onOpen, onClose }) {
                   {propose.annee} · {(propose.plateforme || "").toUpperCase()}{propose.duree ? ` · ${propose.duree}` : ""}
                 </p>
                 <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 4 }}>
-                  {parseRating(propose.noteLetterboxd) != null ? `★ ${parseRating(propose.noteLetterboxd).toFixed(1)}` : "pas de note"}
+                  {noteTexte_(propose)}
                 </p>
                 {jours != null && jours >= 0 && jours <= 30 && (
                   <p style={{ fontFamily: F.mono, fontSize: 10, color: urgencyColor_(jours) || T.accentSecondary, marginTop: 4 }}>
