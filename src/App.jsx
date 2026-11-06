@@ -6834,6 +6834,25 @@ const BOOT_CSS_ = `
 .bi-tag { margin: 12px 0 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 8px; letter-spacing: 2.5px; white-space: nowrap; color: #9C9284; opacity: 0; animation: biFadeUp .6s ease 2.3s forwards; }
 `;
 
+// 20 affiches de la bibliothèque, tirées au hasard à chaque lancement
+function tirerAffiches_(films) {
+  const dispo = (Array.isArray(films) ? films : []).filter((f) => f && f.affiche);
+  return [...dispo].sort(() => Math.random() - 0.5).slice(0, 20).map((f) => f.affiche);
+}
+
+// Télécharge les affiches avant l'animation. Rend la main dès qu'elles sont
+// toutes chargées (ou en erreur), ou au bout de `delaiMs` quoi qu'il arrive.
+function precharger_(urls, delaiMs, gardeRef) {
+  const taches = urls.map((u) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = u;
+    if (gardeRef) gardeRef.current.push(img);
+  }));
+  return Promise.race([Promise.all(taches), new Promise((r) => setTimeout(r, delaiMs))]);
+}
+
 function AppBootIntro({ ready, onDone, films }) {
   // phase : "tap" (écran « Touchez pour entrer ») -> "play" (mur + claquette)
   const [phase, setPhase] = useState("tap");
@@ -6847,6 +6866,9 @@ function AppBootIntro({ ready, onDone, films }) {
   // ne verrait jamais les affiches arrivées ensuite.
   const filmsRef = useRef(films);
   filmsRef.current = films;
+  const tirageRef = useRef(null);   // les 20 affiches choisies
+  const imagesRef = useRef([]);     // garde les images préchargées en mémoire
+  const lanceRef = useRef(false);   // évite de lancer deux fois (toucher + minuteur)
 
   const GOLD = "#C58D29";
   const CREAM = "#F3EEE3";
@@ -6864,19 +6886,45 @@ function AppBootIntro({ ready, onDone, films }) {
     // audio doit être créé/relancé ICI, dans le gestionnaire du toucher.
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (Ctx) {
+      if (Ctx && !audioRef.current) {
         const ctx = new Ctx();
         if (ctx.state === "suspended") ctx.resume();
         audioRef.current = ctx;
       }
     } catch {}
     try { if (navigator.vibrate) navigator.vibrate([25, 40, 25]); } catch {}
-    // 20 affiches de la bibliothèque, tirées au hasard à chaque lancement
-    const dispo = (Array.isArray(filmsRef.current) ? filmsRef.current : []).filter((f) => f && f.affiche);
-    const tirage = [...dispo].sort(() => Math.random() - 0.5).slice(0, 20).map((f) => f.affiche);
-    setAffiches(tirage);
-    setPhase("play");
+    // 05/11/2026 -- les affiches sont d'abord PRÉCHARGÉES, puis l'animation
+    // démarre. Avant, le mur s'affichait tout de suite : après plusieurs
+    // heures d'inactivité (images plus en cache, réseau endormi) on voyait des
+    // carrés sombres, et seul un relancement de l'appli les remplissait.
+    if (lanceRef.current) return;
+    lanceRef.current = true;
+    (async () => {
+      let tirage = tirageRef.current;
+      if (!tirage || !tirage.length) {
+        // films pas encore arrivés (réseau lent au réveil) : on les attend un peu
+        const limite = Date.now() + 3000;
+        while (Date.now() < limite && !tirerAffiches_(filmsRef.current).length) {
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        tirage = tirerAffiches_(filmsRef.current);
+        tirageRef.current = tirage;
+      }
+      await precharger_(tirage, 2500, imagesRef);
+      setAffiches(tirage);
+      setPhase("play");
+    })();
   };
+
+  // Dès que les films sont là (écran « Touchez pour entrer »), on tire les 20
+  // affiches et on commence à les télécharger en avance.
+  useEffect(() => {
+    if (phase !== "tap" || tirageRef.current) return;
+    const tirage = tirerAffiches_(films);
+    if (!tirage.length) return;
+    tirageRef.current = tirage;
+    precharger_(tirage, 8000, imagesRef);
+  }, [films, phase]);
 
   // Lancement automatique : si personne ne touche l'écran, l'intro démarre
   // toute seule après 5 s (sans son : iOS l'interdit sans toucher), puis
