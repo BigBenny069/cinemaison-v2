@@ -6821,6 +6821,8 @@ function BottomNav({ active, onNavigate }) {
   const items = [
     { id: "accueil", label: "Accueil", icon: LogoMark, nav: { name: "accueil", params: {} } },
     { id: "biblio", label: "Film", icon: Film, nav: { name: "biblio", params: { type: "Film" } } },
+    // Raccourci Explorer au centre (bouton rond en relief, validé par Ben le 08/11/2026).
+    { id: "explorer", label: "Explorer", icon: Search, centre: true, nav: { name: "explorer", params: {} } },
     { id: "alertes", label: "Alertes", icon: Clock, nav: { name: "alertes", params: { mode: "manuel" } } },
     { id: "ajouter", label: "Ajouter", icon: PlusCircle, nav: { name: "ajouter", params: {} } },
   ];
@@ -6831,6 +6833,19 @@ function BottomNav({ active, onNavigate }) {
       {items.map((it) => {
         const isActive = active === it.id;
         const Icon = it.icon;
+        if (it.centre) {
+          const fond = isActive ? T.cream : T.accent;
+          return (
+            <button key={it.id} onClick={() => onNavigate(it.nav)} aria-label="Explorer" className="flex-1 relative flex flex-col items-center gap-1 py-1.5">
+              <span className="absolute flex items-center justify-center" style={{ top: -19, left: "50%", transform: "translateX(-50%)", width: 44, height: 44, borderRadius: "50%", background: fond, boxShadow: `0 4px 14px ${fond}55, 0 0 0 4px ${T.surface}`, zIndex: 2 }}>
+                <Icon size={20} color={isActive ? T.bg : "#fff"} strokeWidth={2.2} />
+              </span>
+              <span style={{ height: 15 }} />
+              <span style={{ fontFamily: F.mono, fontSize: 8, letterSpacing: 0.3, marginTop: 1, color: isActive ? (dotIndicator ? T.cream : T.accent) : T.muted, fontWeight: isActive ? 600 : 400 }}>{it.label.toUpperCase()}</span>
+              {dotIndicator && <span style={{ width: 4, height: 4, borderRadius: "50%", background: isActive ? T.accent : "transparent", marginTop: -2 }} />}
+            </button>
+          );
+        }
         return (
           <button key={it.id} onClick={() => onNavigate(it.nav)} className="flex-1 flex flex-col items-center gap-1 py-1.5">
             {dotIndicator ? (
@@ -7408,6 +7423,7 @@ export default function App() {
     screen.name === "accueil" ? "accueil" :
     screen.name === "biblio" && screen.params.type === "Film" ? "biblio" :
     screen.name === "alertes" ? "alertes" :
+    screen.name === "explorer" ? "explorer" :
     screen.name === "ajouter" ? "ajouter" : null;
 
   return (
