@@ -1207,7 +1207,7 @@ function TicketCard({ film, onOpen, tousLesFilms }) {
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full"
       style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
-      <Poster film={film} className="w-20 h-28 flex-shrink-0" />
+      <div className="relative flex-shrink-0"><Poster film={film} className="w-20 h-28 flex-shrink-0" /><TagPastille_ film={film} /></div>
       <Perforation />
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-between">
         <div>
@@ -1218,7 +1218,7 @@ function TicketCard({ film, onOpen, tousLesFilms }) {
           {autresPlateformes.length > 0 && (
             <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
           )}
-          {noteAffichable_(film) && <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600, marginTop: 3 }}><NoteInline film={film} /></p>}
+          {(noteAffichable_(film) || tagInfo_(film)) && <p className="flex items-center gap-1.5" style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, fontWeight: 600, marginTop: 3 }}>{noteAffichable_(film) && <NoteInline film={film} />}<TagMot_ film={film} /></p>}
           {film.synopsis && (
             <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10.5, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{film.synopsis}</p>
           )}
@@ -1612,6 +1612,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <span className="block mb-2" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, letterSpacing: 1.5, fontWeight: 600 }}>SUGGESTION DU SOIR</span>
           <button onClick={() => onOpen(suggestion)} className="relative w-full text-left rounded-2xl overflow-hidden block" style={{ height: 220 }}>
             <Poster film={suggestion} className="absolute inset-0 w-full h-full" style={{ objectFit: "cover" }} />
+<TagPastille_ film={suggestion} haut />
             {/* Dégradé renforcé : la zone de texte doit rester lisible même sur */}
             {/* une affiche très claire (ex. fond blanc/brumeux). */}
             <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(20,17,24,0.97) 35%, rgba(20,17,24,0.55) 65%, transparent 100%)" }} />
@@ -1669,7 +1670,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
             </button>
           </div>
           <div className="mx-4 mb-6 flex gap-3 p-3" style={{ background: T.surface, borderRadius: T.radiusSm }}>
-            <Poster film={suggestion} className="flex-shrink-0" style={{ width: 64, height: 90, borderRadius: 4 }} />
+            <div className="relative flex-shrink-0"><Poster film={suggestion} className="flex-shrink-0" style={{ width: 64, height: 90, borderRadius: 4 }} /><TagPastille_ film={suggestion} /></div>
             <div className="min-w-0">
               <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 14, color: T.cream }}>{suggestion.titre}</p>
               <p style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim, marginTop: 3 }}>
@@ -1677,6 +1678,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 {noteAffichable_(suggestion) && (
                   <> · <NoteInline film={suggestion} /></>
                 )}
+                {tagInfo_(suggestion) && <> · <TagMot_ film={suggestion} /></>}
               </p>
               {suggestion.synopsis && (
                 <p className="mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
@@ -1828,7 +1830,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               </div>
               <div className="px-4 mb-6">
                 <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-2.5" style={{ background: "#fff", border: `2px solid ${T.accentSecondary}`, borderRadius: T.radius }}>
-                  <Poster film={suggestion} className="flex-shrink-0" style={{ width: 70, height: 96, borderRadius: 6, objectFit: "cover" }} />
+                  <div className="relative flex-shrink-0"><Poster film={suggestion} className="flex-shrink-0" style={{ width: 70, height: 96, borderRadius: 6, objectFit: "cover" }} /><TagPastille_ film={suggestion} /></div>
                   <div className="min-w-0 flex flex-col justify-center">
                     <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 14, color: "#1c3350" }}>{suggestion.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 9.5, color: "#1c3350", fontWeight: 700, marginTop: 3 }}>
@@ -1836,6 +1838,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       {noteAffichable_(suggestion) && (
                         <> · <NoteInline film={suggestion} /></>
                       )}
+                      {tagInfo_(suggestion) && <> · <TagMot_ film={suggestion} clair /></>}
                     </p>
                       {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
                         <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
@@ -1992,7 +1995,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <button key={suggestion.id} onClick={() => onOpen(suggestion)} className="relative w-full h-full text-left block" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.accent}`, borderRadius: T.radius, boxSizing: "border-box", overflow: "hidden" }}>
                   <div style={{ height: 6, background: `linear-gradient(90deg, ${T.accent}, ${T.gold}, ${T.accentSecondary}, ${T.accentTertiary})` }} />
                   <div className="flex gap-3 p-3" style={{ overflow: "hidden" }}>
-                    <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, borderRadius: 6, objectFit: "cover" }} />
+                    <div className="relative flex-shrink-0"><Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, borderRadius: 6, objectFit: "cover" }} /><TagPastille_ film={suggestion} /></div>
                     <div className="min-w-0 flex-1" style={{ overflow: "hidden" }}>
                       <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 17, color: T.cream }}>{suggestion.titre}</p>
                       <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.muted, marginTop: 4 }}>
@@ -2000,6 +2003,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                         {parseRating(suggestion.noteLetterboxd) != null && (
                           <> · ★ {parseRating(suggestion.noteLetterboxd).toFixed(1)}</>
                         )}
+                        {tagInfo_(suggestion) && <> · <TagMot_ film={suggestion} /></>}
                       </p>
                         {autresPlateformesPourFilm_(suggestion, films).length > 0 && (
                           <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(suggestion, films).join(", ")}</p>
@@ -2130,6 +2134,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <p className="mx-4 mb-2" style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: T.muted, textTransform: "uppercase" }}>Suggestion du soir</p>
               <div className="relative mx-4 mb-1 overflow-hidden" style={{ height: 220, borderRadius: T.radiusSm }}>
                 <Poster film={suggestion} className="w-full h-full" style={{ objectFit: "cover" }} />
+<TagPastille_ film={suggestion} haut />
                 <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.85) 8%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.1) 100%)" }} />
                 <button onClick={() => onOpen(suggestion)} className="absolute left-0 right-0 bottom-0 text-left p-4">
                   <p style={{ fontFamily: F.marquee, fontSize: 24, color: "#fff", lineHeight: 1.02, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{suggestion.titre}</p>
@@ -2367,7 +2372,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           <div className="px-4 mb-6">
             <button onClick={() => onOpen(suggestion)} className="w-full text-left p-3.5 flex gap-3"
               style={{ background: T.accent, color: "#fff", border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: "rotate(-0.6deg)" }}>
-              <Poster film={suggestion} className="flex-shrink-0" style={{ width: 60, height: 84, border: `${T.borderWidth}px solid ${T.line}` }} />
+              <div className="relative flex-shrink-0"><Poster film={suggestion} className="flex-shrink-0" style={{ width: 60, height: 84, border: `${T.borderWidth}px solid ${T.line}` }} /><TagPastille_ film={suggestion} /></div>
               <div>
                 <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 0.5 }}>☆ SUGGESTION DU SOIR</span>
                 <p className="mt-1" style={{ fontFamily: F.marquee, fontSize: 19, lineHeight: 1.05 }}>{suggestion.titre}</p>
@@ -2376,6 +2381,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   {noteAffichable_(suggestion) && (
                     <> · <NoteInline film={suggestion} /></>
                   )}
+                  {tagInfo_(suggestion) && <> · <TagMot_ film={suggestion} /></>}
                 </p>
                 {suggestion.synopsis && (
                   <p className="mt-1.5" style={{ fontFamily: "'Archivo', sans-serif", fontSize: 9, opacity: 0.85, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
@@ -2495,7 +2501,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           </div>
           <div className="mx-4 mb-8">
             <button onClick={() => onOpen(suggestion)} className="w-full flex gap-3 text-left p-3" style={{ background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
-              <Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, objectFit: "cover" }} />
+              <div className="relative flex-shrink-0"><Poster film={suggestion} className="flex-shrink-0" style={{ width: 66, height: 92, objectFit: "cover" }} /><TagPastille_ film={suggestion} /></div>
               <div className="min-w-0">
                 <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 15, color: T.cream }}>{suggestion.titre}</p>
                 <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, marginTop: 4 }}>
@@ -2503,6 +2509,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                   {noteAffichable_(suggestion) && (
                     <> · <NoteInline film={suggestion} /></>
                   )}
+                  {tagInfo_(suggestion) && <> · <TagMot_ film={suggestion} /></>}
                 </p>
                 {suggestion.synopsis && (
                   <p className="mt-1.5" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.muted, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{suggestion.synopsis}</p>
@@ -2729,11 +2736,13 @@ function tagInfo_(film) {
   if (t === "En famille") return { lettre: "F", mot: "FAMILLE" };
   return null;
 }
-function TagPastille_({ film }) {
+function TagPastille_({ film, petit, haut }) {
   const info = tagInfo_(film);
   if (!info) return null;
+  const d = petit ? 16 : haut ? 28 : 22;
+  const pos = haut ? { left: 10, top: 10 } : { left: petit ? 3 : 6, bottom: petit ? 3 : 6 };
   return (
-    <span className="absolute flex items-center justify-center" style={{ left: 6, bottom: 6, width: 22, height: 22, borderRadius: "50%", background: TAG_CREME_, color: TAG_ENCRE_, fontFamily: F.serif, fontWeight: 800, fontSize: 11, boxShadow: "0 1px 4px rgba(0,0,0,0.55)", zIndex: 2 }}>{info.lettre}</span>
+    <span className="absolute flex items-center justify-center" style={{ ...pos, width: d, height: d, borderRadius: "50%", background: TAG_CREME_, color: TAG_ENCRE_, fontFamily: F.serif, fontWeight: 800, fontSize: petit ? 9 : haut ? 13 : 11, boxShadow: "0 1px 4px rgba(0,0,0,0.55)", zIndex: 2 }}>{info.lettre}</span>
   );
 }
 function TagMot_({ film, clair }) {
@@ -3761,7 +3770,7 @@ function SearchResultCard({ film, match, onOpen, tousLesFilms }) {
   const autresPlateformes = autresPlateformesPourFilm_(film, tousLesFilms);
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radius, boxShadow: T.shadow }}>
-      <Poster film={film} className="w-20 h-28 flex-shrink-0" />
+      <div className="relative flex-shrink-0"><Poster film={film} className="w-20 h-28 flex-shrink-0" /><TagPastille_ film={film} /></div>
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: T.cream }}>{film.titre}</p>
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>
@@ -3770,8 +3779,8 @@ function SearchResultCard({ film, match, onOpen, tousLesFilms }) {
         {autresPlateformes.length > 0 && (
           <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformes.join(", ")}</p>
         )}
-        <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
-          {noteTexte_(film)}
+        <p className="flex items-center gap-1.5" style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
+          {noteTexte_(film)}<TagMot_ film={film} />
         </p>
         <MatchTag match={match} />
       </div>
@@ -4090,15 +4099,15 @@ function ListResultCard({ film, onOpen, right, tousLesFilms }) {
   }
   return (
     <button onClick={() => onOpen(film)} className="flex text-left overflow-hidden w-full" style={{ background: T.surface, border: `${T.borderWidth}px solid ${borderColor}`, borderRadius: T.radius, boxShadow: T.shadow }}>
-      <Poster film={film} className="w-20 h-28 flex-shrink-0" style={isArchived(film) ? { filter: "grayscale(55%)", opacity: 0.75 } : undefined} />
+      <div className="relative flex-shrink-0"><Poster film={film} className="w-20 h-28 flex-shrink-0" style={isArchived(film) ? { filter: "grayscale(55%)", opacity: 0.75 } : undefined} /><TagPastille_ film={film} /></div>
       <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
         <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 15, color: isArchived(film) ? T.muted : T.cream }}>{film.titre}</p>
         <p style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.4 }}>{film.annee} · {(film.plateforme || "").toUpperCase()}{film.duree ? ` · ${film.duree}` : ""}</p>
         {autresPlateformesPourFilm_(film, tousLesFilms).length > 0 && (
           <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(film, tousLesFilms).join(", ")}</p>
         )}
-        <p style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
-          {noteTexte_(film)}
+        <p className="flex items-center gap-1.5" style={{ fontFamily: F.mono, fontSize: 10, color: T.accent, marginTop: 2 }}>
+          {noteTexte_(film)}<TagMot_ film={film} />
         </p>
       </div>
       {expiryBadge}
@@ -4302,7 +4311,7 @@ function AlertesListe({ films, field, onOpen }) {
               {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
               <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
                 style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, boxShadow: T.shadow, transform: `rotate(${rot}deg)` }}>
-                <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, border: `2px solid ${T.line}` }} />
+                <div className="relative flex-shrink-0"><Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, border: `2px solid ${T.line}` }} /><TagPastille_ film={f} petit /></div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: "'Archivo', sans-serif", fontSize: 8, color: T.muted, marginTop: 1, fontWeight: 700 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
@@ -4333,7 +4342,7 @@ function AlertesListe({ films, field, onOpen }) {
               {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.marquee, fontSize: 12, letterSpacing: 0.5, color: T.cream }}>{_label}</p>}
               <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2.5"
                 style={{ background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
-                <Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} />
+                <div className="relative flex-shrink-0"><Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} /><TagPastille_ film={f} petit /></div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 11, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8, color: T.mutedDim, marginTop: 2 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
@@ -4362,7 +4371,7 @@ function AlertesListe({ films, field, onOpen }) {
             <div key={f.id} className="contents">
               {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.2, color: T.mutedDim, textTransform: "uppercase" }}>{_label}</p>}
               <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2" style={{ background: T.surface, borderRadius: T.radiusSm }}>
-                <Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, borderRadius: 4 }} />
+                <div className="relative flex-shrink-0"><Poster film={f} className="flex-shrink-0" style={{ width: 40, height: 56, borderRadius: 4 }} /><TagPastille_ film={f} petit /></div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate" style={{ fontFamily: F.serif, fontWeight: 600, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
                   {(noteAffichable_(f) || tagInfo_(f)) && <p className="flex items-center gap-1.5" style={{ color: T.accent, fontSize: 9, marginTop: 2, fontFamily: F.mono, fontWeight: 700 }}>{noteAffichable_(f) && <NoteInline film={f} />}<TagMot_ film={f} /></p>}
@@ -4403,7 +4412,7 @@ function AlertesListe({ films, field, onOpen }) {
             <div key={f.id} className="contents">
               {showHeader && <p className="mt-4 mb-1" style={{ fontFamily: F.marquee, fontSize: 12, letterSpacing: 0.5, color: T.cream }}>{_label}</p>}
               <button onClick={() => onOpen(f)} className="w-full flex items-center gap-3 text-left p-2" style={{ background: T.surface, border: `${T.borderWidth}px solid ${frameColor}`, borderRadius: T.radius }}>
-                <Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} />
+                <div className="relative flex-shrink-0"><Poster film={f} className="flex-shrink-0" style={{ width: 42, height: 58, objectFit: "cover" }} /><TagPastille_ film={f} petit /></div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate" style={{ fontFamily: F.marquee, fontSize: 12.5, color: T.cream }}>{f.titre}</p>
                   <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 1 }}>{f.plateforme}{f.duree ? ` · ${f.duree}` : ""}</p>
@@ -4533,7 +4542,7 @@ function AlertesCalendrier({ films, onOpen }) {
       <div className="flex flex-col gap-2">
         {dayItems.map((f) => (
           <button key={f.id} onClick={() => onOpen(f)} className="flex items-center gap-3 text-left pr-3 py-2 overflow-hidden" style={{ background: T.surface, border: `${T.borderWidth}px solid ${T.line}`, borderRadius: T.radiusSm, boxShadow: T.shadow }}>
-            <Poster film={f} className="flex-shrink-0" style={{ width: 34, height: 48, objectFit: "cover" }} />
+            <div className="relative flex-shrink-0"><Poster film={f} className="flex-shrink-0" style={{ width: 34, height: 48, objectFit: "cover" }} /><TagPastille_ film={f} petit /></div>
             <span className="flex-1 min-w-0">
               <span className="block truncate" style={{ fontFamily: F.serif, fontSize: 13.5, color: T.cream }}>{f.titre}</span>
               <span className="block" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim, letterSpacing: 0.3 }}>{(f.plateforme || "").toUpperCase()}</span>
@@ -4907,6 +4916,7 @@ function GrilleAffiche({ film, onOpen }) {
     <button onClick={() => onOpen(film)} className="text-left min-w-0">
       <div className="relative">
         <Poster film={film} className="w-full" style={{ aspectRatio: "2 / 3", height: "auto" }} />
+        <TagPastille_ film={film} />
         {coin && (
           <span className="absolute rounded-full px-1.5 py-0.5" style={{ top: 4, right: 4, background: coin.couleur, fontFamily: F.mono, fontSize: 8.5, fontWeight: 800, color: texteLisibleSur_(coin.couleur), letterSpacing: 0.3 }}>{coin.texte}</span>
         )}
