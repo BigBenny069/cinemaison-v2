@@ -1257,6 +1257,7 @@ function MiniCard({ film, onOpen, sub, showStamp, showJours, tousLesFilms }) {
     <button onClick={() => onOpen(film)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
       <div className="relative">
         <Poster film={film} className="w-full" style={{ height: 152, borderRadius: T.radiusSm }} />
+        <TagPastille_ film={film} />
         {showStamp && expiryDays != null && <DateStamp days={expiryDays} arrivee={film.statutAcces === "Bientôt disponible"} />}
         {showJours && <BadgeJoursCoin_ film={film} />}
         {statutInfo && (
@@ -1268,7 +1269,7 @@ function MiniCard({ film, onOpen, sub, showStamp, showJours, tousLesFilms }) {
       {autresPlateformes.length > 0 && (
         <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent }}>+ {autresPlateformes.join(", ")}</p>
       )}
-      <p style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent }}>{sub}</p>
+      <p className="flex items-center gap-1.5" style={{ fontFamily: F.mono, fontSize: 9.5, color: T.accent }}>{sub}<TagMot_ film={film} /></p>
     </button>
   );
 }
@@ -1696,6 +1697,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
                   <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
                     <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+<TagPastille_ film={f} />
                     {days != null && <span className="absolute" style={{ top: 4, right: 4, background: urgencyColor_(days), color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3 }}><Jx_ signe="J-" days={days} /></span>}
                     {STATUT_DISPO_BADGE_V1[f.statutAcces] && f.statutAcces !== "Bientôt disponible" && (
                       <span className="absolute" style={{ top: 4, left: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontSize: 7.5, fontWeight: 700, padding: "2px 5px", borderRadius: 3 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
@@ -1708,8 +1710,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
                       <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
-                  {noteAffichable_(f) && (
-                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}><NoteInline film={f} /></p>
+                  {(noteAffichable_(f) || tagInfo_(f)) && (
+                    <p className="flex items-center gap-1.5" style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>{noteAffichable_(f) && <NoteInline film={f} />}<TagMot_ film={f} /></p>
                   )}
                 </button>
               );
@@ -1729,6 +1731,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
                   <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
                     <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+<TagPastille_ film={f} />
                     {jours != null && <span className="absolute" style={{ top: 4, right: 4, background: ARRIVEE_COULEUR_V1, color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3 }}>J+{jours}</span>}
                   </div>
                   <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontSize: 10, fontWeight: 600, color: T.cream }}>{f.titre}</p>
@@ -1738,8 +1741,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
                       <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
-                  {noteAffichable_(f) && (
-                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}><NoteInline film={f} /></p>
+                  {(noteAffichable_(f) || tagInfo_(f)) && (
+                    <p className="flex items-center gap-1.5" style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>{noteAffichable_(f) && <NoteInline film={f} />}<TagMot_ film={f} /></p>
                   )}
                 </button>
               );
@@ -1758,6 +1761,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                 <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
                   <div className="relative overflow-hidden" style={{ height: 140, borderRadius: T.radiusSm }}>
                     <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+<TagPastille_ film={f} />
                     <BadgeJoursCoin_ film={f} />
                     {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
                       <span className="absolute" style={{ top: 4, right: 4, background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontSize: 7.5, fontWeight: 700, padding: "2px 5px", borderRadius: 3 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
@@ -1770,8 +1774,8 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     {autresPlateformesPourFilm_(f, films).length > 0 && (
                       <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                     )}
-                  {noteAffichable_(f) && (
-                    <p style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}><NoteInline film={f} /></p>
+                  {(noteAffichable_(f) || tagInfo_(f)) && (
+                    <p className="flex items-center gap-1.5" style={{ color: T.accent, fontSize: 9, marginTop: 1, fontFamily: F.mono, fontWeight: 700 }}>{noteAffichable_(f) && <NoteInline film={f} />}<TagMot_ film={f} /></p>
                   )}
                 </button>
               );
@@ -2155,6 +2159,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
                       <div className="relative overflow-hidden" style={{ height: 152, borderRadius: 8 }}>
                         <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+<TagPastille_ film={f} />
                         {days != null && (
                           <span className="absolute top-1.5 left-1.5" style={{ background: urgencyColor_(days), border: "none", color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4 }}><Jx_ signe="J-" days={days} /></span>
                         )}
@@ -2175,10 +2180,11 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
                         {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                        {noteAffichable_(f) && (
+                        {noteAffichable_(f) && !tagInfo_(f) && (
                           <> · <NoteInline film={f} /></>
                         )}
                       </p>
+                      {tagInfo_(f) && <LigneNoteTag_ film={f} />}
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
                           <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                         )}
@@ -2199,6 +2205,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 108 }}>
                       <div className="relative overflow-hidden" style={{ height: 152, borderRadius: 8 }}>
                         <Poster film={f} className="w-full h-full" style={{ objectFit: "cover" }} />
+<TagPastille_ film={f} />
                         {joursArrivee != null && (
                           <span className="absolute top-1.5 left-1.5" style={{ background: ARRIVEE_COULEUR_V1, color: "#fff", fontFamily: F.serif, fontWeight: 800, fontSize: 8, padding: "2px 6px", borderRadius: 4 }}>J+{joursArrivee}</span>
                         )}
@@ -2206,10 +2213,11 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                       <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                       <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
                         {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                        {noteAffichable_(f) && (
+                        {noteAffichable_(f) && !tagInfo_(f) && (
                           <> · <NoteInline film={f} /></>
                         )}
                       </p>
+                      {tagInfo_(f) && <LigneNoteTag_ film={f} />}
                         {autresPlateformesPourFilm_(f, films).length > 0 && (
                           <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                         )}
@@ -2226,7 +2234,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="flex items-start gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
                   <button key={f.id} onClick={() => onOpen(f)} className="relative flex-shrink-0 text-left" style={{ width: 108 }}>
-                    <Poster film={f} className="w-full" style={{ height: 152, borderRadius: 8, objectFit: "cover" }} />
+                    <div className="relative"><Poster film={f} className="w-full" style={{ height: 152, borderRadius: 8, objectFit: "cover" }} /><TagPastille_ film={f} /></div>
                     <BadgeJoursCoin_ film={f} />
                     {STATUT_DISPO_BADGE_V1[f.statutAcces] && (
                       <span className="absolute top-1.5 right-1.5" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T)}`, color: STATUT_DISPO_BADGE_V1[f.statutAcces].couleur(T), fontFamily: F.mono, fontWeight: 700, fontSize: 7.5, padding: "2px 5px", borderRadius: 4 }}>{STATUT_DISPO_BADGE_V1[f.statutAcces].label}</span>
@@ -2234,10 +2242,11 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
                     <p className="truncate mt-1.5" style={{ fontFamily: F.serif, fontWeight: 700, fontSize: 11, color: T.cream }}>{f.titre}</p>
                     <p style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 2 }}>
                       {f.plateforme}{f.duree ? ` · ${f.duree}` : ""}
-                      {noteAffichable_(f) && (
+                      {noteAffichable_(f) && !tagInfo_(f) && (
                         <> · <NoteInline film={f} /></>
                       )}
                     </p>
+                    {tagInfo_(f) && <LigneNoteTag_ film={f} />}
                       {autresPlateformesPourFilm_(f, films).length > 0 && (
                         <p className="truncate" style={{ fontFamily: F.mono, fontSize: 9, color: T.accent, marginTop: 1 }}>+ aussi sur {autresPlateformesPourFilm_(f, films).join(", ")}</p>
                       )}
@@ -2687,6 +2696,53 @@ function activeTag(film) {
   if (film.aDeux) return "À deux";
   if (film.enFamille) return "En famille";
   return null;
+}
+
+// Étiquette "à regarder par" : pastille ronde (lettre) sur l'affiche, mot à
+// côté de la note, et pastille+mot sur la fiche détaillée. Crème neutre : l'or,
+// le bleu, le vert, le violet et le turquoise sont déjà pris ailleurs.
+const TAG_CREME_ = "#EFE8D8";
+const TAG_ENCRE_ = "#1A1A1D";
+function tagInfo_(film) {
+  const t = activeTag(film);
+  if (t === "Romy") return { lettre: "R", mot: "ROMY" };
+  if (t === "Benoit") return { lettre: "B", mot: "BENOIT" };
+  if (t === "À deux") return { lettre: "2", mot: "À DEUX" };
+  if (t === "En famille") return { lettre: "F", mot: "FAMILLE" };
+  return null;
+}
+function TagPastille_({ film }) {
+  const info = tagInfo_(film);
+  if (!info) return null;
+  return (
+    <span className="absolute flex items-center justify-center" style={{ left: 6, bottom: 6, width: 22, height: 22, borderRadius: "50%", background: TAG_CREME_, color: TAG_ENCRE_, fontFamily: F.serif, fontWeight: 800, fontSize: 11, boxShadow: "0 1px 4px rgba(0,0,0,0.55)", zIndex: 2 }}>{info.lettre}</span>
+  );
+}
+function TagMot_({ film }) {
+  const info = tagInfo_(film);
+  if (!info) return null;
+  return (
+    <span style={{ fontFamily: F.mono, fontWeight: 600, fontSize: 7.5, letterSpacing: 0.9, color: TAG_CREME_, border: "1px solid #6A665C", borderRadius: 3, padding: "0 4px", lineHeight: "13px", whiteSpace: "nowrap" }}>{info.mot}</span>
+  );
+}
+// Ligne "note + mot" sous le titre (remplace la note collée à la plateforme).
+function LigneNoteTag_({ film }) {
+  return (
+    <p className="flex items-center gap-1.5" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.muted, marginTop: 3 }}>
+      {noteAffichable_(film) && <NoteInline film={film} />}
+      <TagMot_ film={film} />
+    </p>
+  );
+}
+function TagChipFiche_({ film }) {
+  const info = tagInfo_(film);
+  if (!info) return null;
+  return (
+    <span className="inline-flex items-center gap-2 mt-4" style={{ height: 34, borderRadius: 17, background: TAG_CREME_, color: TAG_ENCRE_, padding: "0 14px 0 4px", fontFamily: F.mono, fontWeight: 600, fontSize: 11.5, letterSpacing: 1.4 }}>
+      <span className="flex items-center justify-center" style={{ width: 26, height: 26, borderRadius: "50%", background: TAG_ENCRE_, color: TAG_CREME_, fontFamily: F.serif, fontWeight: 800, fontSize: 13, letterSpacing: 0 }}>{info.lettre}</span>
+      {info.mot}
+    </span>
+  );
 }
 
 /**
@@ -3289,6 +3345,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           </button>
         )}
 
+        <div className="flex flex-wrap items-end gap-2">
         {archived ? (
           <div className="rounded-xl p-3 mt-4" style={{ background: T.surfaceRaised, border: `1px solid ${T.line}` }}>
             <span style={{ fontFamily: F.mono, fontSize: 10, color: T.mutedDim, letterSpacing: 0.5 }}>
@@ -3346,6 +3403,8 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             </div>
           );
         })()}
+        <TagChipFiche_ film={film} />
+        </div>
 
         {/* Dates de fin de disponibilité — manuelle et auto — toujours       */}
         {/* affichées ensemble, juste avant le synopsis, quel que soit le     */}
@@ -3419,14 +3478,6 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
               <LetterboxdMark size={13} />
               <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.cream, fontWeight: 600 }}>Letterboxd</span>
             </a>
-          </div>
-        )}
-
-        {activeTag(film) && (
-          <div className="mt-4">
-            <span className="rounded-full px-3 py-1.5" style={{ background: T.accentSoft, border: `1px solid ${T.accent}66`, fontFamily: F.serif, fontSize: 12.5, color: T.accent }}>
-              À voir : {activeTag(film)}
-            </span>
           </div>
         )}
 
