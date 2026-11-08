@@ -1688,7 +1688,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "letterboxd" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
+          <div className="flex items-start gap-3 px-4 overflow-x-auto bientot-rail mb-6">
             {bientot.map((f) => {
               const days = computeExpiryDays(f);
               const rating = parseRating(f.noteLetterboxd);
@@ -1721,7 +1721,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientotDisponible.length > 0 && CURRENT_THEME === "letterboxd" && (
         <>
           <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+          <div className="flex items-start gap-3 px-4 overflow-x-auto mb-6">
             {bientotDisponible.map((f) => {
               const rating = parseRating(f.noteLetterboxd);
               const jours = computeExpiryDays(f);
@@ -1751,7 +1751,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {derniers.length > 0 && CURRENT_THEME === "letterboxd" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+          <div className="flex items-start gap-3 px-4 overflow-x-auto mb-6">
             {derniers.map((f) => {
               const rating = parseRating(f.noteLetterboxd);
               return (
@@ -1850,7 +1850,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="relative px-4 mb-2.5">
                 <SpringfieldTitle>ÇA PART BIENTÔT</SpringfieldTitle>
               </div>
-              <div className="relative flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
+              <div className="relative flex items-start gap-3 px-4 overflow-x-auto bientot-rail mb-6">
                 {bientot.map((f) => {
                   const days = computeExpiryDays(f);
                   return (
@@ -1887,7 +1887,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="relative px-4 mb-2.5">
                 <SpringfieldTitle>BIENTÔT DISPONIBLE</SpringfieldTitle>
               </div>
-              <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
+              <div className="relative flex items-start gap-3 px-4 overflow-x-auto mb-6">
                 {bientotDisponible.map((f) => {
                   const jours = computeExpiryDays(f);
                   return (
@@ -1918,7 +1918,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
               <div className="relative px-4 mb-2.5">
                 <SpringfieldTitle>DERNIERS AJOUTS</SpringfieldTitle>
               </div>
-              <div className="relative flex gap-3 px-4 overflow-x-auto mb-6">
+              <div className="relative flex items-start gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
                   <button key={f.id} onClick={() => onOpen(f)} className="flex-shrink-0 text-left" style={{ width: 100 }}>
                     <div className="relative overflow-hidden" style={{ height: 132, borderRadius: 8, background: "#fff", border: `2px solid ${T.accentSecondary}` }}>
@@ -2005,7 +2005,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientot.length > 0 && (
             <>
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="flex gap-3.5 px-4 overflow-x-auto bientot-rail mb-6">
+              <div className="flex items-start gap-3.5 px-4 overflow-x-auto bientot-rail mb-6">
                 {bientot.map((f, i) => {
                   const days = computeExpiryDays(f);
                   const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
@@ -2043,7 +2043,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientotDisponible.length > 0 && (
             <>
               <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
-              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+              <div className="flex items-start gap-3.5 px-4 overflow-x-auto mb-6">
                 {bientotDisponible.map((f, i) => {
                   const jours = computeExpiryDays(f);
                   const frameColors = [T.accent, T.accentSecondary, T.gold, T.accentTertiary];
@@ -2076,7 +2076,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {derniers.length > 0 && (
             <>
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-              <div className="flex gap-3.5 px-4 overflow-x-auto mb-6">
+              <div className="flex items-start gap-3.5 px-4 overflow-x-auto mb-6">
                 {derniers.map((f, i) => {
                   const frameColors = [T.accentSecondary, T.gold, T.accentTertiary, T.accent];
                   const frameColor = frameColors[i % frameColors.length];
@@ -2147,7 +2147,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientot.length > 0 && (
             <>
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
+              <div className="flex items-start gap-3 px-4 overflow-x-auto bientot-rail mb-6">
                 {bientot.map((f) => {
                   const days = computeExpiryDays(f);
                   // Rouge de plus en plus saturé/opaque quand l'échéance approche.
@@ -2192,7 +2192,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientotDisponible.length > 0 && (
             <>
               <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
-              <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+              <div className="flex items-start gap-3 px-4 overflow-x-auto mb-6">
                 {bientotDisponible.map((f) => {
                   const joursArrivee = computeExpiryDays(f);
                   return (
@@ -2223,7 +2223,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {derniers.length > 0 && (
             <>
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-              <div className="flex gap-3 px-4 overflow-x-auto mb-6">
+              <div className="flex items-start gap-3 px-4 overflow-x-auto mb-6">
                 {derniers.map((f) => (
                   <button key={f.id} onClick={() => onOpen(f)} className="relative flex-shrink-0 text-left" style={{ width: 108 }}>
                     <Poster film={f} className="w-full" style={{ height: 152, borderRadius: 8, objectFit: "cover" }} />
@@ -2270,7 +2270,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientot.length > 0 && (
             <>
               <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-              <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5">
+              <div className="flex items-start gap-3 px-4 overflow-x-auto bientot-rail mb-5">
                 {bientot.map((f) => (
                   <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                     sub={noteTexte_(f)} showStamp />
@@ -2281,7 +2281,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {bientotDisponible.length > 0 && (
             <>
               <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
-              <div className="flex gap-3 px-4 overflow-x-auto mb-5">
+              <div className="flex items-start gap-3 px-4 overflow-x-auto mb-5">
                 {bientotDisponible.map((f) => (
                   <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                     sub={noteTexte_(f)} showStamp />
@@ -2292,7 +2292,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
           {derniers.length > 0 && (
             <>
               <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-              <div className="flex gap-3 px-4 overflow-x-auto mb-5">
+              <div className="flex items-start gap-3 px-4 overflow-x-auto mb-5">
                 {derniers.map((f) => (
                   <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} showJours
                     sub={noteTexte_(f)} />
@@ -2306,7 +2306,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && CURRENT_THEME !== "cacartoon" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-5">
+          <div className="flex items-start gap-3 px-4 overflow-x-auto bientot-rail mb-5">
             {bientot.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                 sub={noteTexte_(f)} showStamp />
@@ -2318,7 +2318,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientotDisponible.length > 0 && CURRENT_THEME !== "popbrutal" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && CURRENT_THEME !== "cacartoon" && (
         <>
           <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-5">
+          <div className="flex items-start gap-3 px-4 overflow-x-auto mb-5">
             {bientotDisponible.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                 sub={noteTexte_(f)} showStamp />
@@ -2371,7 +2371,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "popbrutal" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>Ça part bientôt</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-6 pb-1">
+          <div className="flex items-start gap-3 px-4 overflow-x-auto mb-6 pb-1">
             {bientot.map((f, i) => {
               const days = computeExpiryDays(f);
               const rot = i % 2 === 0 ? -2 : 2;
@@ -2406,7 +2406,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientotDisponible.length > 0 && CURRENT_THEME === "popbrutal" && (
         <>
           <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>Bientôt disponible</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-6 pb-1">
+          <div className="flex items-start gap-3 px-4 overflow-x-auto mb-6 pb-1">
             {bientotDisponible.map((f, i) => {
               const jours = computeExpiryDays(f);
               const rot = i % 2 === 0 ? -2 : 2;
@@ -2444,7 +2444,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {CURRENT_THEME !== "ticket" && CURRENT_THEME !== "bleu" && CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "springfield" && CURRENT_THEME !== "cacartoon" && CURRENT_THEME !== "affiche" && CURRENT_THEME !== "letterboxd" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-          <div className="flex gap-3 px-4 overflow-x-auto mb-5" style={CURRENT_THEME === "table" ? { paddingTop: 6, paddingBottom: 6 } : undefined}>
+          <div className="flex items-start gap-3 px-4 overflow-x-auto mb-5" style={CURRENT_THEME === "table" ? { paddingTop: 6, paddingBottom: 6 } : undefined}>
             {derniers.map((f) => (
               <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films}
                 sub={noteTexte_(f)} />
@@ -2496,7 +2496,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientot.length > 0 && CURRENT_THEME === "affiche" && (
         <>
           <SectionTitle icon={Clock} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>ÇA PART BIENTÔT</SectionTitle>
-          <div className="flex gap-4 px-4 overflow-x-auto bientot-rail mb-6 pb-1">
+          <div className="flex items-start gap-4 px-4 overflow-x-auto bientot-rail mb-6 pb-1">
             {bientot.map((f) => {
               const days = computeExpiryDays(f);
               return (
@@ -2532,7 +2532,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {bientotDisponible.length > 0 && CURRENT_THEME === "affiche" && (
         <>
           <SectionTitle icon={Rocket} onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>BIENTÔT DISPONIBLE</SectionTitle>
-          <div className="flex gap-4 px-4 overflow-x-auto mb-6 pb-1">
+          <div className="flex items-start gap-4 px-4 overflow-x-auto mb-6 pb-1">
             {bientotDisponible.map((f) => {
               const jours = computeExpiryDays(f);
               return (
@@ -2567,7 +2567,7 @@ function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbA
       {derniers.length > 0 && CURRENT_THEME === "affiche" && (
         <>
           <SectionTitle icon={Film} onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>DERNIERS AJOUTS</SectionTitle>
-          <div className="flex gap-4 px-4 overflow-x-auto mb-6 pb-1">
+          <div className="flex items-start gap-4 px-4 overflow-x-auto mb-6 pb-1">
             {derniers.map((f) => (
               <button key={f.id} onClick={() => onOpen(f)} className="relative flex-shrink-0 text-left" style={{ width: 100, background: T.surface, border: `2px solid ${T.cream}`, boxShadow: T.shadow }}>
                 <Poster film={f} className="w-full" style={{ height: 114, objectFit: "cover", borderBottom: `2px solid ${T.cream}` }} />
@@ -2632,7 +2632,7 @@ function AccueilSuggestionsRail({ onNavigate }) {
   return (
     <>
       <SectionTitle icon={Star} onMore={() => onNavigate({ name: "suggestions", params: {} })}>POUR TOI</SectionTitle>
-      <div className="flex gap-3 px-4 overflow-x-auto bientot-rail mb-6">
+      <div className="flex items-start gap-3 px-4 overflow-x-auto bientot-rail mb-6">
         {apercu.map((it) => (
           <button key={it.Cle + it.Plateforme} onClick={() => onNavigate({ name: "suggestions", params: {} })}
             className="flex-shrink-0 text-left" style={{ width: 96 }}>
