@@ -7025,6 +7025,7 @@ function AppBootIntro({ ready, onDone, films }) {
 
   const entrer = () => {
     if (phase !== "tap") return;
+    if (lanceRef.current && audioRef.current) return;
     // Le toucher de l'utilisateur débloque l'audio sur iPhone : le contexte
     // audio doit être créé/relancé ICI, dans le gestionnaire du toucher.
     try {
@@ -7098,7 +7099,14 @@ function AppBootIntro({ ready, onDone, films }) {
   const cols = [0, 1, 2, 3].map((c) => affiches.length ? affiches.filter((_, i) => i % 4 === c) : [null, null, null, null, null]);
 
   return (
-    <div className="absolute inset-0" style={{ zIndex: 100, overflow: "hidden", background: "#050403", opacity: fadingOut ? 0 : 1, transition: "opacity 700ms ease" }}>
+    <div
+      className="absolute inset-0"
+      // 08/11/2026 -- tout l'écran réagit au toucher (pas seulement le texte) :
+      // « pointerup » part même si le doigt a bougé un peu, là où « click » est
+      // annulé par iOS. « entrer » ne s'exécute qu'une fois (garde interne).
+      onPointerUp={phase === "tap" ? entrer : undefined}
+      onTouchEnd={phase === "tap" ? entrer : undefined}
+      style={{ zIndex: 100, overflow: "hidden", background: "#050403", opacity: fadingOut ? 0 : 1, transition: "opacity 700ms ease", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", userSelect: "none", WebkitUserSelect: "none" }}>
       <style>{BOOT_CSS_}</style>
 
       {phase === "tap" && (
@@ -7106,7 +7114,7 @@ function AppBootIntro({ ready, onDone, films }) {
           type="button"
           onClick={entrer}
           className="absolute inset-0 flex flex-col items-center justify-center"
-          style={{ zIndex: 60, background: "transparent", border: 0, cursor: "pointer", padding: 0 }}
+          style={{ zIndex: 60, background: "transparent", border: 0, cursor: "pointer", padding: 0, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
           aria-label="Touchez pour entrer"
         >
           <div className="flex gap-1 mb-6">
