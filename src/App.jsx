@@ -7003,6 +7003,11 @@ function AppBootIntro({ ready, onDone, films }) {
   const [fadingOut, setFadingOut] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [affiches, setAffiches] = useState([]);
+  // 09/11/2026 -- « lance » : le toucher est pris en compte, on le MONTRE tout
+  // de suite (texte « OUVERTURE… ») pendant que les affiches se préparent.
+  // Avant, après une fermeture de quelques minutes, l'écran ne bougeait pas
+  // pendant 2 à 5 s (attente des films + affiches) : on retouchait 2-3 fois.
+  const [lance, setLance] = useState(false);
   const audioRef = useRef(null);
   // Dernière liste de films connue : le minuteur du lancement automatique est
   // créé au tout premier rendu (films encore vides) ; sans cette référence il
@@ -7043,18 +7048,19 @@ function AppBootIntro({ ready, onDone, films }) {
     // carrés sombres, et seul un relancement de l'appli les remplissait.
     if (lanceRef.current) return;
     lanceRef.current = true;
+    setLance(true);
     (async () => {
       let tirage = tirageRef.current;
       if (!tirage || !tirage.length) {
         // films pas encore arrivés (réseau lent au réveil) : on les attend un peu
-        const limite = Date.now() + 3000;
+        const limite = Date.now() + 1500;
         while (Date.now() < limite && !tirerAffiches_(filmsRef.current).length) {
           await new Promise((r) => setTimeout(r, 100));
         }
         tirage = tirerAffiches_(filmsRef.current);
         tirageRef.current = tirage;
       }
-      await precharger_(tirage, 2500, imagesRef);
+      await precharger_(tirage, 1200, imagesRef);
       setAffiches(tirage);
       setPhase("play");
     })();
@@ -7124,7 +7130,7 @@ function AppBootIntro({ ready, onDone, films }) {
           </div>
           <span style={{ fontFamily: MARQUEE_FONT, fontSize: 34, lineHeight: 1, letterSpacing: 2, color: CREAM, textShadow: `0 0 14px ${GOLD}88` }}>CINÉMAISON</span>
           <span style={{ marginTop: 14, fontFamily: MONO, fontSize: 10, letterSpacing: 5, color: MUTED }}>VOTRE CINÉMA. VOS RÈGLES.</span>
-          <span style={{ marginTop: 38, fontFamily: MONO, fontSize: 11, letterSpacing: 4, color: GOLD, animation: "biPulse 1.8s ease-in-out infinite" }}>TOUCHEZ POUR ENTRER</span>
+          <span style={{ marginTop: 38, fontFamily: MONO, fontSize: 11, letterSpacing: 4, color: lance ? CREAM : GOLD, animation: lance ? "biPulse .5s ease-in-out infinite" : "biPulse 1.8s ease-in-out infinite" }}>{lance ? "OUVERTURE…" : "TOUCHEZ POUR ENTRER"}</span>
         </button>
       )}
 
