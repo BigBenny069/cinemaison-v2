@@ -3167,17 +3167,19 @@ function calculerRangees_(film, allFilms) {
     const seuil = genres.length >= 2 ? 2 : 1;
     const l = vus.map((f) => ({ f, n: communs(f) })).filter((x) => x.n >= seuil)
       .sort((a, b) => b.n - a.n || noteSur5_(b.f) - noteSur5_(a.f)).map((x) => x.f);
+    const prisAvantAmbiance = new Set(pris); // réalisateur + acteurs
     ajouter("ambiance", "Dans la même ambiance", nomsListe_(film.genre).slice(0, 2).join(" · "), garder(l));
 
     const bientot = (f) => { const d = computeExpiryDays(f); return d != null && d >= 0 && d <= 30 && f.statutAcces !== "Bientôt disponible"; };
-    const l2 = vus.filter((f) => communs(f) >= 1 && (bientot(f) || noteSur5_(f) >= 3.5))
+    // Même exigence de genres que « ambiance » ; peut reprendre ses films (on ne retire que réalisateur/acteurs).
+    const l2 = vus.filter((f) => !prisAvantAmbiance.has(f.id) && communs(f) >= seuil && (bientot(f) || noteSur5_(f) >= 3.5))
       .sort((a, b) => {
         const ba = bientot(a), bb = bientot(b);
         if (ba !== bb) return ba ? -1 : 1;
         if (ba && bb) return computeExpiryDays(a) - computeExpiryDays(b);
         return noteSur5_(b) - noteSur5_(a);
       });
-    ajouter("top", "Mieux notés et bientôt partis", "", garder(l2), true);
+    ajouter("top", "Mieux notés et bientôt partis", "", l2.slice(0, 12), true);
   }
   return rangees;
 }
