@@ -3116,6 +3116,90 @@ function FicheLabel({ children, className }) {
     return <h4 className={className} style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 1.4, color: T.mutedDim }}>{children}</h4>;
 }
 
+/* NOUVEAU (11/11/2026) -- « Films proposés » en bas de la fiche, à la Canal+ :
+   uniquement des films déjà dans CinéMaison, toutes plateformes confondues
+   (un film présent sur 2 plateformes n'apparaît qu'une fois). Rangées :
+   même réalisateur, acteurs principaux, même ambiance (genres communs),
+   mieux notés / bientôt partis. Un film ne se répète pas d'une rangée à l'autre. */
+function nomsListe_(texte) {
+  return String(texte || "").split(/[,;/|]+/).map((x) => x.trim()).filter((x) => x && x !== "∅");
+}
+function noteSur5_(f) {
+  const lb = parseRating(f.noteLetterboxd);
+  if (lb != null) return lb;
+  const tm = noteTmdb_(f);
+  return tm != null ? tm / 2 : 0;
+}
+function calculerRangees_(film, allFilms) {
+  const vus = [];
+  (allFilms || []).forEach((f) => {
+    if (!f || f.id === film.id || memeFilm_(f, film)) return;
+    if (vus.some((g) => memeFilm_(g, f))) return; // même film sur une autre plateforme
+    vus.push(f);
+  });
+  const pris = new Set();
+  const garder = (liste) => liste.filter((f) => !pris.has(f.id)).slice(0, 12);
+  const marquer = (liste) => { liste.forEach((f) => pris.add(f.id)); return liste; };
+  const rangees = [];
+  const ajouter = (id, titre, sous, liste, showJours) => {
+    if (liste.length >= 2) rangees.push({ id, titre, sous, films: marquer(liste), showJours });
+  };
+
+  const real = normalizeSearch(film.realisateur || "");
+  if (real) {
+    const l = vus.filter((f) => nomsListe_(f.realisateur).some((n) => normalizeSearch(n) === real));
+    ajouter("real", "Du même réalisateur", film.realisateur, garder(l));
+  }
+
+  const acteurs = nomsListe_(film.casting).slice(0, 3);
+  if (acteurs.length) {
+    const cles = acteurs.map((a) => normalizeSearch(a));
+    const l = vus.map((f) => {
+      const c = nomsListe_(f.casting).map((n) => normalizeSearch(n));
+      return { f, n: cles.filter((k) => c.includes(k)).length };
+    }).filter((x) => x.n > 0).sort((a, b) => b.n - a.n || noteSur5_(b.f) - noteSur5_(a.f)).map((x) => x.f);
+    ajouter("acteurs", "Avec " + acteurs.join(", "), "", garder(l));
+  }
+
+  const genres = nomsListe_(film.genre).map((g) => normalizeSearch(g));
+  const communs = (f) => { const g = nomsListe_(f.genre).map((x) => normalizeSearch(x)); return genres.filter((k) => g.includes(k)).length; };
+  if (genres.length) {
+    const seuil = genres.length >= 2 ? 2 : 1;
+    const l = vus.map((f) => ({ f, n: communs(f) })).filter((x) => x.n >= seuil)
+      .sort((a, b) => b.n - a.n || noteSur5_(b.f) - noteSur5_(a.f)).map((x) => x.f);
+    ajouter("ambiance", "Dans la même ambiance", nomsListe_(film.genre).slice(0, 2).join(" · "), garder(l));
+
+    const bientot = (f) => { const d = computeExpiryDays(f); return d != null && d >= 0 && d <= 30 && f.statutAcces !== "Bientôt disponible"; };
+    const l2 = vus.filter((f) => communs(f) >= 1 && (bientot(f) || noteSur5_(f) >= 3.5))
+      .sort((a, b) => {
+        const ba = bientot(a), bb = bientot(b);
+        if (ba !== bb) return ba ? -1 : 1;
+        if (ba && bb) return computeExpiryDays(a) - computeExpiryDays(b);
+        return noteSur5_(b) - noteSur5_(a);
+      });
+    ajouter("top", "Mieux notés et bientôt partis", "", garder(l2), true);
+  }
+  return rangees;
+}
+function FichePropositions_({ film, allFilms, onOpen }) {
+  const rangees = useMemo(() => calculerRangees_(film, allFilms), [film.id, allFilms]);
+  if (!rangees.length) return null;
+  return (
+    <div className="mt-6 flex flex-col gap-5">
+      {rangees.map((r) => (
+        <div key={r.id}>
+          <p className="mb-2" style={{ fontFamily: F.serif, fontSize: 15, fontWeight: 700, color: T.cream }}>
+            {r.titre}{r.sous && <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 400, color: T.mutedDim, marginLeft: 8 }}>{r.sous}</span>}
+          </p>
+          <div className="flex gap-2.5 overflow-x-auto pb-1">
+            {r.films.map((f) => <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={allFilms} showJours={r.showJours} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onFilmRemoved, onOpenPerson, onOpenFiche, initialEditing, allFilms }) {
   const [film, setFilm] = useState(filmProp);
   // NOUVEAU (26/09/2026) -- initialEditing permet d'ouvrir la fiche
@@ -3530,6 +3614,10 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <p className="mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
           Ton avis aide à mieux choisir les suggestions « Pour toi ».
         </p>
+      </div>
+
+      <div className="px-5 pb-6">
+        <FichePropositions_ film={film} allFilms={allFilms} onOpen={(f) => onOpenFiche && onOpenFiche(f)} />
       </div>
 
       {avisOuvert && (
