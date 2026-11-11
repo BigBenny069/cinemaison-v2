@@ -5986,6 +5986,8 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
   const [saisie, setSaisie] = useState("10");
   const [occupe, setOccupe] = useState({}); // cle -> true pendant un envoi
   const [message, setMessage] = useState(null);
+  const [avisSheet, setAvisSheet] = useState(null); // suggestion dont on donne l'avis (« Déjà vu »)
+  const [avisChoisi, setAvisChoisi] = useState(2); // Neutre par défaut
 
   const charger = () => {
     fetch("/api/get-films?suggestions=1")
@@ -6013,6 +6015,25 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
     if (!r.ok) { flash(r.error || "Échec"); return; }
     retirer(it.Cle);
     flash(verdict === "N_AIME_PAS" ? "Noté : je proposerai moins de ça" : "Masqué");
+  };
+
+  // « Déjà vu » : enregistre l'avis (réalisateur + acteurs cherchés côté serveur),
+  // n'ajoute rien à CinéMaison, masque la suggestion.
+  const ouvrirDejaVu = (it) => { setAvisChoisi(2); setAvisSheet(it); };
+  const enregistrerDejaVu = async () => {
+    const it = avisSheet;
+    if (!it) return;
+    setOccupe((o) => ({ ...o, [it.Cle]: true }));
+    const r = await apiWrite("/api/add-film", {
+      action: "suggestionAvis", cle: it.Cle, titre: it.Titre, annee: String(it.Annee || ""),
+      type: it.Type, genres: it.Genres, tmdbId: it.TMDbID, avis: avisChoisi,
+    });
+    setOccupe((o) => ({ ...o, [it.Cle]: false }));
+    if (!r.ok) { flash(r.error || "Échec"); return; }
+    setAvisSheet(null);
+    retirer(it.Cle);
+    const n = AVIS_NIVEAUX[avisChoisi - 1];
+    flash("Avis enregistré : " + n.label.toLowerCase() + ".");
   };
 
   const ajouter = async (it) => {
@@ -6126,6 +6147,10 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
             </div>
             <div className="flex flex-wrap gap-2 mt-3">
               {bouton("AJOUTER", () => ajouter(it), T.accent, occupe[it.Cle])}
+              <button onClick={() => ouvrirDejaVu(it)} disabled={occupe[it.Cle]} className="rounded-full px-3 py-1.5"
+                style={{ background: "#2A2218", border: `1px solid ${T.gold}`, opacity: occupe[it.Cle] ? 0.4 : 1 }}>
+                <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.4, color: T.cream, fontWeight: 600 }}>DÉJÀ VU</span>
+              </button>
               {bouton("PAS INTÉRESSÉ", () => refuser(it, "PAS_INTERESSE"), T.muted, occupe[it.Cle])}
               {bouton("N'AIME PAS", () => refuser(it, "N_AIME_PAS"), T.mutedDim, occupe[it.Cle])}
               {it.URL && <a href={it.URL} target="_blank" rel="noreferrer" className="rounded-full px-3 py-1.5" style={{ border: `1px solid ${T.line}` }}>
@@ -6138,6 +6163,31 @@ function SuggestionsScreen({ onBack, onMenu, onAdded }) {
         )}
       </div>
       <p className="mt-6 text-center" style={{ fontFamily: F.mono, fontSize: 9, color: T.mutedDim }}>Données : JustWatch</p>
+
+      {avisSheet && (
+        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: "rgba(20,16,12,0.7)" }}
+          onClick={() => !occupe[avisSheet.Cle] && setAvisSheet(null)}>
+          <div className="w-full rounded-t-2xl p-5" onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 460, background: T.surfaceRaised, paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+            <div className="flex gap-3 items-center mb-4">
+              <Poster film={{ affiche: avisSheet.Affiche, titre: avisSheet.Titre }} className="w-11 h-16 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="truncate" style={{ fontFamily: F.serif, fontSize: 17, color: T.cream, fontWeight: 600 }}>{avisSheet.Titre}</p>
+                <p style={{ fontFamily: F.mono, fontSize: 10, color: T.muted, letterSpacing: 0.3 }}>{avisSheet.Annee || "—"} · {avisSheet.Type} · {avisSheet.Plateforme}</p>
+              </div>
+            </div>
+            <p className="mb-3" style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1.4, color: T.muted }}>TON AVIS {String(avisSheet.Type) === "Série" ? "SUR CETTE SÉRIE" : "SUR CE FILM"}</p>
+            <AvisChoix value={avisChoisi} onChange={setAvisChoisi} disabled={!!occupe[avisSheet.Cle]} />
+            <p className="mt-3" style={{ fontFamily: F.serif, fontSize: 12, color: T.mutedDim }}>Ça ne l'ajoute pas à CinéMaison. Je cherche le réalisateur et les acteurs pour mieux deviner ce que tu aimes.</p>
+            <button onClick={enregistrerDejaVu} disabled={!!occupe[avisSheet.Cle]} className="w-full rounded-lg py-3 mt-4"
+              style={{ background: T.accent, opacity: occupe[avisSheet.Cle] ? 0.6 : 1 }}>
+              <span style={{ fontFamily: F.mono, fontSize: 12, fontWeight: 700, letterSpacing: 1.4, color: T.bg }}>{occupe[avisSheet.Cle] ? "ENREGISTREMENT…" : "ENREGISTRER MON AVIS"}</span>
+            </button>
+            <button onClick={() => setAvisSheet(null)} disabled={!!occupe[avisSheet.Cle]} className="w-full py-2.5 mt-1"
+              style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: T.muted }}>ANNULER</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
