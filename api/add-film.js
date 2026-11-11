@@ -1,7 +1,7 @@
 import { google } from "../lib/google.js";
 import { lireLetterboxd } from "../lib/letterboxd.js";
 import { declencherWorkflowLetterboxdV1_ } from "../lib/github-actions.js";
-import { avisValide, enregistrerAvis, trouverFilm } from "../lib/avis.js";
+import { avisValide, enregistrerAvis, trouverFilm, avisSurSuggestion } from "../lib/avis.js";
 import { resoudreLienLetterboxd } from "../lib/letterboxd-lien.js";
 
 const SHEET_RANGE = "Films!A1:ZZ";
@@ -121,6 +121,21 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     } catch (e) {
       console.error("[add-film/avis]", e);
+      return res.status(500).json({ error: "Écriture impossible : " + e.message });
+    }
+  }
+
+  // NOUVEAU (11/11/2026) -- « Déjà vu » sur une suggestion : avis 1 à 5,
+  // réalisateur + acteurs cherchés chez TMDb, la suggestion est masquée.
+  if (req.body && req.body.action === "suggestionAvis") {
+    try {
+      const { cle, titre, annee, type, genres, tmdbId, avis } = req.body;
+      if (!cle || !avisValide(avis)) return res.status(400).json({ error: "Avis ou suggestion invalide" });
+      const sheets = await getSheetsClient();
+      const r = await avisSurSuggestion(sheets, process.env.GOOGLE_SHEET_ID, { cle, titre, annee, type, genres, tmdbId }, avis);
+      return res.status(200).json({ ok: true, avis: r.note, realisateur: r.realisateur, casting: r.casting });
+    } catch (e) {
+      console.error("[add-film/suggestionAvis]", e);
       return res.status(500).json({ error: "Écriture impossible : " + e.message });
     }
   }
