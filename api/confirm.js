@@ -183,7 +183,7 @@ function pageLetterboxdOk(req, res) {
 
 // ---- ?page=add : "+ Ajouter à CinéMaison" (suggestions) ----
 function pageAjouter(req, res) {
-  const { titre, annee, type, statutAcces, plateforme, pw } = req.query || {};
+  const { titre, annee, type, statutAcces, plateforme, pw, duree } = req.query || {};
 
   if (!titre || !annee || !type || !plateforme || !pw) {
     return res.status(400).send(pageHtml(
@@ -200,10 +200,14 @@ function pageAjouter(req, res) {
   // présent si différent d'"Inclus" (voir construireUrlConfirmation_,
   // prime.js).
   const statutAccesEchappe = statutAcces ? echapperHtml(statutAcces) : "";
+  // NOUVEAU (12/11/2026) -- version supplémentaire d'un même film (ex. Blade Runner
+  // 1h52 / 1h57 sur Prime) : durée optionnelle, écrite dans la fiche créée.
+  const dureeValide = /^\d{1,2}h\d{0,2}$/.test(String(duree || "")) ? String(duree) : "";
+  const dureeEchappee = echapperHtml(dureeValide);
 
   const contenu = `
     <p style="font-size:15px;color:#3A2E22">
-      <strong>${titreEchappe}</strong> (${anneeEchappee}) -- ${plateformeEchappee}, type suggéré : ${typeEchappe}${statutAccesEchappe ? " (" + statutAccesEchappe + ")" : ""}
+      <strong>${titreEchappe}</strong> (${anneeEchappee}) -- ${plateformeEchappee}, type suggéré : ${typeEchappe}${statutAccesEchappe ? " (" + statutAccesEchappe + ")" : ""}${dureeEchappee ? " -- autre version, durée " + dureeEchappee : ""}
     </p>
     <button id="btn" style="background:#B5622B;color:#FFFBF2;border:none;border-radius:6px;
       padding:12px 20px;font-size:15px;font-family:Arial,sans-serif;cursor:pointer;width:100%">
@@ -227,6 +231,7 @@ function pageAjouter(req, res) {
               plateforme: ${JSON.stringify(plateforme)},
               type: ${JSON.stringify(type)},
               statutAcces: ${JSON.stringify(statutAcces || "")},
+              duree: ${JSON.stringify(dureeValide)},
             }),
           });
           const corps = await reponse.json().catch(() => ({}));
