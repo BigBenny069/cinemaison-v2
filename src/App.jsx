@@ -3194,7 +3194,7 @@ function FichePropositions_({ film, allFilms, onOpen }) {
             {r.titre}{r.sous && <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 400, color: T.mutedDim, marginLeft: 8 }}>{r.sous}</span>}
           </p>
           <div className="flex gap-2.5 overflow-x-auto pb-1">
-            {r.films.map((f) => <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={allFilms} showJours={r.showJours} />)}
+            {r.films.map((f) => <MiniCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={allFilms} showJours />)}
           </div>
         </div>
       ))}
