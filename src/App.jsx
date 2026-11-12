@@ -7517,7 +7517,7 @@ export default function App() {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)}
         initialQuery={screen.params.query} onQueryChange={(q) => updateScreenParams({ query: q })} />;
     } else if (name === "fiche") {
-      body = <FicheDetailScreen film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onFilmRemoved={(id) => setFilms((prev) => prev.filter((f) => f.id !== id))} allFilms={films} onOpenPerson={openPerson} onOpenFiche={openFiche} initialEditing={params.editRequested} />;
+      body = <FicheDetailScreen key={params.film.id} film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onFilmRemoved={(id) => setFilms((prev) => prev.filter((f) => f.id !== id))} allFilms={films} onOpenPerson={openPerson} onOpenFiche={openFiche} initialEditing={params.editRequested} />;
     } else if (name === "personne") {
       body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} onExplorer={() => setScreen({ name: "explorer", params: { initialPerson: params.nom } })} />;
     } else if (name === "biblio") {
