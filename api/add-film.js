@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { password, titre, annee, plateforme, type, statutAcces, dateManuelle, urlLetterboxd, tmdbId, tmdbSerie } = req.body || {};
+  const { password, titre, annee, plateforme, type, statutAcces, dateManuelle, urlLetterboxd, tmdbId, tmdbSerie, duree } = req.body || {};
 
   if (password !== process.env.ADD_FILM_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe incorrect" });
@@ -297,6 +297,10 @@ export default async function handler(req, res) {
     // cas. N'écrit que si explicitement fourni.
     if (statutAcces) setField("StatutAcces", statutAcces);
     if (dateManuelle) setField("DateDisponibilite", dateManuelle);
+    // NOUVEAU (12/11/2026) -- durée de la plateforme pour une VERSION SUPPLÉMENTAIRE d'un
+    // même film (ex. 1h52 / 1h57). Écrite à la création : l'enrichissement ne remplace
+    // jamais une durée déjà présente, et les collecteurs s'en servent pour départager.
+    if (/^\d{1,2}h\d{0,2}$/.test(String(duree || ""))) setField("Duree", String(duree));
     if (letterboxdUrlFinale) setField("URLLetterboxd", letterboxdUrlFinale);
     if (letterboxdNote) setField("NoteLetterboxd", letterboxdNote);
     if (letterboxdVotes) setField("VotesLetterboxd", letterboxdVotes);
