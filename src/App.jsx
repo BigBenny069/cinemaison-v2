@@ -7003,11 +7003,13 @@ function BottomNav({ active, onNavigate }) {
         const isActive = active === it.id;
         const Icon = it.icon;
         if (it.centre) {
-          const fond = isActive ? T.cream : T.accent;
+          // Couleurs inversées (13/11/2026, choix de Ben) : rond blanc, pop-corn rose ;
+          // quand on est sur Explorer, un contour rose marque le bouton actif.
+          const fond = "#fff";
           return (
             <button key={it.id} onClick={() => onNavigate(it.nav)} aria-label="Explorer" className="flex-1 relative flex flex-col items-center gap-1 py-1.5">
-              <span className="absolute flex items-center justify-center" style={{ top: -19, left: "50%", transform: "translateX(-50%)", width: 44, height: 44, borderRadius: "50%", background: fond, boxShadow: `0 4px 14px ${fond}55, 0 0 0 4px ${T.surface}`, zIndex: 2 }}>
-                <Icon size={20} color={isActive ? T.bg : "#fff"} strokeWidth={2.2} />
+              <span className="absolute flex items-center justify-center" style={{ top: -19, left: "50%", transform: "translateX(-50%)", width: 44, height: 44, borderRadius: "50%", background: fond, border: isActive ? `3px solid ${T.accent}` : "3px solid transparent", boxShadow: isActive ? `0 4px 14px ${T.accent}66, 0 0 0 4px ${T.surface}` : `0 4px 14px rgba(255,255,255,0.18), 0 0 0 4px ${T.surface}`, boxSizing: "border-box", zIndex: 2 }}>
+                <Icon size={20} color={T.accent} strokeWidth={2.2} />
               </span>
               <span style={{ height: 15 }} />
               <span style={{ fontFamily: F.mono, fontSize: 8, letterSpacing: 0.3, marginTop: 1, color: isActive ? (dotIndicator ? T.cream : T.accent) : T.muted, fontWeight: isActive ? 600 : 400 }}>{it.label.toUpperCase()}</span>
