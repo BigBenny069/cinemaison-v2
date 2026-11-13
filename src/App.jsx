@@ -669,7 +669,14 @@ function ChaineCanalBadge({ canalContentId }) {
   return (
     <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ background: "rgba(0,0,0,0.55)" }}>
       {showImg ? (
-        <img src={`/logos/chaines/${slug}.png`} alt="" className="h-3.5 w-auto object-contain" onError={() => setFailed(true)} />
+        slug === "francetv" ? (
+          // Logo sombre : pastille blanche pour qu'il ressorte sur le fond noir
+          <span className="flex items-center rounded-full" style={{ background: "#fff", padding: "2px 8px" }}>
+            <img src={`/logos/chaines/${slug}.png`} alt="" className="w-auto object-contain" style={{ height: 18, mixBlendMode: "multiply" }} onError={() => setFailed(true)} />
+          </span>
+        ) : (
+          <img src={`/logos/chaines/${slug}.png`} alt="" className="h-3.5 w-auto object-contain" onError={() => setFailed(true)} />
+        )
       ) : null}
       <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.5, color: "#fff", fontWeight: 700 }}>{label}</span>
     </div>
