@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { SlidersHorizontal, LayoutGrid, List, Moon, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX } from "lucide-react";
+import { SlidersHorizontal, LayoutGrid, List, Moon, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX, Popcorn } from "lucide-react";
 import { looksLikeLetterboxdLink, pickBestTmdbMatch } from "../lib/letterboxd-lien.js";
 import { poidsCeSoir, tirerPondere, vuesNettoyer, vuesAjouter } from "../lib/explorer-outils.js";
 
@@ -6991,7 +6991,7 @@ function BottomNav({ active, onNavigate }) {
     { id: "accueil", label: "Accueil", icon: LogoMark, nav: { name: "accueil", params: {} } },
     { id: "biblio", label: "Film", icon: Film, nav: { name: "biblio", params: { type: "Film" } } },
     // Raccourci Explorer au centre (bouton rond en relief, validé par Ben le 08/11/2026).
-    { id: "explorer", label: "Explorer", icon: Search, centre: true, nav: { name: "explorer", params: {} } },
+    { id: "explorer", label: "Explorer", icon: Popcorn, centre: true, nav: { name: "explorer", params: {} } },
     { id: "alertes", label: "Alertes", icon: Clock, nav: { name: "alertes", params: { mode: "manuel" } } },
     { id: "ajouter", label: "Ajouter", icon: PlusCircle, nav: { name: "ajouter", params: {} } },
   ];
