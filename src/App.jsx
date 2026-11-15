@@ -3588,7 +3588,11 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <Row label={film.statutAcces === "Bientôt disponible" ? "Disponible le (auto)" : "Date de dispo. (auto)"} value={film.dateAuto} />
         <Row label="Votes Letterboxd" value={film.votesLetterboxd} />
 
-        {film.urlLetterboxd && (
+        {/* Le Sheet contient « PAS DE LETTERBOXD » quand il n'y a pas de fiche :
+            ce n'est pas un lien -- sans ce test, le bouton ouvrait une adresse
+            invalide et faisait planter l'app. Seule une vraie adresse http(s)
+            affiche le bouton. */}
+        {/^https?:\/\//i.test(String(film.urlLetterboxd || "").trim()) && (
           <div className="mt-4">
             {/* Correctif : la zone tapable élargie (padding invisible) reste
                 en place, mais le lien est maintenant un vrai bouton visible
