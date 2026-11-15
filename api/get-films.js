@@ -34,7 +34,7 @@ export const EXPOSED_COLUMNS = [
 // api/confirm.js, page=confirmerTypeActuel) pose ce drapeau sans
 // changer Type -- les collecteurs sautent alors la comparaison pour
 // cette fiche, au lieu de re-signaler le même faux positif à chaque run.
-const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree", "Type", "TypeConfirme"];
+const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree", "Type", "TypeConfirme", "CanalContentId"];
 
 async function getSheetsClient() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
