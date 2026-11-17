@@ -838,6 +838,24 @@ function InlineTrailer({ youtubeId, muted, onToggleMute, onExpand }) {
 // renseigné (rempli par le script d'enrichissement via TMDb). Ouvre la
 // vidéo dans un lecteur plein écran intégré à l'appli (jamais un onglet
 // YouTube externe) — même logique que la loupe sur l'affiche plus bas.
+// NOUVEAU (17/11/2026) -- certaines bandes-annonces (limite d'âge) ne se lisent
+// pas dans le lecteur intégré. Ce lien, affiché sous la vidéo uniquement en plein
+// écran, ouvre la vidéo sur YouTube (appli YouTube si elle est installée).
+function LienOuvrirYoutube({ youtubeId }) {
+  return (
+    <a
+      href={`https://www.youtube.com/watch?v=${youtubeId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 mt-6"
+      style={{ border: `1.5px solid ${T.accent}`, color: T.accent, fontFamily: F.mono, fontSize: 11.5, letterSpacing: 0.5, fontWeight: 600, textDecoration: "none" }}
+    >
+      <ExternalLink size={13} color={T.accent} />
+      OUVRIR DANS YOUTUBE
+    </a>
+  );
+}
+
 function TrailerButton({ url }) {
   const [open, setOpen] = useState(false);
   const youtubeId = extractYoutubeId_(url);
@@ -857,7 +875,7 @@ function TrailerButton({ url }) {
         <div className="px-1 pb-1" style={{ background: `${T.accent}22` }}><FilmSprockets /></div>
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "#000" }}>
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ background: "#000" }}>
           <button onClick={() => setOpen(false)} className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center"
             style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(255,255,255,0.12)", zIndex: 2 }}>
             <X size={18} color="#fff" />
@@ -871,6 +889,7 @@ function TrailerButton({ url }) {
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
             />
           </div>
+          <LienOuvrirYoutube youtubeId={youtubeId} />
         </div>
       )}
     </>
@@ -3664,7 +3683,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
       {/* vidéo intégrée en haut de fiche l'ouvre ici) — son réactivé par    */}
       {/* défaut, comme le fait myCanal en plein écran. */}
       {trailerFullscreen && youtubeId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "#000" }}>
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ background: "#000" }}>
           <button onClick={() => setTrailerFullscreen(false)} className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center"
             style={{ top: "max(16px, env(safe-area-inset-top))", background: "rgba(255,255,255,0.12)", zIndex: 2 }}>
             <X size={18} color="#fff" />
@@ -3678,6 +3697,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
             />
           </div>
+          <LienOuvrirYoutube youtubeId={youtubeId} />
         </div>
       )}
 
