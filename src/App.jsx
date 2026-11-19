@@ -1492,6 +1492,11 @@ function NfTile({ film, onOpen, largeur = 112, hauteur = 168 }) {
           </span>
         )}
       </div>
+      <p className="truncate" style={{ fontFamily: F.serif, fontSize: 10.5, fontWeight: 600, color: T.cream, marginTop: 5 }}>{film.titre}</p>
+      <p className="truncate" style={{ fontFamily: F.serif, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{film.plateforme}{film.duree ? ` · ${film.duree}` : ""}</p>
+      {(noteAffichable_(film) || tagInfo_(film)) && (
+        <p className="flex items-center gap-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.gold, fontWeight: 700, marginTop: 2 }}>{noteAffichable_(film) && <NoteInline film={film} />}<TagMot_ film={film} /></p>
+      )}
     </button>
   );
 }
@@ -1499,8 +1504,8 @@ function NfTile({ film, onOpen, largeur = 112, hauteur = 168 }) {
 function NfTop10Item({ rang, film, onOpen }) {
   const chiffres = String(rang).length;
   return (
-    <div className="flex-shrink-0 flex items-end" style={{ width: 92 + 56 * chiffres }}>
-      <span aria-hidden="true" style={{ fontSize: 118, lineHeight: 0.78, fontWeight: 900, color: T.bg, WebkitTextStroke: "3px #777", letterSpacing: -10, width: 54 * chiffres, textAlign: "right", marginRight: 2, flexShrink: 0 }}>{rang}</span>
+    <div className="flex-shrink-0 flex items-start" style={{ width: 92 + 56 * chiffres }}>
+      <span aria-hidden="true" style={{ height: 144, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", fontSize: 118, lineHeight: 0.78, fontWeight: 900, color: T.bg, WebkitTextStroke: "3px #777", letterSpacing: -10, width: 54 * chiffres, textAlign: "right", marginRight: 2, flexShrink: 0 }}>{rang}</span>
       <NfTile film={film} onOpen={onOpen} largeur={96} hauteur={144} />
     </div>
   );
