@@ -6331,7 +6331,7 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
 /* ECRAN RÉGLAGES                                                       */
 /* ------------------------------------------------------------------ */
 // Ordre d'affichage des groupes — du plus "standard" au plus exploratoire.
-const GROUPES_THEMES_ORDRE = ["Rituel", "Originaux", "Signature", "Mises en page réinventées", "Six Directions", "Ambiances CinéRadar"];
+const GROUPES_THEMES_ORDRE = ["Rituel", "Originaux", "Signature", "Mises en page réinventées", "Six Directions", "Ambiances CinéRadar", "Nouveau"];
 
 function ThemesScreen({ theme, onChangeTheme, onBack, onMenu, leaderEnabled, onToggleLeader }) {
   const parGroupe = useMemo(() => {
