@@ -1504,8 +1504,8 @@ function NfTile({ film, onOpen, largeur = 112, hauteur = 168 }) {
 function NfTop10Item({ rang, film, onOpen }) {
   const chiffres = String(rang).length;
   return (
-    <div className="flex-shrink-0 flex items-start" style={{ width: 92 + 56 * chiffres }}>
-      <span aria-hidden="true" style={{ height: 144, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", fontSize: 118, lineHeight: 0.78, fontWeight: 900, color: T.bg, WebkitTextStroke: "3px #777", letterSpacing: -10, width: 54 * chiffres, textAlign: "right", marginRight: 2, flexShrink: 0 }}>{rang}</span>
+    <div className="flex-shrink-0 flex items-start" style={{ width: 100 + 50 * chiffres }}>
+      <span aria-hidden="true" style={{ height: 144, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", fontSize: 88, lineHeight: 0.8, fontWeight: 900, color: T.bg, WebkitTextStroke: "2.5px #9a9a9a", letterSpacing: -5, width: 50 * chiffres, textAlign: "right", marginRight: 2, flexShrink: 0 }}>{rang}</span>
       <NfTile film={film} onOpen={onOpen} largeur={96} hauteur={144} />
     </div>
   );
