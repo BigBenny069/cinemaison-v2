@@ -1507,7 +1507,7 @@ function NfTop10Item({ rang, film, onOpen }) {
   return (
     <div className="flex-shrink-0 flex items-start" style={{ marginLeft: 4 }}>
       <span aria-hidden="true" style={{ height: 144, display: "flex", alignItems: "flex-end", flexShrink: 0, marginRight: -4, position: "relative", zIndex: 1 }}>
-        <span style={{ fontSize: 112, lineHeight: 0.74, fontWeight: 900, letterSpacing: -6, background: "linear-gradient(180deg, #E6E6E8 0%, #A0A0A4 48%, #3A3A3E 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", WebkitTextFillColor: "transparent", WebkitTextStroke: "1.5px rgba(255,255,255,0.38)", paddingRight: 6 }}>{rang}</span>
+        <span style={{ fontSize: 112, lineHeight: 0.74, fontWeight: 900, letterSpacing: -6, background: "linear-gradient(180deg, #E6E6E8 0%, #A0A0A4 48%, #3A3A3E 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", WebkitTextFillColor: "transparent", filter: "drop-shadow(1px 0 0 rgba(255,255,255,0.4)) drop-shadow(-1px 0 0 rgba(255,255,255,0.4)) drop-shadow(0 1px 0 rgba(255,255,255,0.4)) drop-shadow(0 -1px 0 rgba(255,255,255,0.4))", paddingRight: 6 }}>{rang}</span>
       </span>
       <div style={{ position: "relative", zIndex: 2 }}>
         <NfTile film={film} onOpen={onOpen} largeur={96} hauteur={144} />
