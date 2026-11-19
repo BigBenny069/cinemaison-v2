@@ -1211,7 +1211,7 @@ function LogoMark({ size = 32 }) {
   );
 }
 
-function LetterboxdMark({ size = 9 }) {
+function LetterboxdMark({ size = 9, avecTexte = true }) {
   const dot = { width: size, height: size, borderRadius: "50%", display: "inline-block" };
   return (
     <span className="inline-flex items-center gap-2">
@@ -1220,7 +1220,7 @@ function LetterboxdMark({ size = 9 }) {
         <span style={{ ...dot, background: "#00E054", marginLeft: -size * 0.45 }} />
         <span style={{ ...dot, background: "#40BCF4", marginLeft: -size * 0.45 }} />
       </span>
-      <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.6, color: T.muted }}>via Letterboxd</span>
+      {avecTexte && <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 0.6, color: T.muted }}>via Letterboxd</span>}
     </span>
   );
 }
@@ -3621,8 +3621,9 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <a href={film.urlLetterboxd} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-full"
               style={{ padding: "9px 16px", minHeight: 44, background: T.surface, border: `1px solid ${T.line}` }}>
-              <LetterboxdMark size={13} />
-              <span style={{ fontFamily: F.mono, fontSize: 10.5, color: T.cream, fontWeight: 600 }}>Letterboxd</span>
+              <LetterboxdMark size={14} avecTexte={false} />
+              <span style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: 1, color: T.cream, fontWeight: 600 }}>VOIR SUR LETTERBOXD</span>
+              <ExternalLink size={13} color={T.muted} />
             </a>
           </div>
         )}
