@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { SlidersHorizontal, LayoutGrid, List, Moon, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX, Popcorn } from "lucide-react";
+import { SlidersHorizontal, LayoutGrid, List, Moon, Menu, Shuffle, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, Trash2, Star, Film, Clock, X, Search, Rocket, Minus, Plus, Check, RefreshCw, ExternalLink, Info, PlusCircle, CalendarDays, Play, Maximize2, Volume2, VolumeX, Popcorn } from "lucide-react";
 import { looksLikeLetterboxdLink, pickBestTmdbMatch } from "../lib/letterboxd-lien.js";
 import { poidsCeSoir, tirerPondere, vuesNettoyer, vuesAjouter } from "../lib/explorer-outils.js";
 
@@ -253,6 +253,36 @@ const THEMES = {
     },
     fonts: { marquee: "'Anton', sans-serif", serif: "'Anton', sans-serif", mono: "'Archivo', sans-serif" },
   },
+  // ---- NOUVEAU (19/11/2026) -- thème "Netflix" voulu par Ben : fond noir,
+  // rouge, affiches portrait aux coins à peine arrondis, Top 10 à la place de
+  // "Ça part bientôt" sur l'accueil (le menu Alertes garde son classement par
+  // date), fiche avec onglets Suggestions / Plus de détails. Mise en page
+  // dédiée : AccueilNetflix + quelques branches dans FicheDetailScreen. ----
+  netflix: {
+    label: "Netflix",
+    groupe: "Nouveau",
+    colors: {
+      bg: "#141414",
+      surface: "#1F1F1F",
+      surfaceRaised: "#2B2B2B",
+      accent: "#E50914",
+      accentSoft: "#3A0C10",
+      accentSecondary: "#B3B3B3",
+      accentSecondarySoft: "#262626",
+      gold: "#F5C518",
+      cream: "#FFFFFF",
+      muted: "#B3B3B3",
+      mutedDim: "#808080",
+      line: "#333333",
+      alert: "#E50914",
+      alertSoft: "#2A0B0D",
+      radius: 4,
+      radiusSm: 4,
+      shadow: "none",
+      borderWidth: 1,
+    },
+    fonts: { marquee: "'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif", serif: "'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif", mono: "'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif" },
+  },
 };
 
 let T = { ...THEMES.ticket.colors };
@@ -279,6 +309,7 @@ const FAMILLES_POLICES_PAR_THEME_V1 = {
   springfield: ["Archivo+Black", "Inter:wght@400;500;600;700;800", "IBM+Plex+Mono:wght@400;500;600;700"],
   cacartoon: ["Archivo+Black", "Inter:wght@400;500;600;700;800", "IBM+Plex+Mono:wght@400;500;600;700"],
   popbrutal: ["Anton", "Archivo:wght@600;700;800"],
+  netflix: ["Inter:wght@400;500;600;700;800;900", "Oswald:wght@700"],
 };
 // Le thème initial est déjà chargé par le script d'amorce de
 // index.html avant même que ce fichier ne s'exécute -- on le
@@ -862,6 +893,11 @@ function TrailerButton({ url }) {
   if (!url || !youtubeId) return null;
   return (
     <>
+      {CURRENT_THEME === "netflix" ? (
+        <button onClick={() => setOpen(true)} className="flex items-center justify-center gap-2 w-full" style={{ fontFamily: F.serif, background: "#fff", color: "#000", fontWeight: 700, fontSize: 15, padding: "11px 0", borderRadius: 4 }}>
+          <Play size={16} fill="#000" strokeWidth={0} /> Voir la bande-annonce
+        </button>
+      ) : (
       <button
         onClick={() => setOpen(true)}
         className="relative inline-flex flex-col rounded-lg overflow-hidden flex-shrink-0"
@@ -874,6 +910,7 @@ function TrailerButton({ url }) {
         </div>
         <div className="px-1 pb-1" style={{ background: `${T.accent}22` }}><FilmSprockets /></div>
       </button>
+      )}
       {open && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ background: "#000" }}>
           <button onClick={() => setOpen(false)} className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center"
@@ -1397,6 +1434,232 @@ function useScrollMemoire_(cle) {
 // devient très pénible maintenant que ce rail peut contenir 60 fiches.
 let accueilBientotScrollLeft_ = 0; // (ancien, remplacé par accueilRailsScrollLeft_)
 let accueilRailsScrollLeft_ = {}; // { "thème|rang du rail": scrollLeft }
+
+/* ------------------------------------------------------------------ */
+/* THÈME NETFLIX -- accueil dédié (NOUVEAU 19/11/2026)                 */
+/* Rendu à la place de AccueilScreen uniquement quand le thème         */
+/* "netflix" est actif. Les autres thèmes ne sont pas touchés.         */
+/* ------------------------------------------------------------------ */
+function NetflixLogo({ taille = 24 }) {
+  const lettres = "CINEMAISON".split("");
+  const n = lettres.length;
+  return (
+    <div aria-label="CinéMaison" style={{ display: "flex", fontFamily: "'Oswald', 'Arial Narrow', sans-serif", fontWeight: 700, fontSize: taille, color: T.accent, lineHeight: 1, whiteSpace: "nowrap", paddingBottom: Math.round(taille * 0.4) }}>
+      {lettres.map((c, i) => {
+        const t = (i - (n - 1) / 2) / ((n - 1) / 2);
+        return (
+          <span key={i} style={{ display: "inline-block", transform: `translateY(${(t * t * taille * 0.28).toFixed(1)}px) rotate(${(t * 9).toFixed(1)}deg) scaleY(1.35)`, transformOrigin: "50% 100%", margin: "0 -0.5px" }}>{c}</span>
+        );
+      })}
+    </div>
+  );
+}
+
+function langueCorrespond_(film, langue) {
+  if (!langue) return true;
+  const v = String(film.langue || "").toUpperCase();
+  if (langue === "VF") return /\bVF\b/.test(v);
+  if (langue === "VOST") return /VOST/.test(v);
+  if (langue === "VO") return /\bVO\b/.test(v);
+  return true;
+}
+
+// Tirage pondéré : les fiches qui partent bientôt ont 3x plus de chances
+// (même principe que la suggestion des autres thèmes).
+function tirerSuggestionNetflix_(pool, exclure) {
+  if (!pool.length) return null;
+  const candidats = exclure && pool.length > 1 ? pool.filter((f) => f.id !== exclure.id) : pool;
+  const pondere = [];
+  candidats.forEach((f) => {
+    const j = computeExpiryDays(f);
+    const poids = j != null && j >= 0 ? 3 : 1;
+    for (let i = 0; i < poids; i++) pondere.push(f);
+  });
+  return pondere[Math.floor(Math.random() * pondere.length)];
+}
+
+function NfTile({ film, onOpen, largeur = 112, hauteur = 168 }) {
+  const jours = computeExpiryDays(film);
+  const arrivee = film.statutAcces === "Bientôt disponible";
+  return (
+    <button onClick={() => onOpen(film)} className="flex-shrink-0 text-left" style={{ width: largeur }} aria-label={film.titre}>
+      <div className="relative overflow-hidden" style={{ width: largeur, height: hauteur, borderRadius: 4 }}>
+        <Poster film={film} className="w-full h-full" />
+        <TagPastille_ film={film} petit />
+        {jours != null && jours >= 0 && (
+          <span className="absolute left-0 right-0 bottom-0 text-center" style={{ fontFamily: F.serif, background: arrivee ? ARRIVEE_COULEUR_V1 : (urgencyColor_(jours) || T.accent), color: "#fff", fontSize: 10, fontWeight: 800, padding: "2px 0" }}>
+            <Jx_ signe={arrivee ? "J+" : "J-"} days={jours} />
+          </span>
+        )}
+      </div>
+      <p className="truncate" style={{ fontFamily: F.serif, fontSize: 10.5, fontWeight: 600, color: T.cream, marginTop: 5 }}>{film.titre}</p>
+      <p className="truncate" style={{ fontFamily: F.serif, fontSize: 9, color: T.mutedDim, marginTop: 1 }}>{film.plateforme}{film.duree ? ` · ${film.duree}` : ""}</p>
+      {(noteAffichable_(film) || tagInfo_(film)) && (
+        <p className="flex items-center gap-1.5" style={{ fontFamily: F.mono, fontSize: 9, color: T.gold, fontWeight: 700, marginTop: 2 }}>{noteAffichable_(film) && <NoteInline film={film} />}<TagMot_ film={film} /></p>
+      )}
+    </button>
+  );
+}
+
+function NfTop10Item({ rang, film, onOpen }) {
+  const chiffres = String(rang).length;
+  return (
+    <div className="flex-shrink-0 flex items-start" style={{ width: 92 + 56 * chiffres }}>
+      <span aria-hidden="true" style={{ height: 144, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", fontSize: 118, lineHeight: 0.78, fontWeight: 900, color: T.bg, WebkitTextStroke: "3px #777", letterSpacing: -10, width: 54 * chiffres, textAlign: "right", marginRight: 2, flexShrink: 0 }}>{rang}</span>
+      <NfTile film={film} onOpen={onOpen} largeur={96} hauteur={144} />
+    </div>
+  );
+}
+
+function NfRail({ titre, onMore, children }) {
+  return (
+    <section>
+      <div className="flex items-baseline justify-between px-4 mt-5 mb-2">
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: T.cream }}>{titre}</h2>
+        {onMore && <button onClick={onMore} style={{ fontFamily: F.serif, fontSize: 11, color: T.muted }}>Voir tout ›</button>}
+      </div>
+      <div className="flex gap-1.5 overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: "none" }}>{children}</div>
+    </section>
+  );
+}
+
+const NF_ONGLETS = [
+  { id: "accueil", label: "Accueil" },
+  { id: "Film", label: "Films" },
+  { id: "Série", label: "Séries" },
+  { id: "Documentaire", label: "Docu" },
+  { id: "Spectacle", label: "Spect" },
+];
+
+function AccueilNetflix({ films, onOpen, onSearch, onMenu, onNavigate, nbAccueil }) {
+  const scrollM = useScrollMemoire_("accueil-netflix");
+  const [onglet, setOnglet] = useState("accueil");
+  const [langue, setLangue] = useState(null);
+  const [langueMenu, setLangueMenu] = useState(false);
+
+  const base = useMemo(
+    () => films.filter((f) => !isArchived(f) && (onglet === "accueil" || f.type === onglet) && langueCorrespond_(f, langue)),
+    [films, onglet, langue]
+  );
+  const top10 = useMemo(
+    () => base
+      .filter((f) => f.statutAcces !== "Bientôt disponible")
+      .map((f) => ({ f, j: computeExpiryDays(f) }))
+      .filter((x) => x.j != null && x.j >= 0)
+      .sort((a, b) => a.j - b.j)
+      .slice(0, nbAccueil)
+      .map((x) => x.f),
+    [base, nbAccueil]
+  );
+  const derniers = useMemo(() => [...base].reverse().slice(0, nbAccueil), [base, nbAccueil]);
+  const bientotDispo = useMemo(
+    () => [...base].reverse().filter((f) => f.statutAcces === "Bientôt disponible").slice(0, nbAccueil),
+    [base, nbAccueil]
+  );
+
+  // Suggestion : mémorisée par id (comme les autres thèmes) pour survivre
+  // à l'aller-retour vers une fiche.
+  const pool = useMemo(() => {
+    const films_ = base.filter((f) => f.type === "Film");
+    return films_.length > 0 ? films_ : base;
+  }, [base]);
+  const [sugId, setSugId] = useState(accueilSuggestionId_);
+  const suggestion = useMemo(() => {
+    const memo = sugId ? pool.find((f) => f.id === sugId) : null;
+    return memo || tirerSuggestionNetflix_(pool, null);
+  }, [pool, sugId]);
+  useEffect(() => { if (suggestion) accueilSuggestionId_ = suggestion.id; }, [suggestion]);
+  const autreIdee = () => {
+    const c = tirerSuggestionNetflix_(pool, suggestion);
+    setSugId(c ? c.id : null);
+  };
+  const genres = suggestion ? String(suggestion.genre || "").split(/[,/]/).map((g) => g.trim()).filter(Boolean).slice(0, 3) : [];
+
+  const pillule = (actif) => ({
+    fontFamily: F.serif, padding: "6px 12px", borderRadius: 999, fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0,
+    fontWeight: actif ? 700 : 400, color: actif ? "#fff" : "#E5E5E5", background: actif ? "rgba(255,255,255,0.25)" : "transparent",
+  });
+
+  return (
+    <div {...scrollM} className="flex-1 overflow-y-auto pull-scroll pb-4 relative" style={{ background: T.bg, fontFamily: F.serif }}>
+      <div className="sticky top-0 z-20" style={{ background: "linear-gradient(180deg, #141414 88%, rgba(20,20,20,0))", paddingTop: "max(12px, env(safe-area-inset-top))" }}>
+        <div className="flex items-center justify-between px-4">
+          <NetflixLogo taille={25} />
+          <div className="flex items-center gap-4">
+            <button onClick={onSearch} aria-label="Rechercher"><Search size={20} color="#fff" /></button>
+            <button onClick={onMenu} aria-label="Menu"><Menu size={22} color="#fff" /></button>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 px-3 pt-1 pb-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {NF_ONGLETS.map((o) => (
+            <button key={o.id} onClick={() => setOnglet(o.id)} style={pillule(onglet === o.id)}>{o.label}</button>
+          ))}
+          <button onClick={() => setLangueMenu(true)} style={{ ...pillule(!!langue), display: "flex", alignItems: "center", gap: 4 }}>
+            {langue ? `Langue : ${langue}` : "Langue"} <ChevronDown size={13} />
+          </button>
+        </div>
+      </div>
+
+      {langueMenu && (
+        <div onClick={() => setLangueMenu(false)} className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div onClick={(e) => e.stopPropagation()} className="rounded-t-2xl px-5 pt-4" style={{ background: T.surface, paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+            <p className="mb-3" style={{ fontSize: 15, fontWeight: 700, color: T.cream }}>Explorer par langue</p>
+            {[null, "VF", "VOST", "VO"].map((l) => (
+              <button key={l || "toutes"} onClick={() => { setLangue(l); setLangueMenu(false); }} className="w-full text-left py-3" style={{ fontFamily: F.serif, borderBottom: `1px solid ${T.line}`, fontSize: 14, color: langue === l ? T.accent : T.cream, fontWeight: langue === l ? 700 : 400 }}>
+                {l || "Toutes les langues"}
+              </button>
+            ))}
+            <p className="mt-3" style={{ fontSize: 11, color: T.mutedDim }}>Seules les fiches dont la langue est renseignée apparaissent avec un filtre.</p>
+          </div>
+        </div>
+      )}
+
+      {suggestion ? (
+        <div className="relative" style={{ marginTop: -8 }}>
+          <div className="absolute inset-0 overflow-hidden">
+            <Poster film={suggestion} className="w-full h-full" style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.3)" }} />
+            <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, rgba(20,20,20,0.2) 0%, ${T.bg} 96%)` }} />
+          </div>
+          <div className="relative flex flex-col items-center px-4" style={{ paddingTop: 14, paddingBottom: 12 }}>
+            <button onClick={() => onOpen(suggestion)} aria-label={suggestion.titre} className="relative" style={{ width: 205, height: 308, borderRadius: 6, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.7)" }}>
+              <Poster film={suggestion} className="w-full h-full" />
+              <TagPastille_ film={suggestion} haut />
+            </button>
+            <p className="mt-3 text-center" style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{suggestion.titre}</p>
+            {genres.length > 0 && <p className="mt-1" style={{ fontSize: 11.5, color: "#E5E5E5" }}>{genres.join(" • ")}</p>}
+            <div className="flex gap-2.5 mt-3.5">
+              <button onClick={() => onOpen(suggestion)} className="flex items-center gap-2" style={{ fontFamily: F.serif, background: "#fff", color: "#000", fontWeight: 700, fontSize: 14, padding: "9px 22px", borderRadius: 4 }}>
+                <Play size={15} fill="#000" strokeWidth={0} /> Voir la fiche
+              </button>
+              <button onClick={autreIdee} className="flex items-center gap-2" style={{ fontFamily: F.serif, background: "rgba(109,109,110,0.7)", color: "#fff", fontWeight: 700, fontSize: 14, padding: "9px 18px", borderRadius: 4 }}>
+                <RefreshCw size={14} /> Autre idée
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="px-4 mt-8 text-center" style={{ fontSize: 13, color: T.muted }}>Aucune fiche pour ce filtre.</p>
+      )}
+
+      {top10.length > 0 && (
+        <NfRail titre={`Top ${top10.length} des départs imminents`} onMore={() => onNavigate({ name: "alertes", params: { mode: "manuel" } })}>
+          {top10.map((f, i) => <NfTop10Item key={f.id} rang={i + 1} film={f} onOpen={onOpen} />)}
+        </NfRail>
+      )}
+      {derniers.length > 0 && (
+        <NfRail titre="Derniers ajouts" onMore={() => onNavigate({ name: "biblio", params: { type: "Film" } })}>
+          {derniers.map((f) => <NfTile key={f.id} film={f} onOpen={onOpen} />)}
+        </NfRail>
+      )}
+      {bientotDispo.length > 0 && (
+        <NfRail titre="Bientôt disponible" onMore={() => onNavigate({ name: "biblio", params: { type: "Bientôt disponible" } })}>
+          {bientotDispo.map((f) => <NfTile key={f.id} film={f} onOpen={onOpen} />)}
+        </NfRail>
+      )}
+      {onglet === "accueil" && !langue && <AccueilSuggestionsRail onNavigate={onNavigate} />}
+    </div>
+  );
+}
 
 function AccueilScreen({ films, onOpen, onSearch, onMenu, onAdd, onNavigate, nbAccueil }) {
   const scrollM = useScrollMemoire_("accueil");
@@ -3236,6 +3499,8 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
   // directement en mode édition (lien profond ?film=ID&edit=1, voir
   // App() plus bas) -- sans ça, l'édition démarrait toujours fermée.
   const [editing, setEditing] = useState(!!initialEditing);
+  // Thème Netflix : onglet actif sous le synopsis (Suggestions / Plus de détails).
+  const [ongletNetflix, setOngletNetflix] = useState("suggestions");
   const expiryDays = computeExpiryDays(film);
   const archived = isArchived(film);
   const cast = (film.casting || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -3421,6 +3686,19 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(13,13,13,0.1) 40%, ${T.bg} 100%)` }} />
           </div>
         </div>
+      ) : CURRENT_THEME === "netflix" ? (
+        /* Thème Netflix : fond flou de l'affiche + affiche centrée en carte. */
+        <div className="relative" style={{ height: 400 }}>
+          <div className="absolute inset-0 overflow-hidden">
+            <Poster film={film} className="w-full h-full" style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.3)" }} />
+            <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, rgba(20,20,20,0.2) 0%, ${T.bg} 97%)` }} />
+          </div>
+          <div className="relative flex justify-center" style={{ paddingTop: 64 }}>
+            <button onClick={() => setPosterOpen(true)} aria-label="Agrandir l'affiche" style={{ width: 200, height: 300, borderRadius: 6, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.7)", filter: archived ? "grayscale(45%)" : undefined }}>
+              <Poster film={film} className="w-full h-full" />
+            </button>
+          </div>
+        </div>
       ) : CURRENT_THEME === "canalplus" ? (
         /* Chaîne Cryptée : bande-annonce en lecture automatique après       */
         /* quelques secondes, à la place de l'affiche — comme sur myCanal.   */
@@ -3446,7 +3724,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
 
       <div className="px-5 -mt-10 relative">
         <div className="flex items-end justify-between mb-1">
-          <h2 style={{ fontFamily: F.marquee, fontSize: 27, color: T.cream, letterSpacing: 0.5, lineHeight: 1 }}>{film.titre}</h2>
+          <h2 style={{ fontFamily: F.marquee, fontSize: 27, color: T.cream, letterSpacing: CURRENT_THEME === "netflix" ? 0 : 0.5, lineHeight: 1, fontWeight: CURRENT_THEME === "netflix" ? 800 : undefined }}>{film.titre}</h2>
           <NoteBadge film={film} />
         </div>
         <p style={{ fontFamily: F.mono, fontSize: 12, color: T.muted, letterSpacing: 0.6, fontWeight: 600 }}>
@@ -3474,8 +3752,9 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
               {film.langue}
             </span>
           )}
-          {CURRENT_THEME !== "canalplus" && <TrailerButton url={film.urlBandeAnnonce} />}
+          {CURRENT_THEME !== "canalplus" && CURRENT_THEME !== "netflix" && <TrailerButton url={film.urlBandeAnnonce} />}
         </div>
+        {CURRENT_THEME === "netflix" && youtubeId && <div className="mt-4"><TrailerButton url={film.urlBandeAnnonce} /></div>}
 
         {/* Chaîne Cryptée : en plus du bouton "TRAILER" ci-dessus (présent   */}
         {/* sur tous les thèmes), la lecture s'enchaîne aussi automatiquement */}
@@ -3518,6 +3797,10 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
             <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: urg || T.accent, borderRadius: 6 }}>
               <span style={{ fontFamily: F.serif, fontWeight: 800, fontSize: 12, color: "#fff" }}><Jx_ signe={signeJours} days={expiryDays} /> avant {estArrivee ? "disponibilité" : "retrait"}</span>
             </div>
+          ) : CURRENT_THEME === "netflix" ? (
+            <span className="mt-4 inline-block" style={{ fontFamily: F.serif, fontSize: 13, fontWeight: 700, color: estArrivee ? ARRIVEE_COULEUR_V1 : (urg || T.accent) }}>
+              {estArrivee ? (expiryDays === 0 ? "Disponible aujourd'hui" : `Disponible dans ${expiryDays} jour${expiryDays > 1 ? "s" : ""}`) : (expiryDays === 0 ? "Part aujourd'hui" : `Part dans ${expiryDays} jour${expiryDays > 1 ? "s" : ""}`)}
+            </span>
           ) : CURRENT_THEME === "cacartoon" ? (
             <div className="inline-flex items-center gap-2 mt-5 px-3.5 py-2" style={{ background: urg || T.accent, borderRadius: 20, border: `2px solid ${T.cream}` }}>
               <span style={{ fontFamily: F.marquee, fontSize: 15, color: "#fff" }}><Jx_ signe={signeJours} days={expiryDays} /> avant la {estArrivee ? "première" : "dernière"} séance</span>
@@ -3601,6 +3884,14 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           </>
         )}
 
+        {CURRENT_THEME === "netflix" && (
+          <div className="flex gap-6 mt-5" style={{ borderTop: `1px solid ${T.line}` }}>
+            {[["suggestions", "Suggestions"], ["details", "Plus de détails"]].map(([id, label]) => (
+              <button key={id} onClick={() => setOngletNetflix(id)} style={{ fontFamily: F.serif, padding: "10px 0", marginTop: -1, borderTop: `3px solid ${ongletNetflix === id ? T.accent : "transparent"}`, fontSize: 14, fontWeight: 700, color: ongletNetflix === id ? "#fff" : T.mutedDim }}>{label}</button>
+            ))}
+          </div>
+        )}
+        {(CURRENT_THEME !== "netflix" || ongletNetflix === "details") && (<>
         <FicheLabel className="mt-4 mb-1">FICHE TECHNIQUE</FicheLabel>
         <Row label="Réalisateur" value={film.realisateur} onClick={film.realisateur ? () => onOpenPerson(film.realisateur) : undefined} />
         <Row label="Genre" value={film.genre} />
@@ -3649,11 +3940,14 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <p className="mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
           Ton avis aide à mieux choisir les suggestions « Pour toi ».
         </p>
+        </>)}
       </div>
 
+      {(CURRENT_THEME !== "netflix" || ongletNetflix === "suggestions") && (
       <div className="px-5 pb-6">
         <FichePropositions_ film={film} allFilms={allFilms} onOpen={(f) => onOpenFiche && onOpenFiche(f)} />
       </div>
+      )}
 
       {avisOuvert && (
         <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: "rgba(20,16,12,0.7)" }} onClick={() => !avisEnvoi && setAvisOuvert(false)}>
@@ -6043,7 +6337,7 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
 /* ECRAN RÉGLAGES                                                       */
 /* ------------------------------------------------------------------ */
 // Ordre d'affichage des groupes — du plus "standard" au plus exploratoire.
-const GROUPES_THEMES_ORDRE = ["Rituel", "Originaux", "Signature", "Mises en page réinventées", "Six Directions", "Ambiances CinéRadar"];
+const GROUPES_THEMES_ORDRE = ["Rituel", "Originaux", "Signature", "Mises en page réinventées", "Six Directions", "Ambiances CinéRadar", "Nouveau"];
 
 function ThemesScreen({ theme, onChangeTheme, onBack, onMenu, leaderEnabled, onToggleLeader }) {
   const parGroupe = useMemo(() => {
@@ -7547,7 +7841,8 @@ export default function App() {
   if (films) {
     const { name, params } = screen;
     if (name === "accueil") {
-      body = <AccueilScreen films={films} onOpen={openFiche} onSearch={() => navigate({ name: "recherche", params: {} })}
+      body = theme === "netflix" ? <AccueilNetflix films={films} onOpen={openFiche} onSearch={() => navigate({ name: "recherche", params: {} })}
+        onMenu={() => setMenuOpen(true)} onNavigate={navigate} nbAccueil={nbAccueil} /> : <AccueilScreen films={films} onOpen={openFiche} onSearch={() => navigate({ name: "recherche", params: {} })}
         onMenu={() => setMenuOpen(true)} onAdd={() => navigate({ name: "ajouter", params: {} })} onNavigate={navigate} nbAccueil={nbAccueil} />;
     } else if (name === "recherche") {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)}
