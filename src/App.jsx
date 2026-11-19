@@ -1536,6 +1536,9 @@ function AccueilNetflix({ films, onOpen, onSearch, onMenu, onNavigate, nbAccueil
   const [onglet, setOnglet] = useState("accueil");
   const [langue, setLangue] = useState(null);
   const [langueMenu, setLangueMenu] = useState(false);
+  // « Ce soir, j'ai… » : durée max choisie (en minutes), null = filtre inactif.
+  const [soirMax, setSoirMax] = useState(null);
+  const [soirMenu, setSoirMenu] = useState(false);
 
   const base = useMemo(
     () => films.filter((f) => !isArchived(f) && (onglet === "accueil" || f.type === onglet) && langueCorrespond_(f, langue)),
@@ -1551,6 +1554,25 @@ function AccueilNetflix({ films, onOpen, onSearch, onMenu, onNavigate, nbAccueil
       .map((x) => x.f),
     [base, nbAccueil]
   );
+  // Films disponibles, durée connue et <= durée choisie ; départs imminents d'abord.
+  const soirFilms = useMemo(() => {
+    if (soirMax == null) return [];
+    return base
+      .filter((f) => f.type === "Film" && f.statutAcces !== "Bientôt disponible")
+      .map((f) => ({ f, m: parseDureeMinutes(f.duree), j: computeExpiryDays(f) }))
+      .filter((x) => x.m != null && x.m <= soirMax)
+      .sort((a, b) => (a.j != null && a.j >= 0 ? a.j : 99999) - (b.j != null && b.j >= 0 ? b.j : 99999) || a.m - b.m)
+      .map((x) => x.f);
+  }, [base, soirMax]);
+  const surprendsMoi = () => {
+    const films_ = soirMax != null
+      ? soirFilms
+      : base.filter((f) => f.type === "Film" && f.statutAcces !== "Bientôt disponible");
+    if (films_.length === 0) return;
+    setSoirMenu(false);
+    onOpen(films_[Math.floor(Math.random() * films_.length)]);
+  };
+  const soirLabel = (m) => (m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`);
   const derniers = useMemo(() => [...base].reverse().slice(0, nbAccueil), [base, nbAccueil]);
   const bientotDispo = useMemo(
     () => [...base].reverse().filter((f) => f.statutAcces === "Bientôt disponible").slice(0, nbAccueil),
@@ -1597,6 +1619,9 @@ function AccueilNetflix({ films, onOpen, onSearch, onMenu, onNavigate, nbAccueil
           <button onClick={() => setLangueMenu(true)} style={{ ...pillule(!!langue), display: "flex", alignItems: "center", gap: 4 }}>
             {langue ? `Langue : ${langue}` : "Langue"} <ChevronDown size={13} />
           </button>
+          <button onClick={() => setSoirMenu(true)} style={{ ...pillule(soirMax != null), display: "flex", alignItems: "center", gap: 4 }}>
+            <Clock size={13} /> {soirMax != null ? `≤ ${soirLabel(soirMax)}` : "Ce soir"}
+          </button>
         </div>
       </div>
 
@@ -1612,6 +1637,40 @@ function AccueilNetflix({ films, onOpen, onSearch, onMenu, onNavigate, nbAccueil
             <p className="mt-3" style={{ fontSize: 11, color: T.mutedDim }}>Seules les fiches dont la langue est renseignée apparaissent avec un filtre.</p>
           </div>
         </div>
+      )}
+
+      {soirMenu && (
+        <div onClick={() => setSoirMenu(false)} className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div onClick={(e) => e.stopPropagation()} className="rounded-t-2xl px-5 pt-4" style={{ background: T.surface, paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+            <p className="mb-3" style={{ fontSize: 15, fontWeight: 700, color: T.cream }}>Ce soir, j'ai…</p>
+            <div className="flex flex-wrap gap-2">
+              {[60, 90, 120, 150].map((m) => (
+                <button key={m} onClick={() => { setSoirMax(soirMax === m ? null : m); setSoirMenu(false); }} style={{ fontFamily: F.serif, fontSize: 13.5, padding: "8px 16px", borderRadius: 999, fontWeight: soirMax === m ? 700 : 500, color: "#fff", background: soirMax === m ? T.accent : "transparent", border: `1px solid ${soirMax === m ? T.accent : "#666"}` }}>
+                  {soirLabel(m)}
+                </button>
+              ))}
+              {soirMax != null && (
+                <button onClick={() => { setSoirMax(null); setSoirMenu(false); }} style={{ fontFamily: F.serif, fontSize: 13, padding: "8px 12px", color: T.muted }}>Enlever le filtre</button>
+              )}
+            </div>
+            <button onClick={surprendsMoi} className="w-full flex items-center justify-center gap-2 mt-4" style={{ fontFamily: F.serif, background: "#fff", color: "#000", fontWeight: 700, fontSize: 14, padding: "10px 0", borderRadius: 4 }}>
+              <Shuffle size={15} /> Surprends-moi
+            </button>
+            <p className="mt-3" style={{ fontSize: 11, color: T.mutedDim }}>Films disponibles dont la durée est connue. Ceux qui partent bientôt passent en premier.</p>
+          </div>
+        </div>
+      )}
+
+      {soirMax != null && (
+        soirFilms.length > 0 ? (
+          <div style={{ paddingBottom: 22 }}>
+            <NfRail titre={`Films de ${soirLabel(soirMax)} maximum`}>
+              {soirFilms.map((f) => <NfTile key={f.id} film={f} onOpen={onOpen} />)}
+            </NfRail>
+          </div>
+        ) : (
+          <p className="px-4 mt-4" style={{ fontSize: 13, color: T.muted }}>Aucun film de {soirLabel(soirMax)} maximum pour l'instant.</p>
+        )
       )}
 
       {suggestion ? (
