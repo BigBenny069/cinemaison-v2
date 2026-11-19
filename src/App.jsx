@@ -1621,8 +1621,9 @@ function AccueilNetflix({ films, onOpen, onSearch, onMenu, onNavigate, nbAccueil
             <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, rgba(20,20,20,0.2) 0%, ${T.bg} 96%)` }} />
           </div>
           <div className="relative flex flex-col items-center px-4" style={{ paddingTop: 14, paddingBottom: 12 }}>
-            <button onClick={() => onOpen(suggestion)} aria-label={suggestion.titre} style={{ width: 205, height: 308, borderRadius: 6, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.7)" }}>
+            <button onClick={() => onOpen(suggestion)} aria-label={suggestion.titre} className="relative" style={{ width: 205, height: 308, borderRadius: 6, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.7)" }}>
               <Poster film={suggestion} className="w-full h-full" />
+              <TagPastille_ film={suggestion} haut />
             </button>
             <p className="mt-3 text-center" style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{suggestion.titre}</p>
             {genres.length > 0 && <p className="mt-1" style={{ fontSize: 11.5, color: "#E5E5E5" }}>{genres.join(" • ")}</p>}
