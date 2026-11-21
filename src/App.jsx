@@ -3618,6 +3618,9 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
   };
   const [revising, setRevising] = useState(false);
   const [revised, setRevised] = useState(false);
+  // Envoi vers CinéRadar (21/11/2026) : "", "envoi", "ok" ou "erreur"
+  const [radarEtat, setRadarEtat] = useState("");
+  const [radarMessage, setRadarMessage] = useState("");
 
   // "Redemander une vérification" — remplace le Mode Vacances de la V1.
   // Vide EtatEnrichissement/StatutEnrichissement : le script d'enrichissement
@@ -3633,6 +3636,18 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
     }
     setRevised(true);
     setTimeout(() => setRevised(false), 4000);
+  };
+
+  const handleSendToRadar = async () => {
+    setRadarEtat("envoi");
+    setRadarMessage("");
+    const result = await apiWrite("/api/send-to-cineradar", { id: film.id });
+    if (!result.ok) {
+      setRadarEtat("erreur");
+      setRadarMessage(result.error || "Envoi impossible pour le moment");
+      return;
+    }
+    setRadarEtat("ok");
   };
 
   const handleDelete = async () => {
@@ -3993,6 +4008,31 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
         <p className="mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: T.mutedDim }}>
           Si l'affiche, le synopsis ou la note te semblent faux — le script les recalculera d'ici quelques minutes.
         </p>
+
+        {/* 21/11/2026 -- « Envoyer vers CinéRadar » : seulement pour un film (pas une
+            série) devenu indisponible. Un clic = un film envoyé ; renvoyer ne crée
+            pas de doublon côté CinéRadar. */}
+        {film.statutAcces === "Indispo" && film.type !== "Série" && (<>
+          <button onClick={handleSendToRadar} disabled={radarEtat === "envoi"} className="flex items-center justify-center gap-2 w-full rounded-lg py-3 mt-6"
+            style={{
+              background: radarEtat === "erreur" ? T.alertSoft : T.surface,
+              border: `1px solid ${radarEtat === "ok" ? T.gold : radarEtat === "erreur" ? T.alert : radarEtat === "envoi" ? T.line : T.accent}`,
+              minHeight: 44, opacity: radarEtat === "envoi" ? 0.7 : 1,
+            }}>
+            {radarEtat === "ok" ? <Check size={14} color={T.gold} />
+              : radarEtat === "erreur" ? <Info size={14} color={T.alert} />
+              : radarEtat === "envoi" ? <RefreshCw size={14} color={T.accentSecondary} style={{ animation: "spin 0.8s linear infinite" }} />
+              : <Rocket size={14} color={T.accent} />}
+            <span style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: 0.5, fontWeight: 700, color: radarEtat === "ok" ? T.gold : radarEtat === "envoi" ? T.accentSecondary : T.cream }}>
+              {radarEtat === "ok" ? "ENVOYÉ À CINÉRADAR" : radarEtat === "envoi" ? "ENVOI…" : radarEtat === "erreur" ? "ENVOI IMPOSSIBLE" : "ENVOYER VERS CINÉRADAR"}
+            </span>
+          </button>
+          <p className="mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: radarEtat === "erreur" ? T.accentSecondary : T.mutedDim }}>
+            {radarEtat === "ok" ? "CinéRadar cherche maintenant où ce film est visible. Renvoyer ne crée pas de doublon."
+              : radarEtat === "erreur" ? radarMessage
+              : "Film plus disponible : CinéRadar le suivra pour toi."}
+          </p>
+        </>)}
 
         <button onClick={() => setAvisOuvert(true)} className="flex items-center justify-center gap-2 w-full rounded-lg py-3 mt-6"
           style={{ background: T.surface, border: `1px solid ${avisFiche ? T.accent : T.line}` }}>
