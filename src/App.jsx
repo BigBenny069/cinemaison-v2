@@ -4009,10 +4009,11 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           Si l'affiche, le synopsis ou la note te semblent faux — le script les recalculera d'ici quelques minutes.
         </p>
 
-        {/* 21/11/2026 -- « Envoyer vers CinéRadar » : seulement pour un film (pas une
-            série) devenu indisponible. Un clic = un film envoyé ; renvoyer ne crée
-            pas de doublon côté CinéRadar. */}
-        {film.statutAcces === "Indispo" && film.type !== "Série" && (<>
+        {/* 21/11/2026 -- « Envoyer vers CinéRadar » : sur la fiche de chaque film (pas les
+            séries). 22/11/2026 : plus limité aux « Indispo » -- une date de fin dépassée
+            (fiche archivée) ne change pas le statut. Un clic = un film envoyé ; renvoyer
+            ne crée pas de doublon côté CinéRadar. */}
+        {film.type !== "Série" && (<>
           <button onClick={handleSendToRadar} disabled={radarEtat === "envoi"} className="flex items-center justify-center gap-2 w-full rounded-lg py-3 mt-6"
             style={{
               background: radarEtat === "erreur" ? T.alertSoft : T.surface,
@@ -4030,7 +4031,7 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
           <p className="mt-2 text-center" style={{ fontFamily: F.mono, fontSize: 8.5, color: radarEtat === "erreur" ? T.accentSecondary : T.mutedDim }}>
             {radarEtat === "ok" ? "CinéRadar cherche maintenant où ce film est visible. Renvoyer ne crée pas de doublon."
               : radarEtat === "erreur" ? radarMessage
-              : "Film plus disponible : CinéRadar le suivra pour toi."}
+              : "CinéRadar suivra ce film pour toi (utile s'il n'est plus disponible)."}
           </p>
         </>)}
 
