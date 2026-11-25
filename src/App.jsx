@@ -434,6 +434,102 @@ async function apiWrite(url, body) {
 }
 
 /* ------------------------------------------------------------------ */
+/* SUPPRESSION FIABLE (25/11/2026)                                     */
+/* ------------------------------------------------------------------ */
+// Problème corrigé : après une suppression, la liste rechargée depuis le
+// serveur pouvait venir d'une copie en cache (jusqu'à ~40 s) qui contenait
+// encore la fiche -> elle réapparaissait, et la supprimer une 2e fois
+// donnait "Aucune fiche avec l'ID ...". Désormais :
+//  - une fiche supprimée (ou en cours de suppression) est retirée de TOUTE
+//    liste rechargée pendant 2 minutes ;
+//  - la suppression part en arrière-plan, une fiche après l'autre, avec 3
+//    essais ; la file est mémorisée sur l'appareil (localStorage) et
+//    reprise si l'appli est fermée avant la fin. Si elle échoue vraiment,
+//    la fiche revient dans la liste avec un message.
+const SUPPR_FILE_CLE_ = "cinemaison_suppr_attente";
+const SUPPR_RECENTES_CLE_ = "cinemaison_suppr_recentes";
+const SUPPR_MASQUE_MS_ = 2 * 60 * 1000;
+
+function lireSupprFile_() {
+  try {
+    const l = JSON.parse(localStorage.getItem(SUPPR_FILE_CLE_) || "[]");
+    return Array.isArray(l) ? l : [];
+  } catch { return []; }
+}
+function ecrireSupprFile_(liste) {
+  try { localStorage.setItem(SUPPR_FILE_CLE_, JSON.stringify(liste)); } catch {}
+}
+function lireSupprRecentes_() {
+  try {
+    const o = JSON.parse(sessionStorage.getItem(SUPPR_RECENTES_CLE_) || "{}");
+    return o && typeof o === "object" ? o : {};
+  } catch { return {}; }
+}
+function marquerSupprimee_(id) {
+  try {
+    const o = lireSupprRecentes_();
+    const maintenant = Date.now();
+    Object.keys(o).forEach((k) => { if (maintenant - o[k] > SUPPR_MASQUE_MS_) delete o[k]; });
+    o[id] = maintenant;
+    sessionStorage.setItem(SUPPR_RECENTES_CLE_, JSON.stringify(o));
+  } catch {}
+}
+// Identifiants à ne pas (re)montrer : en attente de suppression + supprimées
+// il y a moins de 2 minutes.
+function idsSupprimesMasques_() {
+  const ids = new Set(lireSupprFile_().map((x) => x.id));
+  const o = lireSupprRecentes_();
+  const maintenant = Date.now();
+  Object.keys(o).forEach((k) => { if (maintenant - o[k] <= SUPPR_MASQUE_MS_) ids.add(k); });
+  return ids;
+}
+function sansSupprimees_(liste) {
+  const masques = idsSupprimesMasques_();
+  return masques.size === 0 ? liste : liste.filter((f) => !masques.has(f.id));
+}
+function ajouterSupprFile_(film, avis) {
+  const file = lireSupprFile_().filter((x) => x.id !== film.id);
+  file.push({ id: film.id, titre: film.titre || film.id, avis: avis == null ? null : avis });
+  ecrireSupprFile_(file);
+}
+let supprEnCours_ = false;
+// Traite la file une fiche après l'autre. onEchec(item, erreur) est appelée
+// pour une fiche dont la suppression a vraiment échoué (3 essais).
+async function traiterSupprFile_(onEchec) {
+  if (supprEnCours_) return;
+  supprEnCours_ = true;
+  try {
+    for (;;) {
+      const file = lireSupprFile_();
+      if (file.length === 0) break;
+      const item = file[0];
+      let ok = false;
+      let erreur = "";
+      for (let essai = 0; essai < 3 && !ok; essai++) {
+        try {
+          const corps = { id: item.id };
+          if (item.avis != null) corps.avis = item.avis;
+          const r = await apiWrite("/api/delete-film", corps);
+          if (r.ok) ok = true;
+          else {
+            erreur = r.error || "erreur";
+            if (/mot de passe/i.test(erreur)) break;
+          }
+        } catch (e) {
+          erreur = e && e.message ? e.message : "réseau";
+        }
+        if (!ok && essai < 2) await new Promise((res) => setTimeout(res, 1500 * (essai + 1)));
+      }
+      ecrireSupprFile_(lireSupprFile_().filter((x) => x.id !== item.id));
+      if (ok) marquerSupprimee_(item.id);
+      else if (onEchec) onEchec(item, erreur);
+    }
+  } finally {
+    supprEnCours_ = false;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* UTILITAIRES DATES                                                   */
 /* ------------------------------------------------------------------ */
 // Les dates du Sheet sont au format JJ/MM/AAAA
@@ -3557,7 +3653,7 @@ function FichePropositions_({ film, allFilms, onOpen }) {
   );
 }
 
-function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onFilmRemoved, onOpenPerson, onOpenFiche, initialEditing, allFilms }) {
+function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, onFilmRemoved, onOpenPerson, onOpenFiche, onSupprimerEnFond, initialEditing, allFilms }) {
   const [film, setFilm] = useState(filmProp);
   // NOUVEAU (26/09/2026) -- initialEditing permet d'ouvrir la fiche
   // directement en mode édition (lien profond ?film=ID&edit=1, voir
@@ -3650,26 +3746,22 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
     setRadarEtat("ok");
   };
 
-  const handleDelete = async () => {
-    setDeleting(true);
-    const result = await apiWrite("/api/delete-film", { id: film.id, avis: avisSuppression });
-    setDeleting(false);
-    if (!result.ok) {
-      window.alert(result.error || "Impossible de supprimer cette fiche");
-      return;
-    }
-    setConfirmDelete(false);
-    onFilmRemoved(film.id);
-
+  // MODIFIÉ (25/11/2026) -- suppression en arrière-plan : la fiche disparaît
+  // tout de suite, l'appel au serveur part ensuite (file, 3 essais, reprise
+  // si l'appli est fermée) -- voir "SUPPRESSION FIABLE" plus haut.
+  const handleDelete = () => {
     // Cherche d'autres fiches du même film (même titre+année normalisés,
     // peu importe la plateforme) parmi les films déjà chargés -- pas
     // besoin d'appel réseau, tout est déjà en mémoire. Si on en trouve,
     // on retarde le retour à l'accueil pour proposer de les supprimer
-    // aussi ; sinon on revient directement comme avant.
+    // aussi ; sinon on revient directement comme avant. (Calculé AVANT
+    // de retirer la fiche de la liste.)
     const liees = (allFilms || []).filter((f) =>
       f.id !== film.id &&
       memeFilm_(f, film)
     );
+    onSupprimerEnFond(film, avisSuppression);
+    setConfirmDelete(false);
     if (liees.length > 0) {
       setFichesLiees(liees);
       setConfirmLiees(true);
@@ -3678,13 +3770,8 @@ function FicheDetailScreen({ film: filmProp, onBack, onFilmUpdated, onDelete, on
     }
   };
 
-  const handleDeleteLiees = async (fiches) => {
-    setSuppressionLiees(true);
-    for (const f of fiches) {
-      const result = await apiWrite("/api/delete-film", { id: f.id });
-      if (result.ok) onFilmRemoved(f.id);
-    }
-    setSuppressionLiees(false);
+  const handleDeleteLiees = (fiches) => {
+    fiches.forEach((f) => onSupprimerEnFond(f, null));
     setConfirmLiees(false);
     setFichesLiees([]);
     setConfirmationFinaleLiees(null);
@@ -7814,11 +7901,25 @@ export default function App() {
         if (!res.ok) throw new Error(`Erreur ${res.status}`);
         return res.json();
       })
-      .then((data) => { setFilms(data); return true; })
+      .then((data) => { setFilms(sansSupprimees_(data)); return true; })
       .catch((e) => { setError(e.message); return false; });
   };
 
   useEffect(() => { loadFilms(); }, []);
+
+  // NOUVEAU (25/11/2026) -- suppression en arrière-plan (voir "SUPPRESSION
+  // FIABLE" plus haut). La fiche disparaît tout de suite de la liste.
+  const echecSuppression_ = (item, erreur) => {
+    window.alert("La suppression de « " + item.titre + " » n'a pas abouti (" + erreur + "). La fiche est remise dans la liste.");
+    loadFilms();
+  };
+  const supprimerEnFond = (film, avis) => {
+    ajouterSupprFile_(film, avis);
+    setFilms((prev) => (prev || []).filter((f) => f.id !== film.id));
+    traiterSupprFile_(echecSuppression_);
+  };
+  // Reprend une file restée en attente (appli fermée avant la fin).
+  useEffect(() => { traiterSupprFile_(echecSuppression_); }, []);
 
   // Recharge automatiquement les films à chaque fois que l'appli redevient
   // visible — pas seulement au tout premier chargement. Sur iOS, fermer
@@ -7828,7 +7929,7 @@ export default function App() {
   // depuis plusieurs heures.
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") loadFilms();
+      if (document.visibilityState === "visible") { loadFilms(); traiterSupprFile_(echecSuppression_); }
     };
     document.addEventListener("visibilitychange", onVisible);
     // Filet de sécurité supplémentaire : certains navigateurs/PWA déclenchent
@@ -7987,7 +8088,7 @@ export default function App() {
       body = <RechercheScreen films={films} onOpen={openFiche} onBack={goAccueil} onMenu={() => setMenuOpen(true)}
         initialQuery={screen.params.query} onQueryChange={(q) => updateScreenParams({ query: q })} />;
     } else if (name === "fiche") {
-      body = <FicheDetailScreen key={params.film.id} film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onFilmRemoved={(id) => setFilms((prev) => prev.filter((f) => f.id !== id))} allFilms={films} onOpenPerson={openPerson} onOpenFiche={openFiche} initialEditing={params.editRequested} />;
+      body = <FicheDetailScreen key={params.film.id} film={params.film} onBack={backFromFiche} onFilmUpdated={handleFilmUpdated} onDelete={handleFilmDeleted} onFilmRemoved={(id) => setFilms((prev) => prev.filter((f) => f.id !== id))} onSupprimerEnFond={supprimerEnFond} allFilms={films} onOpenPerson={openPerson} onOpenFiche={openFiche} initialEditing={params.editRequested} />;
     } else if (name === "personne") {
       body = <PersonScreen films={films} nom={params.nom} onOpen={openFiche} onBack={backFromPerson} onMenu={() => setMenuOpen(true)} onExplorer={() => setScreen({ name: "explorer", params: { initialPerson: params.nom } })} />;
     } else if (name === "biblio") {
