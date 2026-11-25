@@ -6056,6 +6056,11 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
   // ci s'appuie sur l'ID exact déjà récupéré côté TMDb : fiable à 100%, pas
   // une supposition — donc le pré-remplissage automatique redevient sûr.
   const [tmdbIdPicked, setTmdbIdPicked] = useState(null);
+  // 25/11/2026 -- ID TMDb lu dans le lien Letterboxd collé. Contrairement à
+  // tmdbIdPicked, il n'est PAS effacé quand on retape le champ « Titre » : avant,
+  // retaper le titre faisait oublier le film trouvé, et l'enrichissement prenait
+  // un homonyme de la même année (cas « Faceless » / FILM1543).
+  const [tmdbIdLb, setTmdbIdLb] = useState(null);
   // NOUVEAU (02/11/2026) -- true quand le film choisi est classé SÉRIE chez TMDb
   // (identifiant de série, à ne pas lire comme un identifiant de film).
   const [tmdbSeriePicked, setTmdbSeriePicked] = useState(false);
@@ -6115,6 +6120,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
       return;
     }
     const { tmdbId, title: foundTitle, year: foundYear, letterboxdUrl: foundUrl, source } = result.data;
+    setTmdbIdLb(tmdbId && /^\d{1,9}$/.test(String(tmdbId)) ? String(tmdbId) : null);
     remonterEnHaut();
     const noteSource = source === "slug" ? " (Letterboxd n'a pas livré sa page : titre déduit du lien)" : "";
     try {
@@ -6174,7 +6180,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
-    const result = await apiWrite("/api/add-film", { titre: titreFinal, tmdbId: tmdbIdPicked || undefined, tmdbSerie: (tmdbIdPicked && tmdbSeriePicked) ? true : undefined, annee: annee.trim(), plateforme, type, statutAcces: statutAcces !== "Inclus" ? statutAcces : undefined, dateManuelle: dateManuelle.trim() || undefined, urlLetterboxd: urlLetterboxd.trim() || undefined });
+    const result = await apiWrite("/api/add-film", { titre: titreFinal, tmdbId: tmdbIdPicked || ((type !== "Série" && tmdbIdLb) ? tmdbIdLb : undefined), tmdbSerie: (tmdbIdPicked && tmdbSeriePicked) ? true : undefined, annee: annee.trim(), plateforme, type, statutAcces: statutAcces !== "Inclus" ? statutAcces : undefined, dateManuelle: dateManuelle.trim() || undefined, urlLetterboxd: urlLetterboxd.trim() || undefined });
     setSaving(false);
     if (!result.ok) {
       setError(result.error || "Impossible d'ajouter ce film");
@@ -6308,7 +6314,7 @@ function AjouterScreen({ onBack, onAdded, onMenu }) {
       </label>
       <label className="block mb-5">
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: T.mutedDim, letterSpacing: 1 }}>URL LETTERBOXD</span>
-        <input value={urlLetterboxd} onChange={(e) => setUrlLetterboxd(e.target.value)} placeholder="https://letterboxd.com/film/… ou lien boxd.it"
+        <input value={urlLetterboxd} onChange={(e) => { setUrlLetterboxd(e.target.value); setTmdbIdLb(null); }} placeholder="https://letterboxd.com/film/… ou lien boxd.it"
           onPaste={(e) => {
             // Collage d'un lien de partage Letterboxd : le film est retrouvé tout seul
             // (indispensable sur iPhone, où le bouton du presse-papiers est souvent refusé).
