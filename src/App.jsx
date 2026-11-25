@@ -7552,23 +7552,49 @@ const BOOT_CSS_ = `
 .bi-tag { margin: 12px 0 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 8px; letter-spacing: 2.5px; white-space: nowrap; color: #9C9284; opacity: 0; animation: biFadeUp .6s ease 2.3s forwards; }
 `;
 
-// 20 affiches de la bibliothèque, tirées au hasard à chaque lancement
+// 40 affiches de la bibliothèque tirées au hasard à chaque lancement : on en
+// garde ensuite 20, de préférence celles qui sont VRAIMENT chargées
+// (25/11/2026 -- après des heures d'inactivité, le réseau et le cache sont
+// endormis : avec 20 affiches seulement et 1,2 s d'attente, plusieurs restaient
+// en carrés sombres pendant l'animation).
+const AFFICHES_TIREES_ = 40;
+const AFFICHES_AFFICHEES_ = 20;
 function tirerAffiches_(films) {
   const dispo = (Array.isArray(films) ? films : []).filter((f) => f && f.affiche);
-  return [...dispo].sort(() => Math.random() - 0.5).slice(0, 20).map((f) => f.affiche);
+  return [...dispo].sort(() => Math.random() - 0.5).slice(0, AFFICHES_TIREES_).map((f) => f.affiche);
 }
 
-// Télécharge les affiches avant l'animation. Rend la main dès qu'elles sont
-// toutes chargées (ou en erreur), ou au bout de `delaiMs` quoi qu'il arrive.
-function precharger_(urls, delaiMs, gardeRef) {
-  const taches = urls.map((u) => new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve();
-    img.onerror = () => resolve();
-    img.src = u;
-    if (gardeRef) gardeRef.current.push(img);
-  }));
-  return Promise.race([Promise.all(taches), new Promise((r) => setTimeout(r, delaiMs))]);
+// Lance le téléchargement des affiches ; chaque affiche arrivée est notée dans
+// `chargeesRef` (un ensemble d'adresses). Rend la main dès qu'il y en a assez
+// (`minimum`) ou au bout de `delaiMs` quoi qu'il arrive.
+function precharger_(urls, delaiMs, gardeRef, chargeesRef, minimum) {
+  const ok = chargeesRef.current;
+  return new Promise((resolve) => {
+    let fini = false;
+    const fin = () => { if (!fini) { fini = true; clearTimeout(minuteur); resolve(); } };
+    const minuteur = setTimeout(fin, delaiMs);
+    const verifier = () => { if (ok.size >= minimum) fin(); };
+    let restantes = urls.length;
+    if (!restantes) { fin(); return; }
+    urls.forEach((u) => {
+      if (ok.has(u)) { restantes--; return; }
+      const img = new Image();
+      img.onload = () => { ok.add(u); restantes--; verifier(); if (!restantes) fin(); };
+      img.onerror = () => { restantes--; if (!restantes) fin(); };
+      img.src = u;
+      if (gardeRef) gardeRef.current.push(img);
+    });
+    verifier();
+    if (!restantes) fin();
+  });
+}
+
+// Choisit les 20 affiches montrées : d'abord celles déjà chargées, puis
+// (s'il en manque) des affiches encore en route.
+function choisirAffiches_(tirage, chargees) {
+  const pretes = tirage.filter((u) => chargees.has(u));
+  const autres = tirage.filter((u) => !chargees.has(u));
+  return [...pretes, ...autres].slice(0, AFFICHES_AFFICHEES_);
 }
 
 function AppBootIntro({ ready, onDone, films }) {
@@ -7591,6 +7617,7 @@ function AppBootIntro({ ready, onDone, films }) {
   filmsRef.current = films;
   const tirageRef = useRef(null);   // les 20 affiches choisies
   const imagesRef = useRef([]);     // garde les images préchargées en mémoire
+  const chargeesRef = useRef(new Set()); // adresses des affiches bien arrivées
   const lanceRef = useRef(false);   // évite de lancer deux fois (toucher + minuteur)
 
   const GOLD = "#C58D29";
@@ -7635,8 +7662,9 @@ function AppBootIntro({ ready, onDone, films }) {
         tirage = tirerAffiches_(filmsRef.current);
         tirageRef.current = tirage;
       }
-      await precharger_(tirage, 1200, imagesRef);
-      setAffiches(tirage);
+      // On attend jusqu'à 3 s, mais on part dès que 20 affiches sont prêtes.
+      await precharger_(tirage, 3000, imagesRef, chargeesRef, AFFICHES_AFFICHEES_);
+      setAffiches(choisirAffiches_(tirage, chargeesRef.current));
       setPhase("play");
     })();
   };
@@ -7648,7 +7676,7 @@ function AppBootIntro({ ready, onDone, films }) {
     const tirage = tirerAffiches_(films);
     if (!tirage.length) return;
     tirageRef.current = tirage;
-    precharger_(tirage, 8000, imagesRef);
+    precharger_(tirage, 8000, imagesRef, chargeesRef, AFFICHES_TIREES_);
   }, [films, phase]);
 
   // Lancement automatique : si personne ne touche l'écran, l'intro démarre
