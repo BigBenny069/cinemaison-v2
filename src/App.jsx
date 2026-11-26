@@ -6507,10 +6507,35 @@ function tagMatches(film, tag) {
   return false;
 }
 
+let triTagsMemoire_ = ""; // tri choisi dans l'écran Tags, gardé entre fiche et retour
+
 function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
   const scrollM = useScrollMemoire_("tags");
   const [tag, setTag] = useState(initialTag || "Romy");
-  const list = films.filter((f) => tagMatches(f, tag) && !isArchived(f));
+  // 26/11/2026 : tri Départ ↑/↓ et Note ↑/↓ (choix mémorisé le temps de la
+  // session, comme le tri des bibliothèques). Sans choix : ordre d'origine.
+  const [tri, setTriState] = useState(triTagsMemoire_);
+  const changeTri = (t) => { const v = tri === t ? "" : t; triTagsMemoire_ = v; setTriState(v); };
+  const list = useMemo(() => {
+    const arr = films.filter((f) => tagMatches(f, tag) && !isArchived(f));
+    if (!tri) return arr;
+    const parTitre = (a, b) => (a.titre || "").localeCompare(b.titre || "", "fr");
+    // Sans date (ou film qui arrive, ou date passée) / sans note : toujours en bas.
+    const jours = (f) => {
+      if ((f.statutAcces || "Inclus") !== "Inclus") return null;
+      const d = computeExpiryDays(f);
+      return d == null || d < 0 ? null : d;
+    };
+    const sens = tri.endsWith("_asc") ? 1 : -1;
+    const cle = tri.startsWith("depart") ? jours : (f) => parseRating(f.noteLetterboxd) ?? null;
+    return arr.sort((a, b) => {
+      const x = cle(a), y = cle(b);
+      if (x == null && y == null) return parTitre(a, b);
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (x - y) * sens || parTitre(a, b);
+    });
+  }, [films, tag, tri]);
 
   return (
     <div {...scrollM} className="flex-1 overflow-y-auto pull-scroll pb-6 px-5">
@@ -6522,6 +6547,17 @@ function TagsScreen({ films, tag: initialTag, onOpen, onBack, onMenu }) {
             <span style={{ fontFamily: F.mono, fontSize: 10, color: tag === t.id ? T.accent : T.muted }}>{t.label}</span>
           </button>
         ))}
+      </div>
+      <div className="flex gap-1.5 mb-4">
+        {[["depart_asc", "DÉPART ↑"], ["depart_desc", "DÉPART ↓"], ["note_asc", "NOTE ↑"], ["note_desc", "NOTE ↓"]].map(([id, label]) => {
+          const active = tri === id;
+          return (
+            <button key={id} onClick={() => changeTri(id)} className="flex-1 rounded-lg py-2"
+              style={{ background: active ? T.accentSoft : T.surface, border: `1px solid ${active ? T.accent + "55" : T.line}` }}>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: active ? T.accent : T.mutedDim, letterSpacing: 0.3 }}>{label}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="flex flex-col gap-2">
         {list.map((f) => <ListResultCard key={f.id} film={f} onOpen={onOpen} tousLesFilms={films} />)}
