@@ -34,7 +34,9 @@ export const EXPOSED_COLUMNS = [
 // api/confirm.js, page=confirmerTypeActuel) pose ce drapeau sans
 // changer Type -- les collecteurs sautent alors la comparaison pour
 // cette fiche, au lieu de re-signaler le même faux positif à chaque run.
-const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree", "Type", "TypeConfirme", "CanalContentId"];
+// 26/11/2026 : + HorsListeCanal (lecture seule), pour que canal.js sache qu'une fiche
+// "gardée hors de Ma Liste" réapparaît dans Ma Liste et l'en sorte.
+const EXPOSED_COLUMNS_LEGER = ["ID", "Titre", "Annee", "Plateforme", "Duree", "Type", "TypeConfirme", "CanalContentId", "HorsListeCanal"];
 
 async function getSheetsClient() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
